@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from typing import Optional
 from uuid import UUID
 from backend.database import get_db
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
+from backend.core.limiter import limiter
 from backend.models.change import ChangeCreate, ChangeUpdate, ChangeReferenceAdd, ChangeLinkCreate
 from backend.repositories.change_repository import ChangeRepository
 from backend.services.audit_service import AuditService
 from backend.services.chronology_service import ChronologyService
+from backend.services.claude_service import get_ai_service, GateBlockedResult
 from backend.utils.sanitizer import mask_sensitive_fields
 
 router = APIRouter(prefix="/projects/{project_id}/changes", tags=["changes"])
@@ -201,3 +203,42 @@ def add_reference(
         new_value={"change_id": str(change_id)},
     )
     return result.data[0]
+
+
+@router.post("/{change_id}/what-if")
+@limiter.limit("10/minute")
+def what_if_analysis(
+    request: Request,
+    project_id: UUID,
+    change_id: UUID,
+    scenario_query: str = Query(...),
+    access: dict = Depends(require_permission("change", "edit")),
+    db=Depends(get_db),
+):
+    repo = ChangeRepository(db)
+    change = repo.get_or_404(str(change_id))
+    if change["project_id"] != str(project_id):
+        raise NotFoundError()
+
+    ai = get_ai_service(db)
+    result = ai.generate_what_if_scenario(
+        scenario_query=scenario_query,
+        contract_text="",
+        project_context={},
+        project_id=str(project_id),
+        user_id=access["user"]["id"],
+    )
+
+    if isinstance(result, GateBlockedResult):
+        raise HTTPException(
+            status_code=422,
+            detail=result.warning_message,
+        )
+
+    return {
+        "analysis_text": result.analysis_text,
+        "confidence_score": result.confidence_score,
+        "warnings": result.warnings,
+        "objectivity_flag": result.objectivity_flag,
+        "review_required": result.review_required,
+    }

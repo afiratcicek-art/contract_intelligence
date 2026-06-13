@@ -1,10 +1,33 @@
-import os
 from supabase import create_client, Client
-from dotenv import load_dotenv
+from backend.core.config import settings
 
-load_dotenv()
+_anon_client: Client | None = None
+_admin_client: Client | None = None
 
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+def get_anon_client() -> Client:
+    """RLS aktif client — tüm kullanıcı işlemleri bu client ile yapılır."""
+    global _anon_client
+    if _anon_client is None:
+        _anon_client = create_client(
+            settings.SUPABASE_URL,
+            settings.SUPABASE_ANON_KEY
+        )
+    return _anon_client
+
+
+def get_admin_client() -> Client:
+    """RLS bypass admin client — SADECE sistem işlemleri (audit, migration vb.).
+    Hiçbir zaman request handler içinde doğrudan kullanılmaz."""
+    global _admin_client
+    if _admin_client is None:
+        _admin_client = create_client(
+            settings.SUPABASE_URL,
+            settings.SUPABASE_SERVICE_KEY
+        )
+    return _admin_client
+
+
+def get_db() -> Client:
+    """FastAPI Depends() için anon client döndürür."""
+    return get_anon_client()

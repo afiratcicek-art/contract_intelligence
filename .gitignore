@@ -1,4 +1,35 @@
+# Ortam dosyaları — asla commit edilmez
 .env
+.env.local
+.env.production
+
+# Sistem prompt — gizli uzmanlık
+prompts/system.enc
+prompts/system.txt
+prompts/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
 .venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Supabase
+.supabase/
+
+# IDE
+.vscode/
+.idea/
+
+# Log
+*.log
+logs/
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/

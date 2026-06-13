@@ -10,7 +10,10 @@ class Settings(BaseSettings):
     # Anthropic / AI
     ANTHROPIC_API_KEY: str = ""
     AI_PROVIDER: str = "anthropic"
-    AI_MODEL: str = "claude-sonnet-4-20250514"
+    GATE_MODEL: str = "claude-haiku-4-5-20251001"
+    ANALYSIS_MODEL: str = "claude-sonnet-4-20250514"
+    GATE_TIMEOUT_SECONDS: int = 5
+    AI_MODEL: str = "claude-sonnet-4-20250514"  # deprecated — use ANALYSIS_MODEL
 
     # Güvenlik
     SECRET_KEY: str = "change-me-in-production"

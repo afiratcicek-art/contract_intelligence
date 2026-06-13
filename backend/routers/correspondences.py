@@ -14,7 +14,7 @@ from backend.models.correspondence import (
 from backend.repositories.correspondence_repository import CorrespondenceRepository
 from backend.services.audit_service import AuditService
 from backend.services.deadline_service import DeadlineService
-from backend.services.claude_service import get_ai_service
+from backend.services.claude_service import get_ai_service, GateBlockedResult
 from backend.utils.date_utils import urgency_label
 from datetime import date
 
@@ -353,6 +353,11 @@ def save_draft(
         "draft_type": "manual",
         "saved_by": access["user"]["id"],
         "note": body.note,
+        "confidence_score": body.confidence_score,
+        "review_required": body.review_required,
+        "warnings": body.warnings,
+        "objectivity_flag": body.objectivity_flag,
+        "resolved_by_gate": body.resolved_by_gate,
     }
     result = db.table("correspondence_drafts").insert(data).execute()
     audit = AuditService(db)
@@ -396,16 +401,57 @@ def generate_ai_draft(
         entity_id=str(corr_id),
     )
 
-    db.table("correspondence_drafts").insert({
-        "correspondence_id": str(corr_id),
-        "content": result.draft_text,
-        "draft_type": "ai_generated",
-        "saved_by": access["user"]["id"],
-    }).execute()
+    if isinstance(result, GateBlockedResult):
+        raise HTTPException(
+            status_code=422,
+            detail=result.warning_message,
+        )
 
     return {
         "draft_text": result.draft_text,
         "confidence_score": result.confidence_score,
         "clause_citations": result.clause_citations,
+        "review_required": result.review_required,
+        "warnings": result.warnings,
+        "objectivity_flag": result.objectivity_flag,
+        "resolved_by_gate": result.resolved_by_gate,
+    }
+
+
+@router.post("/{corr_id}/what-if")
+@limiter.limit("10/minute")
+def what_if_analysis(
+    request: Request,
+    project_id: UUID,
+    corr_id: UUID,
+    scenario_query: str = Query(...),
+    access: dict = Depends(require_permission("correspondence", "edit")),
+    db=Depends(get_db),
+):
+    repo = CorrespondenceRepository(db)
+    corr = repo.get_or_404(str(corr_id))
+    if corr["project_id"] != str(project_id):
+        raise NotFoundError()
+
+    ai = get_ai_service(db)
+    result = ai.generate_what_if_scenario(
+        scenario_query=scenario_query,
+        contract_text="",
+        project_context={},
+        project_id=str(project_id),
+        user_id=access["user"]["id"],
+    )
+
+    if isinstance(result, GateBlockedResult):
+        raise HTTPException(
+            status_code=422,
+            detail=result.warning_message,
+        )
+
+    return {
+        "analysis_text": result.analysis_text,
+        "confidence_score": result.confidence_score,
+        "warnings": result.warnings,
+        "objectivity_flag": result.objectivity_flag,
         "review_required": result.review_required,
     }

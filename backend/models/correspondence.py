@@ -107,6 +107,11 @@ class CorrespondenceReferenceAdd(BaseModel):
 class DraftSave(BaseModel):
     content: str
     note: Optional[str] = None
+    confidence_score: Optional[float] = None
+    review_required: Optional[bool] = None
+    warnings: Optional[list[str]] = None
+    objectivity_flag: Optional[bool] = None
+    resolved_by_gate: Optional[bool] = None
 
 
 class DraftResponse(BaseModel):

@@ -158,8 +158,9 @@ class ClaudeService:
     _SONNET_INPUT_COST = 0.000003
     _SONNET_OUTPUT_COST = 0.000015
 
-    def __init__(self, db=None):
-        self.db = db
+    def __init__(self, db=None, admin_db=None):
+        self.db = db              # anon client — user queries
+        self.admin_db = admin_db  # admin client — system writes
         self._client = None
         self._system_prompt: str | None = None
 
@@ -201,7 +202,7 @@ class ClaudeService:
         model_used: str = settings.AI_MODEL,
         layer: str = "analysis",
     ) -> None:
-        if self.db is None:
+        if self.admin_db is None:
             return
         try:
             if model_used == settings.GATE_MODEL or layer == "gate":
@@ -214,7 +215,7 @@ class ClaudeService:
                     (tokens_in * self._SONNET_INPUT_COST)
                     + (tokens_out * self._SONNET_OUTPUT_COST)
                 )
-            self.db.table("llm_calls").insert({
+            self.admin_db.table("llm_calls").insert({
                 "project_id": project_id,
                 "user_id": user_id,
                 "call_type": call_type,
@@ -303,7 +304,7 @@ class ClaudeService:
                 layer="gate",
             )
             from backend.services.audit_service import AuditService
-            AuditService(self.db).log(
+            AuditService(self.admin_db).log(
                 action=reason,
                 entity_type="security",
                 entity_id=user_id,
@@ -385,7 +386,7 @@ class ClaudeService:
                 sentences[i] = revised
                 try:
                     from backend.services.audit_service import AuditService
-                    AuditService(self.db).log(
+                    AuditService(self.admin_db).log(
                         action="post_processor_correction",
                         entity_type="llm_output",
                         entity_id=user_id or project_id,
@@ -454,10 +455,10 @@ class ClaudeService:
         answer: str,
         project_id: str,
     ) -> None:
-        if self.db is None:
+        if self.admin_db is None:
             return
         try:
-            self.db.table("simple_lookup_cache").insert({
+            self.admin_db.table("simple_lookup_cache").insert({
                 "cache_key": cache_key,
                 "project_id": project_id,
                 "answer": answer,
@@ -851,9 +852,15 @@ class ClaudeService:
         )
 
 
+from backend.database import get_admin_client
+
+
 def get_ai_service(db=None) -> AIServiceProtocol:
     """Factory — AI_PROVIDER'a göre doğru implementasyonu döndürür."""
     provider = settings.AI_PROVIDER.lower()
     if provider == "anthropic":
-        return ClaudeService(db=db)
+        return ClaudeService(
+            db=db,
+            admin_db=get_admin_client(),
+        )
     raise ValueError(f"Desteklenmeyen AI provider: {provider}")

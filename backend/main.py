@@ -15,6 +15,7 @@ from backend.core.limiter import limiter
 
 from backend.routers import auth, projects, rfis, correspondences, changes, chronologies, deliverables
 from backend.routers import config as config_router
+from backend.routers import documents
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,6 +68,7 @@ app.include_router(changes.router)
 app.include_router(chronologies.router)
 app.include_router(deliverables.router)
 app.include_router(config_router.router)
+app.include_router(documents.router)
 
 
 # ── Health check ───────────────────────────────────────────────────────────

@@ -1,11 +1,19 @@
 fastapi==0.111.0
 uvicorn==0.30.0
 supabase==2.5.0
-pydantic==2.7.0
-pydantic-settings==2.3.0
-anthropic==0.28.0
+pydantic==2.12.4
+pydantic-settings==2.7.0
+anthropic==0.109.2
 python-dotenv==1.0.0
-httpx==0.27.0
+httpx==0.27.2
 slowapi==0.1.9
 bleach==6.1.0
 python-docx==1.1.0
+pymupdf==1.24.14
+pytesseract==0.3.13
+# llama-parse — DEFERRED: pydantic>=2.8 gerektirir, mevcut pydantic==2.7.0 ile çakışır.
+# LlamaParse API key hazır olduğunda: pydantic upgrade kararıyla birlikte eklenecek.
+# Kurulum: pip install llama-parse==0.6.94 (o tarihte latest stable'ı kontrol et)
+# İlgili kod: backend/services/pdf_pipeline_service.py → _extract_llamaparse()
+python-multipart==0.0.32
+pillow==12.2.0

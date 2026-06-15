@@ -4,7 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 VALID_PERMISSIONS = {"view", "create", "edit", "approve", "close", "publish", "inactivate"}
-VALID_ENTITIES = {"rfi", "correspondence", "change", "chronology", "deliverable"}
+VALID_ENTITIES = {"rfi", "correspondence", "change", "chronology", "deliverable", "contract_document"}
 
 
 class PermissionService:

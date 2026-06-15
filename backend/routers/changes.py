@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from typing import Optional
 from uuid import UUID
-from backend.database import get_db
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
 from backend.core.limiter import limiter
@@ -32,8 +31,8 @@ def list_changes(
     limit: int = Query(100, le=500),
     offset: int = Query(0, ge=0),
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ChangeRepository(db)
     changes = repo.list_by_project(
         str(project_id),
@@ -50,13 +49,13 @@ def create_change(
     project_id: UUID,
     body: ChangeCreate,
     access: dict = Depends(require_permission("change", "create")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ChangeRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
     chrono = ChronologyService(db, audit_service=audit)
 
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
     for field in ("notice_due_date", "impact_due_date"):
@@ -85,8 +84,8 @@ def get_change(
     project_id: UUID,
     change_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ChangeRepository(db)
     change = repo.get_or_404(str(change_id))
     if change["project_id"] != str(project_id):
@@ -102,15 +101,15 @@ def update_change(
     change_id: UUID,
     body: ChangeUpdate,
     access: dict = Depends(require_permission("change", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ChangeRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
     old = repo.get_or_404(str(change_id))
     if old["project_id"] != str(project_id):
         raise NotFoundError()
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
 
     for field in ("notice_sent_date", "notice_due_date", "impact_due_date",
                   "impact_submitted_date", "cost_claimed_date", "cost_agreed_date",
@@ -140,10 +139,10 @@ def link_correspondence(
     change_id: UUID,
     body: ChangeLinkCreate,
     access: dict = Depends(require_permission("change", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ChangeRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
     change = repo.get_or_404(str(change_id))
     if change["project_id"] != str(project_id):
         raise NotFoundError()
@@ -183,19 +182,19 @@ def add_reference(
     change_id: UUID,
     body: ChangeReferenceAdd,
     access: dict = Depends(require_permission("change", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ChangeRepository(db)
     change = repo.get_or_404(str(change_id))
     if change["project_id"] != str(project_id):
         raise NotFoundError()
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     data["change_id"] = str(change_id)
     data["added_by"] = access["user"]["id"]
     if "ref_date" in data:
         data["ref_date"] = str(data["ref_date"])
     result = db.table("change_references").insert(data).execute()
-    audit = AuditService(db)
+    audit = AuditService()
     audit.log(
         action="create", entity_type="change_reference",
         entity_id=result.data[0].get("id", str(change_id)),
@@ -213,8 +212,8 @@ def what_if_analysis(
     change_id: UUID,
     scenario_query: str = Query(...),
     access: dict = Depends(require_permission("change", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ChangeRepository(db)
     change = repo.get_or_404(str(change_id))
     if change["project_id"] != str(project_id):

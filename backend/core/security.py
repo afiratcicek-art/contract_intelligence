@@ -2,7 +2,7 @@ import hmac
 import hashlib
 from fastapi import Depends
 from fastapi.security import HTTPBearer
-from backend.database import get_anon_client
+from backend.database import get_anon_client, get_admin_client
 from backend.core.exceptions import UnauthorizedError, ForbiddenError
 
 security = HTTPBearer()
@@ -19,7 +19,7 @@ def get_current_user(
             raise UnauthorizedError()
 
         result = (
-            db.table("profiles")
+            get_admin_client().table("profiles")
             .select("*")
             .eq("id", str(user_resp.user.id))
             .single()
@@ -32,7 +32,9 @@ def get_current_user(
         if not result.data.get("is_active"):
             raise ForbiddenError()
 
-        return result.data
+        user_data = result.data
+        user_data["_token"] = token.credentials
+        return user_data
 
     except (UnauthorizedError, ForbiddenError):
         raise

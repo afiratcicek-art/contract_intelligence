@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from uuid import UUID
-from backend.database import get_db
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import NotFoundError
 from backend.models.deliverable import DeliverableCreate, DeliverableUpdate
@@ -21,8 +20,8 @@ def list_deliverables(
     limit: int = Query(100, le=500),
     offset: int = Query(0, ge=0),
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = DeliverableRepository(db)
     return repo.list_by_project(
         str(project_id),
@@ -38,8 +37,8 @@ def list_deliverables(
 def pre_completion_checklist(
     project_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     service = DeliverableService(db)
     return service.get_pre_completion_checklist(str(project_id))
 
@@ -49,12 +48,12 @@ def create_deliverable(
     project_id: UUID,
     body: DeliverableCreate,
     access: dict = Depends(require_permission("deliverable", "create")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = DeliverableRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
     if "due_date" in data:
@@ -73,8 +72,8 @@ def get_deliverable(
     project_id: UUID,
     deliverable_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = DeliverableRepository(db)
     d = repo.get_or_404(str(deliverable_id))
     if d["project_id"] != str(project_id):
@@ -89,15 +88,15 @@ def update_deliverable(
     deliverable_id: UUID,
     body: DeliverableUpdate,
     access: dict = Depends(require_permission("deliverable", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = DeliverableRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
     old = repo.get_or_404(str(deliverable_id))
     if old["project_id"] != str(project_id):
         raise NotFoundError()
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     if "due_date" in data:
         data["due_date"] = str(data["due_date"])
 
@@ -116,13 +115,13 @@ def cm_approve(
     project_id: UUID,
     deliverable_id: UUID,
     access: dict = Depends(require_permission("deliverable", "approve")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = DeliverableRepository(db)
     d = repo.get_or_404(str(deliverable_id))
     if d["project_id"] != str(project_id):
         raise NotFoundError()
-    audit = AuditService(db)
+    audit = AuditService()
     service = DeliverableService(db, audit_service=audit)
     return service.cm_approve(
         deliverable_id=str(deliverable_id),

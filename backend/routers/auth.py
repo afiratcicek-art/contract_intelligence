@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from backend.database import get_db
+from backend.database import get_db, get_admin_client
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -28,18 +28,22 @@ def login(body: LoginRequest, db=Depends(get_db)):
         if not result.session:
             raise HTTPException(401, "Geçersiz e-posta veya şifre")
 
-        profile = (
-            db.table("profiles")
-            .select("full_name")
-            .eq("id", result.user.id)
-            .single()
-            .execute()
-        )
-
+        full_name = ""
+        try:
+            profile = (
+                get_admin_client().table("profiles")
+                .select("full_name")
+                .eq("id", str(result.user.id))
+                .single()
+                .execute()
+            )
+            full_name = profile.data.get("full_name", "") if profile.data else ""
+        except Exception:
+            pass
         return LoginResponse(
             access_token=result.session.access_token,
             user_id=str(result.user.id),
-            full_name=profile.data.get("full_name", "") if profile.data else "",
+            full_name=full_name,
         )
     except HTTPException:
         raise

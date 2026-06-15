@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, 
 
 from backend.core.dependencies import verify_project_access
 from backend.core.limiter import limiter
-from backend.database import get_db
 from backend.services.pdf_pipeline_service import PDFPipelineService
 from backend.services.permission_service import PermissionService
 from backend.utils.file_handler import upload_document, get_signed_url
@@ -44,7 +43,6 @@ def upload_pdf(
     entity_type: str = Query(..., description="correspondence | rfi | change | deliverable | chronology | contract_document"),
     entity_id: str = Query(..., description="Belgenin bağlı olduğu kaydın UUID'si. contract_document için project_id ile aynı olmalı."),
     file: UploadFile = File(...),
-    db=Depends(get_db),
     access=Depends(verify_project_access),
 ):
     """
@@ -53,23 +51,21 @@ def upload_pdf(
     Yanıtta extracted_text dönmez — GET /documents/{doc_id}/text ile alınır.
     contract_document için entity_id, project_id ile aynı olmalıdır.
     """
+    db = access["db"]
     user_id = str(access["user"]["id"])
 
-    # entity_type doğrulama
     if entity_type not in VALID_ENTITY_TYPES:
         raise HTTPException(
             status_code=400,
             detail=f"Geçersiz entity_type. İzin verilenler: {sorted(VALID_ENTITY_TYPES)}",
         )
 
-    # contract_document özel guard — entity_id project_id ile aynı olmalı
     if entity_type == "contract_document" and entity_id != project_id:
         raise HTTPException(
             status_code=400,
             detail="contract_document için entity_id, project_id ile aynı olmalıdır.",
         )
 
-    # İzin kontrolü — entity_type bazlı, edit yetkisi gerekli
     PermissionService(db).require(
         user_id=user_id,
         project_id=project_id,
@@ -77,11 +73,9 @@ def upload_pdf(
         permission="edit",
     )
 
-    # Dosya bytes'ını oku
     file_bytes = file.file.read()
     filename = file.filename or "upload.pdf"
 
-    # Storage'a yükle
     try:
         storage_path = upload_document(
             file_bytes=file_bytes,
@@ -93,7 +87,6 @@ def upload_pdf(
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    # PDF pipeline — parse et, veritabanına yaz
     try:
         pipeline = PDFPipelineService(db=db)
         record = pipeline.process(
@@ -108,7 +101,6 @@ def upload_pdf(
     except RuntimeError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
-    # extracted_text yanıtta dönmez
     record.pop("extracted_text", None)
     return record
 
@@ -121,7 +113,6 @@ def list_documents(
     project_id: str,
     entity_type: str = Query(None),
     entity_id: str = Query(None),
-    db=Depends(get_db),
     access=Depends(verify_project_access),
 ):
     """
@@ -129,6 +120,7 @@ def list_documents(
     entity_type ve entity_id ile filtreleme yapılabilir.
     extracted_text döndürülmez.
     """
+    db = access["db"]
     try:
         query = (
             db.table("pdf_document")
@@ -160,12 +152,12 @@ def list_documents(
 def get_document(
     project_id: str,
     doc_id: str,
-    db=Depends(get_db),
     access=Depends(verify_project_access),
 ):
     """
     Tek belge metadata'sını döndürür. extracted_text dahil değil.
     """
+    db = access["db"]
     try:
         result = (
             db.table("pdf_document")
@@ -197,7 +189,6 @@ def get_document(
 def get_document_text(
     project_id: str,
     doc_id: str,
-    db=Depends(get_db),
     access=Depends(verify_project_access),
 ):
     """
@@ -205,6 +196,7 @@ def get_document_text(
     Yalnızca parse_status = completed olan belgeler için metin döner.
     claude_service'e göndermeden önce bu endpoint çağrılır.
     """
+    db = access["db"]
     pipeline = PDFPipelineService(db=db)
     text = pipeline.get_extracted_text(
         pdf_document_id=doc_id,
@@ -226,14 +218,13 @@ def get_document_signed_url(
     project_id: str,
     doc_id: str,
     expires_in: int = Query(3600, ge=300, le=86400),
-    db=Depends(get_db),
     access=Depends(verify_project_access),
 ):
     """
     Belge için geçici imzalı indirme URL'i üretir.
     expires_in: 300 (5 dk) ile 86400 (24 saat) arasında saniye cinsinden.
     """
-    # Belgenin bu projeye ait olduğunu RLS + proje filtresi ile doğrula
+    db = access["db"]
     try:
         result = (
             db.table("pdf_document")

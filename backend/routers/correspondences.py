@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
-from backend.database import get_db
+from datetime import datetime, date
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
 from backend.core.limiter import limiter
@@ -16,7 +15,6 @@ from backend.services.audit_service import AuditService
 from backend.services.deadline_service import DeadlineService
 from backend.services.claude_service import get_ai_service, GateBlockedResult
 from backend.utils.date_utils import urgency_label
-from datetime import date
 
 router = APIRouter(prefix="/projects/{project_id}/correspondences", tags=["correspondences"])
 
@@ -30,8 +28,8 @@ def list_correspondences(
     limit: int = Query(100, le=500),
     offset: int = Query(0, ge=0),
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
     return repo.list_by_project(
         str(project_id),
@@ -48,12 +46,12 @@ def create_correspondence(
     project_id: UUID,
     body: CorrespondenceCreate,
     access: dict = Depends(require_permission("correspondence", "create")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
 
@@ -87,8 +85,8 @@ def list_deadlines(
     project_id: UUID,
     days: int = Query(14, le=90),
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
     items = repo.get_pending_deadlines(str(project_id), days=days)
     results = []
@@ -111,8 +109,8 @@ def get_correspondence(
     project_id: UUID,
     corr_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
     corr = repo.get_with_breadcrumb(str(corr_id))
     if not corr:
@@ -130,15 +128,15 @@ def update_correspondence(
     corr_id: UUID,
     body: CorrespondenceUpdate,
     access: dict = Depends(require_permission("correspondence", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
     old = repo.get_or_404(str(corr_id))
     if old["project_id"] != str(project_id):
         raise NotFoundError()
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     for field in ("correspondence_date", "response_due_date", "actual_response_date"):
         if field in data:
             data[field] = str(data[field])
@@ -158,17 +156,17 @@ def submit_for_approval(
     project_id: UUID,
     corr_id: UUID,
     access: dict = Depends(require_permission("correspondence", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
     old = repo.get_or_404(str(corr_id))
     if old["project_id"] != str(project_id):
         raise NotFoundError()
 
     updated = repo.update(str(corr_id), {"status": "under_review"})
     audit.log(
-        action="status_change", entity_type="correspondence", entity_id=str(corr_id),
+        action="update", entity_type="correspondence", entity_id=str(corr_id),
         user_id=access["user"]["id"], project_id=str(project_id),
         old_value={"status": old["status"]},
         new_value={"status": "under_review"},
@@ -182,10 +180,10 @@ def approve_correspondence(
     corr_id: UUID,
     version: int = Query(..., description="Optimistic lock için mevcut versiyon"),
     access: dict = Depends(require_permission("correspondence", "approve")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
     corr = repo.get_or_404(str(corr_id))
     if corr["project_id"] != str(project_id):
@@ -212,10 +210,10 @@ def publish_correspondence(
     corr_id: UUID,
     body: CorrespondencePublish,
     access: dict = Depends(require_permission("correspondence", "publish")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
     corr = repo.get_or_404(str(corr_id))
     if corr["project_id"] != str(project_id):
@@ -246,10 +244,10 @@ def close_correspondence(
     corr_id: UUID,
     body: CorrespondenceClose,
     access: dict = Depends(require_permission("correspondence", "close")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
     corr = repo.get_or_404(str(corr_id))
     if corr["project_id"] != str(project_id):
@@ -265,8 +263,9 @@ def close_correspondence(
 
     updated = repo.update(str(corr_id), data)
     audit.log(
-        action="close", entity_type="correspondence", entity_id=str(corr_id),
+        action="update", entity_type="correspondence", entity_id=str(corr_id),
         user_id=access["user"]["id"], project_id=str(project_id),
+        new_value={"status": "closed"},
     )
     return updated
 
@@ -277,10 +276,10 @@ def set_contractual_status(
     corr_id: UUID,
     body: ContractualStatusUpdate,
     access: dict = Depends(require_permission("correspondence", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
     old = repo.get_or_404(str(corr_id))
     if old["project_id"] != str(project_id):
         raise NotFoundError()
@@ -295,7 +294,7 @@ def set_contractual_status(
 
     updated = repo.update(str(corr_id), data)
     audit.log(
-        action="override", entity_type="correspondence", entity_id=str(corr_id),
+        action="update", entity_type="correspondence", entity_id=str(corr_id),
         user_id=access["user"]["id"], project_id=str(project_id),
         old_value={"contractual_status": old["contractual_status"]},
         new_value={"contractual_status": body.contractual_status, "note": body.contractual_status_note},
@@ -311,19 +310,19 @@ def add_reference(
     corr_id: UUID,
     body: CorrespondenceReferenceAdd,
     access: dict = Depends(require_permission("correspondence", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
     corr = repo.get_or_404(str(corr_id))
     if corr["project_id"] != str(project_id):
         raise NotFoundError()
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     data["correspondence_id"] = str(corr_id)
     data["added_by"] = access["user"]["id"]
     if "external_doc_date" in data:
         data["external_doc_date"] = str(data["external_doc_date"])
     result = db.table("correspondence_references").insert(data).execute()
-    audit = AuditService(db)
+    audit = AuditService()
     audit.log(
         action="create", entity_type="correspondence_reference",
         entity_id=result.data[0].get("id", str(corr_id)),
@@ -341,8 +340,8 @@ def save_draft(
     corr_id: UUID,
     body: DraftSave,
     access: dict = Depends(require_permission("correspondence", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
     corr = repo.get_or_404(str(corr_id))
     if corr["project_id"] != str(project_id):
@@ -360,7 +359,7 @@ def save_draft(
         "resolved_by_gate": body.resolved_by_gate,
     }
     result = db.table("correspondence_drafts").insert(data).execute()
-    audit = AuditService(db)
+    audit = AuditService()
     audit.log(
         action="create", entity_type="correspondence_draft",
         entity_id=result.data[0].get("id", str(corr_id)),
@@ -379,8 +378,8 @@ def generate_ai_draft(
     language: str = Query("en", enum=["en", "ar", "tr"]),
     user_instructions: str = Query(""),
     access: dict = Depends(require_permission("correspondence", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
     corr = repo.get_or_404(str(corr_id))
     if corr["project_id"] != str(project_id):
@@ -426,8 +425,8 @@ def what_if_analysis(
     corr_id: UUID,
     scenario_query: str = Query(...),
     access: dict = Depends(require_permission("correspondence", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = CorrespondenceRepository(db)
     corr = repo.get_or_404(str(corr_id))
     if corr["project_id"] != str(project_id):

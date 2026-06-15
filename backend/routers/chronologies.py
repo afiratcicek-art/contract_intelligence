@@ -1,6 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from uuid import UUID
-from backend.database import get_db
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import NotFoundError
 from backend.core.limiter import limiter
@@ -19,8 +18,8 @@ router = APIRouter(prefix="/projects/{project_id}/chronologies", tags=["chronolo
 def list_chronologies(
     project_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ChronologyRepository(db)
     return repo.list_by_project(str(project_id))
 
@@ -30,13 +29,13 @@ def create_chronology(
     project_id: UUID,
     body: ChronologyCreate,
     access: dict = Depends(require_permission("chronology", "create")),
-    db=Depends(get_db),
 ):
-    data = body.model_dump(exclude_none=True)
+    db = access["db"]
+    data = body.model_dump(mode="json", exclude_none=True)
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
     result = db.table("chronologies").insert(data).execute()
-    audit = AuditService(db)
+    audit = AuditService()
     audit.log(
         action="create", entity_type="chronology",
         entity_id=result.data[0]["id"],
@@ -52,8 +51,8 @@ def get_chronology(
     chronology_id: UUID,
     include_inactive: bool = False,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ChronologyRepository(db)
     chrono = repo.get(str(chronology_id))
     if not chrono:
@@ -72,9 +71,9 @@ def add_event(
     chronology_id: UUID,
     body: ChronologyEventCreate,
     access: dict = Depends(require_permission("chronology", "create")),
-    db=Depends(get_db),
 ):
-    audit = AuditService(db)
+    db = access["db"]
+    audit = AuditService()
     ai = get_ai_service(db)
     service = ChronologyService(db, ai_service=ai, audit_service=audit)
 
@@ -99,9 +98,9 @@ def approve_narrative(
     event_id: UUID,
     body: NarrativeApprove,
     access: dict = Depends(require_permission("chronology", "approve")),
-    db=Depends(get_db),
 ):
-    audit = AuditService(db)
+    db = access["db"]
+    audit = AuditService()
     service = ChronologyService(db, audit_service=audit)
     return service.approve_narrative(
         event_id=str(event_id),
@@ -118,9 +117,9 @@ def inactivate_event(
     event_id: UUID,
     body: EventInactivate,
     access: dict = Depends(require_permission("chronology", "inactivate")),
-    db=Depends(get_db),
 ):
-    audit = AuditService(db)
+    db = access["db"]
+    audit = AuditService()
     service = ChronologyService(db, audit_service=audit)
     return service.inactivate_event(
         event_id=str(event_id),

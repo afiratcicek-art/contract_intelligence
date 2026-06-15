@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from uuid import UUID
-from backend.database import get_db
+from backend.database import get_authed_db, get_admin_client
 from backend.core.security import get_current_user
 from backend.core.dependencies import verify_project_access, require_cm_role
 from backend.core.exceptions import NotFoundError
@@ -18,8 +18,8 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 @router.get("")
 def list_projects(
     current_user: dict = Depends(get_current_user),
-    db=Depends(get_db),
 ):
+    db = get_authed_db(current_user["_token"])
     repo = ProjectRepository(db)
     return repo.list_by_tenant(current_user["tenant_id"])
 
@@ -28,19 +28,21 @@ def list_projects(
 def create_project(
     body: ProjectCreate,
     current_user: dict = Depends(get_current_user),
-    db=Depends(get_db),
 ):
+    db = get_authed_db(current_user["_token"])
     repo = ProjectRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     data["tenant_id"] = current_user["tenant_id"]
     data["created_by"] = current_user["id"]
 
     project = repo.create(data)
 
-    # Oluşturanı CM olarak ekle
-    db.table("project_members").insert({
+    # Proje oluşturanı CM olarak ekle.
+    # RLS: kullanıcı henüz bu projenin üyesi değil — tavuk-yumurta problemi.
+    # İlk üyelik kaydı sistem kararı olduğundan admin client kullanılır.
+    get_admin_client().table("project_members").insert({
         "project_id": project["id"],
         "user_id": current_user["id"],
         "project_role": "cm",
@@ -59,8 +61,8 @@ def create_project(
 def get_project(
     project_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ProjectRepository(db)
     return repo.get_with_config(str(project_id))
 
@@ -70,13 +72,13 @@ def update_project(
     project_id: UUID,
     body: ProjectUpdate,
     access: dict = Depends(require_cm_role),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = ProjectRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
     old = repo.get_or_404(str(project_id))
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     updated = repo.update(str(project_id), data)
 
     audit.log(
@@ -94,8 +96,8 @@ def update_project(
 def list_members(
     project_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     result = (
         db.table("project_members")
         .select("*, profiles(full_name, email)")
@@ -111,12 +113,12 @@ def add_member(
     project_id: UUID,
     body: ProjectMemberAdd,
     access: dict = Depends(require_cm_role),
-    db=Depends(get_db),
 ):
-    data = body.model_dump()
+    db = access["db"]
+    data = body.model_dump(mode="json")
     data["project_id"] = str(project_id)
     result = db.table("project_members").insert(data).execute()
-    audit = AuditService(db)
+    audit = AuditService()
     audit.log(
         action="create", entity_type="project_member",
         entity_id=result.data[0].get("id", str(project_id)),
@@ -132,9 +134,9 @@ def update_member(
     user_id: UUID,
     body: ProjectMemberUpdate,
     access: dict = Depends(require_cm_role),
-    db=Depends(get_db),
 ):
-    data = body.model_dump(exclude_none=True)
+    db = access["db"]
+    data = body.model_dump(mode="json", exclude_none=True)
     result = (
         db.table("project_members")
         .update(data)
@@ -142,7 +144,7 @@ def update_member(
         .eq("user_id", str(user_id))
         .execute()
     )
-    audit = AuditService(db)
+    audit = AuditService()
     audit.log(
         action="update", entity_type="project_member",
         entity_id=str(user_id),
@@ -158,8 +160,8 @@ def update_member(
 def list_parties(
     project_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     result = (
         db.table("project_parties")
         .select("*")
@@ -175,13 +177,13 @@ def add_party(
     project_id: UUID,
     body: ProjectPartyCreate,
     access: dict = Depends(require_cm_role),
-    db=Depends(get_db),
 ):
-    data = body.model_dump()
+    db = access["db"]
+    data = body.model_dump(mode="json")
     data["project_id"] = str(project_id)
     data["added_by"] = access["user"]["id"]
     result = db.table("project_parties").insert(data).execute()
-    audit = AuditService(db)
+    audit = AuditService()
     audit.log(
         action="create", entity_type="project_party",
         entity_id=result.data[0].get("id", str(project_id)),

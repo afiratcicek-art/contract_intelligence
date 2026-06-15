@@ -1,6 +1,6 @@
 from uuid import UUID
 from fastapi import Depends
-from backend.database import get_db
+from backend.database import get_authed_db
 from backend.core.security import get_current_user
 from backend.core.exceptions import NotFoundError, ForbiddenError
 from backend.services.permission_service import PermissionService
@@ -9,12 +9,13 @@ from backend.services.permission_service import PermissionService
 def verify_project_access(
     project_id: UUID,
     current_user: dict = Depends(get_current_user),
-    db=Depends(get_db),
 ) -> dict:
     """Proje erişim kontrolü: tenant izolasyonu + üyelik. Sync.
 
-    Döndürür: {"user": ..., "member": ..., "project_id": str}
+    Döndürür: {"user": ..., "member": ..., "project_id": str, "db": ...}
     """
+    db = get_authed_db(current_user["_token"])
+
     project = (
         db.table("projects")
         .select("id, tenant_id")
@@ -47,6 +48,7 @@ def verify_project_access(
         "user": current_user,
         "member": member.data,
         "project_id": str(project_id),
+        "db": db,
     }
 
 
@@ -68,8 +70,8 @@ def require_permission(entity_type: str, permission: str):
     """project_role_permissions tablosuna göre ince taneli yetki kontrolü."""
     def _dependency(
         access: dict = Depends(verify_project_access),
-        db=Depends(get_db),
     ) -> dict:
+        db = access["db"]
         PermissionService(db).require(
             access["user"]["id"],
             access["project_id"],

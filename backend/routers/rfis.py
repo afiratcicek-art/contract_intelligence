@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from uuid import UUID
 from datetime import date
-from backend.database import get_db
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
 from backend.models.rfi import RFICreate, RFIUpdate, RFIClose, RFIDeadlineResponse
@@ -22,8 +21,8 @@ def list_rfis(
     limit: int = Query(100, le=500),
     offset: int = Query(0, ge=0),
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = RFIRepository(db)
     return repo.list_by_project(
         str(project_id),
@@ -39,12 +38,12 @@ def create_rfi(
     project_id: UUID,
     body: RFICreate,
     access: dict = Depends(require_permission("rfi", "create")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = RFIRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
     if "submitted_date" in data:
@@ -77,8 +76,8 @@ def list_rfi_deadlines(
     project_id: UUID,
     days: int = Query(14, le=90),
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = RFIRepository(db)
     rfis = repo.get_pending_deadlines(str(project_id), days=days)
 
@@ -107,8 +106,8 @@ def get_rfi(
     project_id: UUID,
     rfi_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = RFIRepository(db)
     rfi = repo.get_or_404(str(rfi_id))
     if rfi["project_id"] != str(project_id):
@@ -122,8 +121,8 @@ def get_rfi_deadline(
     project_id: UUID,
     rfi_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = RFIRepository(db)
     rfi = repo.get_or_404(str(rfi_id))
     if rfi["project_id"] != str(project_id):
@@ -152,15 +151,15 @@ def update_rfi(
     rfi_id: UUID,
     body: RFIUpdate,
     access: dict = Depends(require_permission("rfi", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = RFIRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
     old = repo.get_or_404(str(rfi_id))
     if old["project_id"] != str(project_id):
         raise NotFoundError()
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump(mode="json", exclude_none=True)
     for field in ("submitted_date", "response_due_date", "actual_response_date"):
         if field in data:
             data[field] = str(data[field])
@@ -181,11 +180,11 @@ def close_rfi(
     rfi_id: UUID,
     body: RFIClose,
     access: dict = Depends(require_permission("rfi", "close")),
-    db=Depends(get_db),
 ):
     from datetime import datetime
+    db = access["db"]
     repo = RFIRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
 
     rfi = repo.get_or_404(str(rfi_id))
     if rfi["project_id"] != str(project_id):
@@ -200,7 +199,7 @@ def close_rfi(
 
     updated = repo.update(str(rfi_id), data)
     audit.log(
-        action="close", entity_type="rfi", entity_id=str(rfi_id),
+        action="update", entity_type="rfi", entity_id=str(rfi_id),
         user_id=access["user"]["id"], project_id=str(project_id),
     )
     return updated
@@ -211,15 +210,15 @@ def delete_rfi(
     project_id: UUID,
     rfi_id: UUID,
     access: dict = Depends(require_permission("rfi", "edit")),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     repo = RFIRepository(db)
-    audit = AuditService(db)
+    audit = AuditService()
     rfi = repo.get_or_404(str(rfi_id))
     if rfi["project_id"] != str(project_id):
         raise NotFoundError()
     repo.soft_delete(str(rfi_id), deleted_by=access["user"]["id"])
     audit.log(
-        action="delete_flag", entity_type="rfi", entity_id=str(rfi_id),
+        action="update", entity_type="rfi", entity_id=str(rfi_id),
         user_id=access["user"]["id"], project_id=str(project_id),
     )

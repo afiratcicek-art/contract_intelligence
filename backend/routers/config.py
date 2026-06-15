@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
-from backend.database import get_db
 from backend.core.dependencies import verify_project_access, require_cm_role
 from backend.services.audit_service import AuditService
 
@@ -38,8 +37,8 @@ class CalendarConfigCreate(BaseModel):
 def get_config(
     project_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     result = (
         db.table("project_config")
         .select("*")
@@ -55,10 +54,10 @@ def update_config(
     project_id: UUID,
     body: ProjectConfigUpdate,
     access: dict = Depends(require_cm_role),
-    db=Depends(get_db),
 ):
-    audit = AuditService(db)
-    data = body.model_dump(exclude_none=True)
+    db = access["db"]
+    audit = AuditService()
+    data = body.model_dump(mode="json", exclude_none=True)
 
     existing = (
         db.table("project_config")
@@ -91,8 +90,8 @@ def update_config(
 def list_calendar_configs(
     project_id: UUID,
     access: dict = Depends(verify_project_access),
-    db=Depends(get_db),
 ):
+    db = access["db"]
     result = (
         db.table("calendar_config")
         .select("*")
@@ -107,12 +106,12 @@ def add_calendar_config(
     project_id: UUID,
     body: CalendarConfigCreate,
     access: dict = Depends(require_cm_role),
-    db=Depends(get_db),
 ):
-    data = body.model_dump()
+    db = access["db"]
+    data = body.model_dump(mode="json")
     data["project_id"] = str(project_id)
     result = db.table("calendar_config").insert(data).execute()
-    audit = AuditService(db)
+    audit = AuditService()
     audit.log(
         action="create", entity_type="calendar_config",
         entity_id=result.data[0].get("id", str(project_id)),

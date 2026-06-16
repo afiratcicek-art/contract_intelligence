@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from uuid import UUID
 from backend.core.dependencies import verify_project_access, require_permission
-from backend.core.exceptions import NotFoundError
+from backend.core.exceptions import NotFoundError, RaceConditionError
 from backend.models.deliverable import DeliverableCreate, DeliverableUpdate
 from backend.repositories.deliverable_repository import DeliverableRepository
 from backend.services.deliverable_service import DeliverableService
@@ -100,7 +100,11 @@ def update_deliverable(
     if "due_date" in data:
         data["due_date"] = str(data["due_date"])
 
-    updated = repo.update(str(deliverable_id), data)
+    expected_version = data.pop("version", None)
+    updated = repo.update_with_version_check(str(deliverable_id), data, expected_version)
+    if not updated:
+        raise RaceConditionError()
+
     audit.log(
         action="update", entity_type="deliverable", entity_id=str(deliverable_id),
         user_id=access["user"]["id"], project_id=str(project_id),
@@ -114,6 +118,7 @@ def update_deliverable(
 def cm_approve(
     project_id: UUID,
     deliverable_id: UUID,
+    version: int = Query(..., description="Mevcut kayıt versiyonu — optimistic locking için zorunlu"),
     access: dict = Depends(require_permission("deliverable", "approve")),
 ):
     db = access["db"]
@@ -127,4 +132,5 @@ def cm_approve(
         deliverable_id=str(deliverable_id),
         cm_user_id=access["user"]["id"],
         project_id=str(project_id),
+        expected_version=version,
     )

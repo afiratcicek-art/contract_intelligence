@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import UUID
 from datetime import date
 from backend.core.dependencies import verify_project_access, require_permission
-from backend.core.exceptions import NotFoundError
+from backend.core.exceptions import RaceConditionError, NotFoundError
 from backend.models.rfi import RFICreate, RFIUpdate, RFIClose, RFIDeadlineResponse
 from backend.repositories.rfi_repository import RFIRepository
 from backend.services.audit_service import AuditService
@@ -164,7 +164,11 @@ def update_rfi(
         if field in data:
             data[field] = str(data[field])
 
-    updated = repo.update(str(rfi_id), data)
+    expected_version = data.pop("version", None)
+    updated = repo.update_with_version_check(str(rfi_id), data, expected_version)
+    if not updated:
+        raise RaceConditionError()
+
     audit.log(
         action="update", entity_type="rfi", entity_id=str(rfi_id),
         user_id=access["user"]["id"], project_id=str(project_id),
@@ -197,9 +201,13 @@ def close_rfi(
     if body.close_note:
         data["close_note"] = body.close_note
 
-    updated = repo.update(str(rfi_id), data)
+    expected_version = body.version
+    updated = repo.update_with_version_check(str(rfi_id), data, expected_version)
+    if not updated:
+        raise RaceConditionError()
+
     audit.log(
-        action="update", entity_type="rfi", entity_id=str(rfi_id),
+        action="close", entity_type="rfi", entity_id=str(rfi_id),
         user_id=access["user"]["id"], project_id=str(project_id),
     )
     return updated

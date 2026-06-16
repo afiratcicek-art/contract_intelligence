@@ -50,17 +50,19 @@ class DeliverableService:
         deliverable_id: str,
         cm_user_id: str,
         project_id: str,
+        expected_version: int,
     ) -> dict:
-        """CM deliverable'ı onaylar."""
+        """CM deliverable'ı onaylar. Optimistic locking ile race condition koruması."""
         from datetime import datetime
+        from backend.core.exceptions import RaceConditionError
         result = self.db.table("deliverables").update({
             "approved_by_cm": True,
             "approved_by_cm_at": datetime.utcnow().isoformat(),
             "approved_by_cm_id": cm_user_id,
-        }).eq("id", deliverable_id).execute()
-
+            "version": expected_version + 1,
+        }).eq("id", deliverable_id).eq("version", expected_version).execute()
         if not result.data:
-            raise HTTPException(404, "Kaynak bulunamadı")
+            raise RaceConditionError()
 
         if self.audit:
             self.audit.log(

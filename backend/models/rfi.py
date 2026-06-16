@@ -20,6 +20,7 @@ class RFICreate(BaseModel):
 
 
 class RFIUpdate(BaseModel):
+    version: int
     subject: Optional[str] = None
     description: Optional[str] = None
     discipline: Optional[str] = None
@@ -34,6 +35,7 @@ class RFIUpdate(BaseModel):
 
 
 class RFIClose(BaseModel):
+    version: int
     close_note: Optional[str] = None
 
 

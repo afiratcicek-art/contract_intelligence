@@ -54,3 +54,17 @@ class RFIRepository(BaseRepository):
             .execute()
         )
         return result.data or []
+
+    def update_with_version_check(
+        self, rfi_id: str, data: dict, expected_version: int
+    ) -> Optional[dict]:
+        """Optimistic locking ile güncelleme — race condition koruması."""
+        data["version"] = expected_version + 1
+        result = (
+            self.db.table("rfis")
+            .update(data)
+            .eq("id", rfi_id)
+            .eq("version", expected_version)
+            .execute()
+        )
+        return result.data[0] if result.data else None

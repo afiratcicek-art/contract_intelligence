@@ -22,6 +22,7 @@ class DeliverableCreate(BaseModel):
 
 
 class DeliverableUpdate(BaseModel):
+    version: int
     title: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None

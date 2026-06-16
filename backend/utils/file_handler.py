@@ -2,6 +2,7 @@
 import logging
 
 from backend.database import get_admin_client
+from backend.utils.pdf_utils import scan_for_virus
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,9 @@ def upload_document(
 ) -> str:
     """
     Dosyayı Supabase Storage'a yükler, storage path döndürür.
+    Yüklemeden önce ClamAV ile virüs taraması yapar.
     Admin client singleton kullanır — RLS bypass, sistem işlemi.
-    Hata durumunda RuntimeError fırlatır.
+    Hata durumunda RuntimeError veya ValueError fırlatır.
     Aynı path'e ikinci yükleme SDK default davranışıyla reddedilir (upsert kapalı).
     """
     ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
@@ -32,6 +34,9 @@ def upload_document(
             f"Dosya boyutu sınırı aşıldı: "
             f"{len(file_bytes) / 1024 / 1024:.1f} MB (max {MAX_FILE_SIZE_MB} MB)."
         )
+
+    # Virüs taraması — storage a yüklemeden önce
+    scan_for_virus(file_bytes, file_name)
 
     storage_path = f"{project_id}/{entity_type}/{entity_id}/{file_name}"
     content_type = _content_type(ext)
@@ -46,6 +51,19 @@ def upload_document(
         raise RuntimeError(f"Storage yükleme hatası: {exc}") from exc
 
     return storage_path
+
+
+def delete_document(storage_path: str) -> None:
+    """
+    Supabase Storage'dan dosyayı siler.
+    Orphan file cleanup için kullanılır.
+    Hata durumunda sadece loglar — ana akışı engellemez.
+    """
+    try:
+        get_admin_client().storage.from_(STORAGE_BUCKET).remove([storage_path])
+        logger.info("Storage dosyası silindi: %s", storage_path)
+    except Exception as exc:
+        logger.error("Storage silme hatası: %s | path=%s", exc, storage_path)
 
 
 def get_signed_url(path: str, expires_in: int = 3600) -> str:

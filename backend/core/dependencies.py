@@ -14,7 +14,7 @@ def verify_project_access(
 
     Döndürür: {"user": ..., "member": ..., "project_id": str, "db": ...}
     """
-    db = get_authed_db(current_user["_token"])
+    db = get_authed_db(current_user["_meta"]["token"])
 
     project = (
         db.table("projects")

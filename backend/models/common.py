@@ -33,12 +33,13 @@ class ProjectRole(str, Enum):
 
 
 class ContractType(str, Enum):
-    FIDIC_RED_2017 = "FIDIC_RED_2017"
-    FIDIC_RED_1999 = "FIDIC_RED_1999"
-    FIDIC_YELLOW_2017 = "FIDIC_YELLOW_2017"
-    NEC4 = "NEC4"
-    NEC3 = "NEC3"
-    BESPOKE = "bespoke"
+    LUMP_SUM = "lump_sum"
+    REMEASURE = "remeasure"
+    COST_PLUS = "cost_plus"
+    TARGET_COST = "target_cost"
+    EPC = "epc"
+    EPCM = "epcm"
+    FRAMEWORK = "framework"
     OTHER = "other"
 
 

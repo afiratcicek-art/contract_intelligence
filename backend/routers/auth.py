@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from backend.database import get_db, get_admin_client
+from backend.core.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -18,7 +19,8 @@ class LoginResponse(BaseModel):
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(body: LoginRequest, db=Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, body: LoginRequest, db=Depends(get_db)):
     """Supabase Auth ile oturum açar, JWT token döndürür."""
     try:
         result = db.auth.sign_in_with_password({

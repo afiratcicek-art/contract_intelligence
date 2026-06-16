@@ -1,5 +1,4 @@
 """ClauseIQ — Contract & Operational Intelligence Platform
-
 FastAPI giriş noktası. Middleware'ler sırayla kayıt edilir,
 ardından tüm router'lar dahil edilir.
 """
@@ -11,8 +10,8 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 import logging
 
+from backend.core.config import settings
 from backend.core.limiter import limiter
-
 from backend.routers import auth, projects, rfis, correspondences, changes, chronologies, deliverables
 from backend.routers import config as config_router
 from backend.routers import documents
@@ -24,6 +23,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── FastAPI app ────────────────────────────────────────────────────────────
+_is_production = settings.APP_ENV == "production"
+
 app = FastAPI(
     title="ClauseIQ — Contract Intelligence API",
     description=(
@@ -31,13 +32,28 @@ app = FastAPI(
         "RFI, Correspondence, Change, Chronology ve Deliverable yönetimi."
     ),
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
 )
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+
+# ── Global exception handler ───────────────────────────────────────────────
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        "Unhandled exception: %s %s — %s: %s",
+        request.method,
+        request.url.path,
+        type(exc).__name__,
+        str(exc),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Sunucu hatası. Lütfen daha sonra tekrar deneyin."},
+    )
 
 # ── Security headers middleware ────────────────────────────────────────────
 @app.middleware("http")
@@ -48,12 +64,17 @@ async def security_headers(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=()"
+    if _is_production:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; "
+            "frame-ancestors 'none';"
+        )
     return response
 
 # ── CORS ───────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8501"],  # Streamlit dev
+    allow_origins=["http://localhost:8501"],  # Adım 17 de env variable a taşınacak
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,12 +91,10 @@ app.include_router(deliverables.router)
 app.include_router(config_router.router)
 app.include_router(documents.router)
 
-
 # ── Health check ───────────────────────────────────────────────────────────
 @app.get("/", tags=["health"])
 def health():
     return {"status": "ok", "service": "ClauseIQ API", "version": "1.0.0"}
-
 
 @app.get("/health", tags=["health"])
 def health_detailed():
@@ -83,5 +102,5 @@ def health_detailed():
         "status": "ok",
         "service": "ClauseIQ API",
         "version": "1.0.0",
-        "modules": ["rfi", "correspondence", "change", "chronology", "deliverable"],
+        "modules": ["rfi", "correspondence", "change", "chronology", "deliverable", "document"],
     }

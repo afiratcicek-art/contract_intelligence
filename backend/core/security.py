@@ -33,7 +33,7 @@ def get_current_user(
             raise ForbiddenError()
 
         user_data = result.data
-        user_data["_token"] = token.credentials
+        user_data["_meta"] = {"token": token.credentials}
         return user_data
 
     except (UnauthorizedError, ForbiddenError):

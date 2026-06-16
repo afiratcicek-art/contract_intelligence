@@ -1,8 +1,13 @@
 """PDF quality scoring ve page classification utilities."""
-import re
 import logging
+import os
+import re
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from enum import Enum
+
+from backend.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -148,3 +153,52 @@ def clean_extracted_text(raw_text: str) -> str:
     text = "\n".join(lines)
 
     return text.strip()
+
+
+def scan_for_virus(file_bytes: bytes, filename: str) -> None:
+    """
+    ClamAV ile virüs taraması yapar.
+    Virüs bulunursa ValueError fırlatır — router HTTP 400 döndürür.
+    ClamAV kurulu değilse:
+      - development: uyarı loglar, devam eder
+      - production: RuntimeError fırlatır
+    Tarama için geçici dosya kullanır, tarama sonrası siler.
+    """
+    suffix = os.path.splitext(filename)[1] or ".pdf"
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(file_bytes)
+            tmp_path = tmp.name
+
+        result = subprocess.run(
+            ["clamscan", "--no-summary", tmp_path],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        if result.returncode == 1:
+            raise ValueError(
+                f"Güvenlik taraması başarısız: '{filename}' dosyasında "
+                "zararlı içerik tespit edildi."
+            )
+        if result.returncode == 2:
+            logger.error("ClamAV tarama hatası: %s", result.stderr)
+            raise RuntimeError("Virüs taraması sırasında hata oluştu.")
+
+    except FileNotFoundError:
+        if settings.APP_ENV == "production":
+            raise RuntimeError(
+                "ClamAV kurulu değil — production ortamında zorunludur."
+            )
+        logger.warning(
+            "ClamAV bulunamadı — %s taranmadan geçirildi (development modu).",
+            filename,
+        )
+    except subprocess.TimeoutExpired:
+        logger.error("ClamAV tarama zaman aşımı: %s", filename)
+        raise RuntimeError("Virüs taraması zaman aşımına uğradı.")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)

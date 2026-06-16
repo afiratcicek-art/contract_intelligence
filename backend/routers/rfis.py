@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import UUID
 from datetime import date
 from backend.core.dependencies import verify_project_access, require_permission
-from backend.core.exceptions import RaceConditionError, NotFoundError
+from backend.core.exceptions import NotFoundError
 from backend.models.rfi import RFICreate, RFIUpdate, RFIClose, RFIDeadlineResponse
 from backend.repositories.rfi_repository import RFIRepository
 from backend.services.audit_service import AuditService

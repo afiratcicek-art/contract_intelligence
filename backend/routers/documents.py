@@ -13,7 +13,7 @@ from backend.core.dependencies import verify_project_access
 from backend.core.limiter import limiter
 from backend.services.pdf_pipeline_service import PDFPipelineService
 from backend.services.permission_service import PermissionService
-from backend.utils.file_handler import upload_document, get_signed_url
+from backend.utils.file_handler import upload_document, delete_document, get_signed_url
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +99,7 @@ def upload_pdf(
             storage_path=storage_path,
         )
     except RuntimeError as exc:
+        delete_document(storage_path)  # orphan file cleanup
         raise HTTPException(status_code=422, detail=str(exc))
 
     record.pop("extracted_text", None)

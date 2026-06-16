@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # Uygulama
     APP_ENV: str = "development"
+    CORS_ORIGINS: str = "http://localhost:8501"
     BASE_URL: str = "http://localhost:8000"
 
     class Config:

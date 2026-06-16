@@ -74,22 +74,23 @@ async def security_headers(request: Request, call_next):
 # ── CORS ───────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8501"],  # Adım 17 de env variable a taşınacak
+    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ── Routers ────────────────────────────────────────────────────────────────
-app.include_router(auth.router)
-app.include_router(projects.router)
-app.include_router(rfis.router)
-app.include_router(correspondences.router)
-app.include_router(changes.router)
-app.include_router(chronologies.router)
-app.include_router(deliverables.router)
-app.include_router(config_router.router)
-app.include_router(documents.router)
+API_V1 = "/api/v1"
+app.include_router(auth.router, prefix=API_V1)
+app.include_router(projects.router, prefix=API_V1)
+app.include_router(rfis.router, prefix=API_V1)
+app.include_router(correspondences.router, prefix=API_V1)
+app.include_router(changes.router, prefix=API_V1)
+app.include_router(chronologies.router, prefix=API_V1)
+app.include_router(deliverables.router, prefix=API_V1)
+app.include_router(config_router.router, prefix=API_V1)
+app.include_router(documents.router, prefix=API_V1)
 
 # ── Health check ───────────────────────────────────────────────────────────
 @app.get("/", tags=["health"])

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from uuid import UUID
-from datetime import date
+from datetime import date, datetime
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
 from backend.models.rfi import RFICreate, RFIUpdate, RFIClose, RFIDeadlineResponse
@@ -185,7 +185,6 @@ def close_rfi(
     body: RFIClose,
     access: dict = Depends(require_permission("rfi", "close")),
 ):
-    from datetime import datetime
     db = access["db"]
     repo = RFIRepository(db)
     audit = AuditService()

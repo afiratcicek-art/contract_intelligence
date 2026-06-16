@@ -19,7 +19,7 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 def list_projects(
     current_user: dict = Depends(get_current_user),
 ):
-    db = get_authed_db(current_user["_token"])
+    db = get_authed_db(current_user["_meta"]["token"])
     repo = ProjectRepository(db)
     return repo.list_by_tenant(current_user["tenant_id"])
 
@@ -29,7 +29,7 @@ def create_project(
     body: ProjectCreate,
     current_user: dict = Depends(get_current_user),
 ):
-    db = get_authed_db(current_user["_token"])
+    db = get_authed_db(current_user["_meta"]["token"])
     repo = ProjectRepository(db)
     audit = AuditService()
 

@@ -11,19 +11,21 @@ def verify_project_access(
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     """Proje erişim kontrolü: tenant izolasyonu + üyelik. Sync.
-
     Döndürür: {"user": ..., "member": ..., "project_id": str, "db": ...}
     """
     db = get_authed_db(current_user["_meta"]["token"])
 
-    project = (
-        db.table("projects")
-        .select("id, tenant_id")
-        .eq("id", str(project_id))
-        .eq("is_deleted", False)
-        .single()
-        .execute()
-    )
+    try:
+        project = (
+            db.table("projects")
+            .select("id, tenant_id")
+            .eq("id", str(project_id))
+            .eq("is_deleted", False)
+            .single()
+            .execute()
+        )
+    except Exception:
+        raise NotFoundError()
 
     if not project.data:
         raise NotFoundError()
@@ -31,15 +33,18 @@ def verify_project_access(
     if project.data["tenant_id"] != current_user["tenant_id"]:
         raise NotFoundError()
 
-    member = (
-        db.table("project_members")
-        .select("*")
-        .eq("project_id", str(project_id))
-        .eq("user_id", current_user["id"])
-        .eq("is_active", True)
-        .single()
-        .execute()
-    )
+    try:
+        member = (
+            db.table("project_members")
+            .select("*")
+            .eq("project_id", str(project_id))
+            .eq("user_id", current_user["id"])
+            .eq("is_active", True)
+            .single()
+            .execute()
+        )
+    except Exception:
+        raise NotFoundError()
 
     if not member.data:
         raise NotFoundError()

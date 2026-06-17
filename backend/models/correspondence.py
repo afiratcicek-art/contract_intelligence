@@ -1,8 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import date, datetime
 from uuid import UUID
 from backend.models.common import Direction, DayType, DeadlineSource, ContractualStatus, PMApprovalStatus
+from backend.core.sanitizer import sanitize_short, sanitize_medium, sanitize_long, sanitize_content
 
 
 class CorrespondenceCreate(BaseModel):
@@ -22,6 +23,14 @@ class CorrespondenceCreate(BaseModel):
     response_due_day_type: Optional[DayType] = None
     external_ref: Optional[str] = None
 
+    @field_validator("corr_number", "external_ref", "response_due_clause", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
+    @field_validator("type", "subject", "external_actor_name", mode="before")
+    @classmethod
+    def clean_medium_fields(cls, v): return sanitize_medium(v)
+
 
 class CorrespondenceUpdate(BaseModel):
     subject: Optional[str] = None
@@ -35,19 +44,43 @@ class CorrespondenceUpdate(BaseModel):
     external_ref: Optional[str] = None
     final_content: Optional[str] = None
 
+    @field_validator("external_ref", "response_due_clause", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
+    @field_validator("subject", mode="before")
+    @classmethod
+    def clean_subject(cls, v): return sanitize_medium(v)
+
+    @field_validator("final_content", mode="before")
+    @classmethod
+    def clean_final_content(cls, v): return sanitize_content(v)
+
 
 class ContractualStatusUpdate(BaseModel):
     contractual_status: ContractualStatus
     contractual_status_note: Optional[str] = None
+
+    @field_validator("contractual_status_note", mode="before")
+    @classmethod
+    def clean_note(cls, v): return sanitize_long(v)
 
 
 class CorrespondencePublish(BaseModel):
     publication_channel: Optional[str] = None
     publication_ref: Optional[str] = None
 
+    @field_validator("publication_channel", "publication_ref", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
 
 class CorrespondenceClose(BaseModel):
     close_note: Optional[str] = None
+
+    @field_validator("close_note", mode="before")
+    @classmethod
+    def clean_close_note(cls, v): return sanitize_long(v)
 
 
 class CorrespondenceResponse(BaseModel):
@@ -89,8 +122,6 @@ class CorrespondenceResponse(BaseModel):
     updated_at: datetime
 
 
-# ── References ─────────────────────────────────────────────────────────────
-
 class CorrespondenceReferenceAdd(BaseModel):
     ref_type: str
     rfi_id: Optional[UUID] = None
@@ -101,8 +132,18 @@ class CorrespondenceReferenceAdd(BaseModel):
     external_doc_date: Optional[date] = None
     note: Optional[str] = None
 
+    @field_validator("ref_type", "external_doc_number", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
 
-# ── Drafts ─────────────────────────────────────────────────────────────────
+    @field_validator("external_doc_title", mode="before")
+    @classmethod
+    def clean_medium_fields(cls, v): return sanitize_medium(v)
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def clean_note(cls, v): return sanitize_long(v)
+
 
 class DraftSave(BaseModel):
     content: str
@@ -112,6 +153,14 @@ class DraftSave(BaseModel):
     warnings: Optional[list[str]] = None
     objectivity_flag: Optional[bool] = None
     resolved_by_gate: Optional[bool] = None
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def clean_content(cls, v): return sanitize_content(v)
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def clean_note(cls, v): return sanitize_long(v)
 
 
 class DraftResponse(BaseModel):

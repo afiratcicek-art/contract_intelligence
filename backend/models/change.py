@@ -1,8 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
 from backend.models.common import DayType, DeadlineSource
+from backend.core.sanitizer import sanitize_short, sanitize_medium, sanitize_long
 
 
 class ChangeCreate(BaseModel):
@@ -15,6 +16,18 @@ class ChangeCreate(BaseModel):
     notice_due_day_type: Optional[DayType] = None
     impact_due_date: Optional[date] = None
     impact_due_source: Optional[str] = None
+
+    @field_validator("change_number", "notice_due_source", "impact_due_source", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
+    @field_validator("title", "origin", mode="before")
+    @classmethod
+    def clean_medium_fields(cls, v): return sanitize_medium(v)
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def clean_description(cls, v): return sanitize_long(v)
 
 
 class ChangeUpdate(BaseModel):
@@ -43,6 +56,18 @@ class ChangeUpdate(BaseModel):
     impact_due_source: Optional[str] = None
     impact_submitted_date: Optional[date] = None
     version: Optional[int] = None
+
+    @field_validator("notice_due_source", "impact_due_source", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
+    @field_validator("title", "origin", mode="before")
+    @classmethod
+    def clean_medium_fields(cls, v): return sanitize_medium(v)
+
+    @field_validator("description", "time_impact_note", mode="before")
+    @classmethod
+    def clean_long_fields(cls, v): return sanitize_long(v)
 
 
 class ChangeResponse(BaseModel):
@@ -79,8 +104,6 @@ class ChangeResponse(BaseModel):
     updated_at: datetime
 
 
-# ── Change References ──────────────────────────────────────────────────────
-
 class ChangeReferenceAdd(BaseModel):
     ref_type: str
     ref_number: str
@@ -88,9 +111,19 @@ class ChangeReferenceAdd(BaseModel):
     revision: Optional[str] = None
     description: Optional[str] = None
 
+    @field_validator("ref_type", "ref_number", "revision", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
 
-# ── Correspondence-Change Link ─────────────────────────────────────────────
+    @field_validator("description", mode="before")
+    @classmethod
+    def clean_description(cls, v): return sanitize_long(v)
+
 
 class ChangeLinkCreate(BaseModel):
     correspondence_id: UUID
     note: Optional[str] = None
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def clean_note(cls, v): return sanitize_long(v)

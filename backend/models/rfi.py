@@ -1,8 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
 from backend.models.common import DayType, DeadlineSource
+from backend.core.sanitizer import sanitize_short, sanitize_medium, sanitize_long
 
 
 class RFICreate(BaseModel):
@@ -17,6 +18,22 @@ class RFICreate(BaseModel):
     response_due_day_type: Optional[DayType] = None
     assigned_to: Optional[UUID] = None
     external_ref: Optional[str] = None
+
+    @field_validator("rfi_number", mode="before")
+    @classmethod
+    def clean_rfi_number(cls, v): return sanitize_short(v)
+
+    @field_validator("subject", mode="before")
+    @classmethod
+    def clean_subject(cls, v): return sanitize_medium(v)
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def clean_description(cls, v): return sanitize_long(v)
+
+    @field_validator("discipline", "submitted_by", "external_ref", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
 
 
 class RFIUpdate(BaseModel):
@@ -33,10 +50,26 @@ class RFIUpdate(BaseModel):
     assigned_to: Optional[UUID] = None
     external_ref: Optional[str] = None
 
+    @field_validator("subject", mode="before")
+    @classmethod
+    def clean_subject(cls, v): return sanitize_medium(v)
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def clean_description(cls, v): return sanitize_long(v)
+
+    @field_validator("discipline", "submitted_by", "external_ref", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
 
 class RFIClose(BaseModel):
     version: int
     close_note: Optional[str] = None
+
+    @field_validator("close_note", mode="before")
+    @classmethod
+    def clean_close_note(cls, v): return sanitize_long(v)
 
 
 class RFIResponse(BaseModel):

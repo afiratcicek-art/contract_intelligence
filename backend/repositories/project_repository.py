@@ -25,10 +25,10 @@ class ProjectRepository(BaseRepository):
             self.db.table("project_config")
             .select("*")
             .eq("project_id", project_id)
-            .single()
+            .limit(1)
             .execute()
         )
-        project["config"] = config_result.data
+        project["config"] = config_result.data[0] if config_result.data else None
 
         calendar_result = (
             self.db.table("calendar_config")

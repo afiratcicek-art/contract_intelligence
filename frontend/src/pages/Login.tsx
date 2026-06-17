@@ -72,14 +72,14 @@ export default function Login() {
             className="text-xs uppercase tracking-widest mb-3"
             style={{ color: "#A8936A", fontFamily: "Inter, sans-serif" }}
           >
-            Built for FIDIC & NEC
+            Precision. Compliance. Control.
           </p>
           <p
             className="text-sm leading-relaxed"
             style={{ color: "#44403C", fontFamily: "Inter, sans-serif" }}
           >
-            Her notice, her deadline, her correspondence — contractual
-            precision at your fingertips.
+            Every notice, every deadline, every correspondence —
+            managed with contractual precision.
           </p>
         </div>
       </div>

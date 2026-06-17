@@ -38,6 +38,13 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",")],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(SlowAPIMiddleware)
 
 # ── Global exception handler ───────────────────────────────────────────────
@@ -58,6 +65,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # ── Security headers middleware ────────────────────────────────────────────
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
+    # OPTIONS preflight isteklerini CORS middleware'e bırak
+    if request.method == "OPTIONS":
+        response = await call_next(request)
+        return response
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -71,14 +82,7 @@ async def security_headers(request: Request, call_next):
         )
     return response
 
-# ── CORS ───────────────────────────────────────────────────────────────────
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",")],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ── CORS yukarida SlowAPIMiddleware den once eklendi ───────────────────────
 
 # ── Routers ────────────────────────────────────────────────────────────────
 API_V1 = "/api/v1"

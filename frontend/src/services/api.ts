@@ -1,9 +1,5 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? "/api/v1";
 
-function getToken(): string | null {
-  return localStorage.getItem("clauseiq_token");
-}
-
 async function request<T>(
   method: string,
   path: string,
@@ -12,12 +8,11 @@ async function request<T>(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  const token = getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers,
+    credentials: "include",
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -36,8 +31,6 @@ export const api = {
 };
 
 export interface LoginResponse {
-  access_token: string;
-  token_type: string;
   user_id: string;
   full_name: string;
 }

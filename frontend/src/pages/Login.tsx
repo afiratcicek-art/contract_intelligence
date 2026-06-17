@@ -19,7 +19,6 @@ export default function Login() {
       saveAuth({
         user_id: res.user_id,
         full_name: res.full_name,
-        access_token: res.access_token,
       });
       navigate("/dashboard");
     } catch (err: unknown) {

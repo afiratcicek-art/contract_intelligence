@@ -1,20 +1,24 @@
 import hmac
 import hashlib
-from fastapi import Depends
-from fastapi.security import HTTPBearer
+from fastapi import Request
 from backend.database import get_anon_client, get_admin_client
 from backend.core.exceptions import UnauthorizedError, ForbiddenError
 
-security = HTTPBearer()
+_COOKIE_NAME = "clauseiq_token"
 
 
-def get_current_user(
-    token=Depends(security),
-    db=Depends(get_anon_client),
-) -> dict:
-    """JWT token'ı Supabase Auth ile doğrular ve profil döndürür. Sync."""
+def get_current_user(request: Request) -> dict:
+    """
+    httpOnly cookie'den JWT token okur, Supabase Auth ile doğrular,
+    profil döndürür. Sync.
+    """
+    token = request.cookies.get(_COOKIE_NAME)
+    if not token:
+        raise UnauthorizedError()
+
     try:
-        user_resp = db.auth.get_user(token.credentials)
+        db = get_anon_client()
+        user_resp = db.auth.get_user(token)
         if not user_resp or not user_resp.user:
             raise UnauthorizedError()
 
@@ -25,15 +29,13 @@ def get_current_user(
             .single()
             .execute()
         )
-
         if not result.data:
             raise UnauthorizedError("Kullanıcı profili bulunamadı")
-
         if not result.data.get("is_active"):
             raise ForbiddenError()
 
         user_data = result.data
-        user_data["_meta"] = {"token": token.credentials}
+        user_data["_meta"] = {"token": token}
         return user_data
 
     except (UnauthorizedError, ForbiddenError):

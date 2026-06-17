@@ -4,16 +4,25 @@ Tüm route'lar /projects/{project_id}/documents altında toplanır.
 entity_type parametresi ile aynı endpoint RFI, correspondence,
 change, deliverable, chronology ve contract_document entity'lerine
 belge ekleyebilir.
+
+Async parse mimarisi:
+  Upload → Storage → DB (pending) → 202 Accepted
+  Worker ayrı process'te pending kayıtları poll eder ve işler.
+  Kullanıcı parse_status'u GET /documents/{doc_id} ile takip eder.
 """
 import logging
+import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Request
+from fastapi.responses import JSONResponse
 
 from backend.core.dependencies import verify_project_access
 from backend.core.limiter import limiter
-from backend.services.pdf_pipeline_service import PDFPipelineService
+from backend.database import get_admin_client
 from backend.services.permission_service import PermissionService
 from backend.utils.file_handler import upload_document, delete_document, get_signed_url
+from backend.utils.pdf_utils import validate_pdf_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +44,7 @@ VALID_ENTITY_TYPES = {
 # ----------------------------------------------------------
 # POST /projects/{project_id}/documents/upload
 # ----------------------------------------------------------
-@router.post("/upload", status_code=201)
+@router.post("/upload", status_code=202)
 @limiter.limit("20/minute")
 def upload_pdf(
     request: Request,
@@ -46,26 +55,36 @@ def upload_pdf(
     access=Depends(verify_project_access),
 ):
     """
-    PDF yükler, parse eder, pdf_document tablosuna kaydeder.
-    Yalnızca .pdf uzantılı dosyalar kabul edilir.
-    Yanıtta extracted_text dönmez — GET /documents/{doc_id}/text ile alınır.
-    contract_document için entity_id, project_id ile aynı olmalıdır.
+    PDF'i Storage'a yükler, parse kuyruğuna alır, 202 Accepted döndürür.
+    Parse işlemi arka planda pdf_worker tarafından yapılır.
+    İşlem durumu GET /documents/{doc_id} ile parse_status alanından takip edilir.
+      pending    — kuyrukta bekliyor
+      processing — işleniyor
+      completed  — metin hazır
+      failed     — hata oluştu, parse_error alanını kontrol et
+
+    # TECHNICAL DEBT: TD-001
+    # Şu an kullanıcı parse_status'u manuel yenileyerek takip eder.
+    # Frontend aşamasında WebSocket veya polling ile otomatik güncelleme eklenecek.
     """
     db = access["db"]
     user_id = str(access["user"]["id"])
 
+    # entity_type doğrulama
     if entity_type not in VALID_ENTITY_TYPES:
         raise HTTPException(
             status_code=400,
             detail=f"Geçersiz entity_type. İzin verilenler: {sorted(VALID_ENTITY_TYPES)}",
         )
 
+    # contract_document özel guard
     if entity_type == "contract_document" and entity_id != project_id:
         raise HTTPException(
             status_code=400,
             detail="contract_document için entity_id, project_id ile aynı olmalıdır.",
         )
 
+    # İzin kontrolü
     PermissionService(db).require(
         user_id=user_id,
         project_id=project_id,
@@ -76,6 +95,14 @@ def upload_pdf(
     file_bytes = file.file.read()
     filename = file.filename or "upload.pdf"
 
+    # Temel doğrulama — boyut, uzantı, magic bytes
+    # Ağır işlem (OCR) worker'a bırakılır
+    try:
+        validate_pdf_bytes(file_bytes, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    # Storage'a yükle
     try:
         storage_path = upload_document(
             file_bytes=file_bytes,
@@ -87,23 +114,40 @@ def upload_pdf(
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    try:
-        pipeline = PDFPipelineService(db=db)
-        record = pipeline.process(
-            file_bytes=file_bytes,
-            filename=filename,
-            project_id=project_id,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            user_id=user_id,
-            storage_path=storage_path,
-        )
-    except RuntimeError as exc:
-        delete_document(storage_path)  # orphan file cleanup
-        raise HTTPException(status_code=422, detail=str(exc))
+    # pdf_document tablosuna pending kaydı yaz — worker bu kaydı işleyecek
+    doc_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    pending_record = {
+        "id": doc_id,
+        "project_id": project_id,
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "original_filename": filename,
+        "storage_path": storage_path,
+        "file_size_bytes": len(file_bytes),
+        "parse_status": "pending",
+        "created_by": user_id,
+        "created_at": now,
+        "updated_at": now,
+    }
 
-    record.pop("extracted_text", None)
-    return record
+    try:
+        get_admin_client().table("pdf_document").insert(pending_record).execute()
+    except Exception as exc:
+        # DB yazma başarısız — storage'daki dosyayı temizle
+        delete_document(storage_path)
+        logger.error("PDF pending kaydı yazılamadı: %s | id=%s", exc, doc_id)
+        raise HTTPException(status_code=500, detail="Belge kaydedilemedi.")
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "doc_id": doc_id,
+            "parse_status": "pending",
+            "message": "Belge alındı, işleme kuyruğuna eklendi.",
+            "status_url": f"/api/v1/projects/{project_id}/documents/{doc_id}",
+        },
+    )
 
 
 # ----------------------------------------------------------
@@ -156,7 +200,9 @@ def get_document(
     access=Depends(verify_project_access),
 ):
     """
-    Tek belge metadata'sını döndürür. extracted_text dahil değil.
+    Tek belge metadata'sını döndürür.
+    parse_status alanı ile işlem durumu takip edilir.
+    extracted_text dahil değil.
     """
     db = access["db"]
     try:
@@ -198,17 +244,31 @@ def get_document_text(
     claude_service'e göndermeden önce bu endpoint çağrılır.
     """
     db = access["db"]
-    pipeline = PDFPipelineService(db=db)
-    text = pipeline.get_extracted_text(
-        pdf_document_id=doc_id,
-        project_id=project_id,
-    )
-    if text is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Metin bulunamadı veya parse henüz tamamlanmadı.",
+    try:
+        result = (
+            db.table("pdf_document")
+            .select("extracted_text, parse_status")
+            .eq("id", doc_id)
+            .eq("project_id", project_id)
+            .single()
+            .execute()
         )
-    return {"doc_id": doc_id, "text": text}
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Belge bulunamadı.")
+        if result.data.get("parse_status") != "completed":
+            raise HTTPException(
+                status_code=202,
+                detail=f"Belge henüz işlenmedi. Durum: {result.data.get('parse_status')}",
+            )
+        text = result.data.get("extracted_text")
+        if not text:
+            raise HTTPException(status_code=404, detail="Metin bulunamadı.")
+        return {"doc_id": doc_id, "text": text}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Metin okuma hatası: %s | id=%s", exc, doc_id)
+        raise HTTPException(status_code=500, detail="Metin alınamadı.")
 
 
 # ----------------------------------------------------------

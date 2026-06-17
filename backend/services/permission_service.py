@@ -36,22 +36,20 @@ class PermissionService:
 
         role = member.data["project_role"]
 
-        perm_row = (
+        perm_result = (
             self.db.table("project_role_permissions")
             .select("is_allowed")
             .eq("project_id", project_id)
             .eq("project_role", role)
             .eq("entity_type", entity_type)
             .eq("permission", permission)
-            .single()
+            .limit(1)
             .execute()
         )
-
-        if not perm_row.data:
+        if not perm_result.data:
             # Kayıt yoksa varsayılan: cm tüm yetkiye sahip, viewer hiçbir şeye
             return role == "cm"
-
-        return perm_row.data.get("is_allowed", False)
+        return perm_result.data[0].get("is_allowed", False)
 
     def require(
         self,

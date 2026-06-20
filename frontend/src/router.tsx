@@ -1,11 +1,39 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { isAuthenticated } from "./store/auth";
+import { useState, useEffect } from "react";
+import { isSessionActive, verifySession, clearAuth } from "./store/auth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ProjectDetail from "./pages/ProjectDetail";
+import ErrorBoundary from "./components/ErrorBoundary";
+import Workspace from "./pages/Workspace";
+import NewCorrespondence from "./pages/NewCorrespondence";
+import CorrespondenceDetail from "./pages/CorrespondenceDetail";
+import RFIDetail from "./pages/RFIDetail";
+import ChangeDetail from "./pages/ChangeDetail";
+import NewChange from "./pages/NewChange";
+import NewRFI from "./pages/NewRFI";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  return isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />;
+  const [status, setStatus] = useState<"checking" | "ok" | "denied">(() => {
+    const active = sessionStorage.getItem("clauseiq_session_active") === "1";
+    return active ? "ok" : "checking";
+  });
+
+  useEffect(() => {
+    if (status !== "checking") return;
+    verifySession().then((valid) => {
+      if (valid) {
+        setStatus("ok");
+      } else {
+        clearAuth();
+        setStatus("denied");
+      }
+    });
+  }, []);
+
+  if (status === "checking") return null;
+  if (status === "denied") return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
 export default function Router() {
@@ -16,17 +44,91 @@ export default function Router() {
         <Route
           path="/dashboard"
           element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            </ErrorBoundary>
           }
         />
         <Route
           path="/projects/:projectId"
           element={
-            <PrivateRoute>
-              <ProjectDetail />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <ProjectDetail />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <Workspace />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/correspondence/new"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <NewCorrespondence />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/correspondence/:corrId"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <CorrespondenceDetail />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/rfis/new"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <NewRFI />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/rfis/:rfiId"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <RFIDetail />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/changes/new"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <NewChange />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/changes/:changeId"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <ChangeDetail />
+              </PrivateRoute>
+            </ErrorBoundary>
           }
         />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -1,6 +1,7 @@
 import { useProjectHealth } from "../hooks/useProjects";
 import type { Project } from "../hooks/useProjects";
 import { useNavigate } from "react-router-dom";
+import { useDarkMode } from "../hooks/useDarkMode";
 
 interface Props {
   project: Project;
@@ -15,10 +16,11 @@ function HealthBadge({
   label: string;
   urgency: "red" | "amber" | "normal";
 }) {
+  const dark = useDarkMode();
   const colors = {
-    red: { bg: "#FEE2E2", text: "#DC2626" },
-    amber: { bg: "#FEF3C7", text: "#92400E" },
-    normal: { bg: "#E7E3DC", text: "#44403C" },
+    red:    { bg: dark ? "#3D1A1A" : "#F5E6E4", text: dark ? "#E07060" : "#A93226" },
+    amber:  { bg: dark ? "#3D2E0A" : "#FEF3C7", text: dark ? "#D4956A" : "#92400E" },
+    normal: { bg: dark ? "#2E3340" : "#E7E3DC",  text: dark ? "#C4B49C" : "#44403C" },
   };
   const c = colors[urgency];
   return (
@@ -42,6 +44,7 @@ function HealthBadge({
 export default function ProjectCard({ project }: Props) {
   const navigate = useNavigate();
   const health = useProjectHealth(project.id);
+  const dark = useDarkMode();
 
   const contractTypeLabel: Record<string, string> = {
     lump_sum: "Lump Sum",
@@ -56,10 +59,17 @@ export default function ProjectCard({ project }: Props) {
 
   return (
     <div
-      className="rounded-sm cursor-pointer transition-shadow hover:shadow-md"
+      className="rounded-sm cursor-pointer"
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 12px rgba(28, 25, 23, 0.08)";
+        (e.currentTarget as HTMLElement).style.transition = "box-shadow 150ms ease-out";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.boxShadow = "none";
+      }}
       style={{
-        backgroundColor: "#E7E3DC",
-        borderLeft: "3px solid #A8936A",
+        backgroundColor: dark ? "#2E3340" : "#E7E3DC",
+        borderLeft: "3px solid #6B5D3F",
         padding: "1.25rem 1.5rem",
       }}
       onClick={() => navigate(`/projects/${project.id}`)}
@@ -71,12 +81,12 @@ export default function ProjectCard({ project }: Props) {
             className="text-base font-semibold leading-snug"
             style={{
               fontFamily: "Playfair Display, Georgia, serif",
-              color: "#1C1917",
+              color: dark ? "#E8E6E0" : "#1C1917",
             }}
           >
             {project.name}
           </h2>
-          <p className="text-xs mt-0.5" style={{ color: "#44403C" }}>
+          <p className="text-xs mt-0.5" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
             {project.employer_name} — {project.contractor_name}
           </p>
         </div>
@@ -84,8 +94,12 @@ export default function ProjectCard({ project }: Props) {
           className="text-xs px-2 py-0.5 rounded-full ml-4 shrink-0"
           style={{
             backgroundColor:
-              project.status === "active" ? "#D1FAE5" : "#FEE2E2",
-            color: project.status === "active" ? "#065F46" : "#DC2626",
+              project.status === "active"
+                ? (dark ? "#2E3340" : "#E7E3DC")
+                : (dark ? "#3D1A1A" : "#F5E6E4"),
+            color: project.status === "active"
+              ? (dark ? "#4DB88A" : "#1F6B4E")
+              : (dark ? "#E07060" : "#A93226"),
           }}
         >
           {project.status}
@@ -95,7 +109,7 @@ export default function ProjectCard({ project }: Props) {
       {/* Orta — contract info */}
       <div className="flex gap-4 mb-4">
         {project.contract_type && (
-          <span className="text-xs" style={{ color: "#44403C" }}>
+          <span className="text-xs" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
             {contractTypeLabel[project.contract_type] ?? project.contract_type}
           </span>
         )}
@@ -103,7 +117,7 @@ export default function ProjectCard({ project }: Props) {
           <span
             className="text-xs"
             style={{
-              color: "#44403C",
+              color: dark ? "#C4B49C" : "#44403C",
               fontFamily: "JetBrains Mono, monospace",
             }}
           >
@@ -115,7 +129,7 @@ export default function ProjectCard({ project }: Props) {
 
       {/* Alt — health indicators */}
       {health.loading ? (
-        <div className="text-xs" style={{ color: "#A8936A" }}>
+        <div className="text-xs" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
           Loading...
         </div>
       ) : (

@@ -204,6 +204,60 @@ def add_reference(
     return result.data[0]
 
 
+# ── Chronology ─────────────────────────────────────────────────────────────
+@router.get("/{change_id}/chronology")
+def get_change_chronology(
+    project_id: UUID,
+    change_id: UUID,
+    access: dict = Depends(verify_project_access),
+):
+    db = access["db"]
+    # Ownership check
+    from backend.repositories.change_repository import ChangeRepository
+    repo = ChangeRepository(db)
+    change = repo.get_or_404(str(change_id))
+    if change["project_id"] != str(project_id):
+        raise NotFoundError()
+    # Chronology'yi bul
+    chrono_result = (
+        db.table("chronologies")
+        .select("id, title, entity_type, entity_id, created_at")
+        .eq("entity_type", "change")
+        .eq("entity_id", str(change_id))
+        .eq("is_active", True)
+        .limit(1)
+        .execute()
+    )
+    if not chrono_result.data:
+        return {"chronology_id": None, "events": []}
+    chronology = chrono_result.data[0]
+    chronology_id = chronology["id"]
+    # Events
+    events_result = (
+        db.table("chronology_events")
+        .select("id, event_date, event_type, document_ref_id, document_ref_type, is_key_event, is_active, auto_narrative, approved_narrative, activity_id, boq_ref, created_at")
+        .eq("chronology_id", chronology_id)
+        .eq("is_active", True)
+        .order("event_date", desc=False)
+        .execute()
+    )
+    events = events_result.data or []
+    # Her event için change_event_documents getir
+    for event in events:
+        docs_result = (
+            db.table("change_event_documents")
+            .select("id, link_type, correspondence_id, rfi_id, pdf_document_id, note, added_at, correspondences(corr_number, subject, type, status, correspondence_date), rfis(rfi_number, subject, status)")
+            .eq("event_id", event["id"])
+            .execute()
+        )
+        event["documents"] = docs_result.data or []
+    return {
+        "chronology_id": chronology_id,
+        "title": chronology["title"],
+        "events": events,
+    }
+
+
 @router.post("/{change_id}/what-if")
 @limiter.limit("10/minute")
 def what_if_analysis(

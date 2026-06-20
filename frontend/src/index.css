@@ -10,9 +10,19 @@
     color: #1C1917;
     font-family: "Inter", system-ui, sans-serif;
   }
-
+  html.dark {
+    background-color: #1F2228;
+    color: #E8E6E0;
+  }
   * {
     box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  input:focus,
+  input:focus-visible {
+    outline: none;
+    box-shadow: none;
   }
 }
 
@@ -22,9 +32,31 @@
     background: linear-gradient(
       to bottom,
       transparent 0%,
-      #A8936A 15%,
-      #A8936A 85%,
+      #6B5D3F 15%,
+      #6B5D3F 85%,
       transparent 100%
     );
   }
+  .nav-item-active {
+    border-left: 3px solid #6B5D3F;
+    background-color: #E7E3DC;
+  }
+  .metric-card-accent {
+    border-top: 2px solid #6B5D3F;
+  }
+  .tab-active {
+    font-weight: 600;
+    border-bottom: 3px solid #6B5D3F;
+  }
+}
+
+html.dark .nav-item-active {
+  border-left-color: #A0714A;
+  background-color: #2E3340;
+}
+html.dark .metric-card-accent {
+  border-top-color: #A0714A;
+}
+html.dark .tab-active {
+  border-bottom-color: #A0714A;
 }

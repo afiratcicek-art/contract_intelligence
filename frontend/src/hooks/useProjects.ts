@@ -44,27 +44,22 @@ export function useProjectHealth(projectId: string): ProjectHealth {
     upcoming_deadlines: 0,
     loading: true,
   });
-
   useEffect(() => {
-    Promise.all([
-      api
-        .get<unknown[]>(`/projects/${projectId}/correspondences?status=open`)
-        .catch(() => []),
-      api
-        .get<unknown[]>(`/projects/${projectId}/rfis?status=overdue`)
-        .catch(() => []),
-      api
-        .get<unknown[]>(`/projects/${projectId}/rfis/deadlines?days=7`)
-        .catch(() => []),
-    ]).then(([corr, rfis, deadlines]) => {
-      setHealth({
-        open_correspondences: Array.isArray(corr) ? corr.length : 0,
-        overdue_rfis: Array.isArray(rfis) ? rfis.length : 0,
-        upcoming_deadlines: Array.isArray(deadlines) ? deadlines.length : 0,
-        loading: false,
+    api
+      .get<{ open_correspondences: number; overdue_rfis: number; upcoming_deadlines: number }>(
+        `/projects/${projectId}/health`
+      )
+      .then((data) => {
+        setHealth({
+          open_correspondences: data.open_correspondences,
+          overdue_rfis: data.overdue_rfis,
+          upcoming_deadlines: data.upcoming_deadlines,
+          loading: false,
+        });
+      })
+      .catch(() => {
+        setHealth((prev) => ({ ...prev, loading: false }));
       });
-    });
   }, [projectId]);
-
   return health;
 }

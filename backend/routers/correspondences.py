@@ -54,7 +54,8 @@ def create_correspondence(
     data = body.model_dump(mode="json", exclude_none=True)
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
-
+    if data.get("direction") == "incoming":
+        data["status"] = "open"
     if "correspondence_date" in data:
         data["correspondence_date"] = str(data["correspondence_date"])
 

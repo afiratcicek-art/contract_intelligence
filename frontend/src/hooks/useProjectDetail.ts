@@ -107,3 +107,81 @@ export function useProjectTabs(projectId: string) {
 
   return { correspondences, rfis, changes, deliverables, trend, loading };
 }
+
+export interface ActivityPoint {
+  date: string;
+  correspondence: number;
+  rfi: number;
+  change: number;
+  deliverable: number;
+}
+
+export interface PrePeriod {
+  correspondence: number;
+  rfi: number;
+  change: number;
+  deliverable: number;
+}
+
+export interface DeadlineItem {
+  type: string;
+  label: string;
+  ref: string;
+  subject: string;
+  due_date: string | null;
+  id: string;
+}
+
+export interface OverdueItem {
+  type: string;
+  label: string;
+  ref: string;
+  subject: string;
+  due_date: string | null;
+  id: string;
+}
+
+export function useOverviewActivity(projectId: string) {
+  const [data, setData] = useState<{ today: string; start: string; end: string; days: ActivityPoint[]; pre_period: PrePeriod } | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api
+      .get<{ today: string; start: string; end: string; days: ActivityPoint[]; pre_period: PrePeriod }>(
+        `/projects/${projectId}/overview-activity`
+      )
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [projectId]);
+  return { data, loading };
+}
+
+export function useUpcomingDeadlines(projectId: string) {
+  const [items, setItems] = useState<DeadlineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api
+      .get<{ today: string; items: DeadlineItem[] }>(
+        `/projects/${projectId}/upcoming-deadlines`
+      )
+      .then((res) => setItems(res.items))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [projectId]);
+  return { items, loading };
+}
+
+export function useOverdue(projectId: string) {
+  const [items, setItems] = useState<OverdueItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api
+      .get<{ today: string; items: OverdueItem[] }>(
+        `/projects/${projectId}/overdue`
+      )
+      .then((res) => setItems(res.items))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [projectId]);
+  return { items, loading };
+}

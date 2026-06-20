@@ -6,7 +6,11 @@ from backend.utils.pdf_utils import scan_for_virus
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_TYPES = {"pdf", "docx", "xlsx", "png", "jpg", "jpeg"}
+ALLOWED_TYPES = {
+    "pdf", "docx", "doc", "xlsx", "xls",
+    "pptx", "ppt", "jpg", "jpeg", "png",
+    "dwg", "dxf", "txt", "csv",
+}
 MAX_FILE_SIZE_MB = 50
 STORAGE_BUCKET = "documents"
 
@@ -86,9 +90,17 @@ def _content_type(ext: str) -> str:
     mapping = {
         "pdf":  "application/pdf",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "doc":  "application/msword",
         "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "xls":  "application/vnd.ms-excel",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "ppt":  "application/vnd.ms-powerpoint",
         "png":  "image/png",
         "jpg":  "image/jpeg",
         "jpeg": "image/jpeg",
+        "dwg":  "application/acad",
+        "dxf":  "application/dxf",
+        "txt":  "text/plain",
+        "csv":  "text/csv",
     }
     return mapping.get(ext, "application/octet-stream")

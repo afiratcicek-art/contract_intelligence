@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from backend.database import get_db, get_admin_client
+from backend.core.security import get_current_user
 from backend.core.limiter import limiter
 from backend.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _IS_PRODUCTION = settings.APP_ENV == "production"
+_COOKIE_SAMESITE = "strict" if _IS_PRODUCTION else "lax"
 _COOKIE_NAME = "clauseiq_token"
 
 
@@ -51,8 +53,7 @@ def login(request: Request, response: Response, body: LoginRequest, db=Depends(g
             value=result.session.access_token,
             httponly=True,
             secure=_IS_PRODUCTION,
-            samesite="strict",
-            max_age=3600,
+            samesite=_COOKIE_SAMESITE,
             path="/",
         )
 
@@ -78,6 +79,15 @@ def logout(response: Response, db=Depends(get_db)):
         path="/",
         httponly=True,
         secure=_IS_PRODUCTION,
-        samesite="strict",
+        samesite=_COOKIE_SAMESITE,
     )
     return {"message": "Signed out"}
+
+
+@router.get("/me")
+def me(current_user: dict = Depends(get_current_user)):
+    """Token doğrulama — geçerliyse 200, geçersizse 401."""
+    return {
+        "user_id": current_user["id"],
+        "full_name": current_user.get("full_name", ""),
+    }

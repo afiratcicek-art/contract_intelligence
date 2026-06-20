@@ -1,7 +1,11 @@
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../services/api";
 import { saveAuth } from "../store/auth";
+import Button from "../components/Button";
+import { useDarkMode } from "../hooks/useDarkMode";
+import ThemeToggle from "../components/ThemeToggle";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -9,6 +13,17 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const dark = useDarkMode();
+  const { lang, toggle: toggleLang, t } = useLanguage();
+
+  useEffect(() => {
+    const saved = localStorage.getItem("clauseiq_remembered_email");
+    if (saved) {
+      setEmail(saved);
+      setRememberMe(true);
+    }
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -20,9 +35,14 @@ export default function Login() {
         user_id: res.user_id,
         full_name: res.full_name,
       });
+      if (rememberMe) {
+        localStorage.setItem("clauseiq_remembered_email", email);
+      } else {
+        localStorage.removeItem("clauseiq_remembered_email");
+      }
       navigate("/dashboard");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Giriş başarısız.");
+      setError(err instanceof Error ? err.message : (lang === "tr" ? "Giriş başarısız." : "Login failed."));
     } finally {
       setLoading(false);
     }
@@ -31,12 +51,12 @@ export default function Login() {
   return (
     <div
       className="min-h-screen flex"
-      style={{ backgroundColor: "#F5F2ED" }}
+      style={{ backgroundColor: dark ? "#1F2228" : "#F5F2ED" }}
     >
       {/* Sol panel — marka */}
       <div
         className="hidden lg:flex flex-col justify-between w-2/5 p-12"
-        style={{ backgroundColor: "#E7E3DC" }}
+        style={{ backgroundColor: dark ? "#2E3340" : "#E7E3DC" }}
       >
         {/* Üst — logo ve imza çizgisi */}
         <div className="flex items-start gap-6">
@@ -46,19 +66,19 @@ export default function Login() {
               width: "2px",
               height: "72px",
               background:
-                "linear-gradient(to bottom, transparent 0%, #A8936A 20%, #A8936A 80%, transparent 100%)",
+                "linear-gradient(to bottom, transparent 0%, #6B5D3F 20%, #6B5D3F 80%, transparent 100%)",
             }}
           />
           <div>
             <h1
               className="text-3xl font-semibold tracking-tight"
-              style={{ fontFamily: "Playfair Display, Georgia, serif", color: "#1C1917" }}
+              style={{ fontFamily: "Playfair Display, Georgia, serif", color: dark ? "#E8E6E0" : "#1C1917" }}
             >
               ClauseIQ
             </h1>
             <p
               className="mt-1 text-sm"
-              style={{ color: "#44403C", fontFamily: "Inter, sans-serif" }}
+              style={{ color: dark ? "#C4B49C" : "#44403C", fontFamily: "Inter, sans-serif" }}
             >
               Contract & Operational Intelligence
             </p>
@@ -69,13 +89,13 @@ export default function Login() {
         <div>
           <p
             className="text-xs uppercase tracking-widest mb-3"
-            style={{ color: "#A8936A", fontFamily: "Inter, sans-serif" }}
+            style={{ color: dark ? "#C4B49C" : "#44403C", fontFamily: "Inter, sans-serif" }}
           >
             Precision. Compliance. Control.
           </p>
           <p
             className="text-sm leading-relaxed"
-            style={{ color: "#44403C", fontFamily: "Inter, sans-serif" }}
+            style={{ color: dark ? "#C4B49C" : "#44403C", fontFamily: "Inter, sans-serif" }}
           >
             Every notice, every deadline, every correspondence —
             managed with contractual precision.
@@ -84,7 +104,13 @@ export default function Login() {
       </div>
 
       {/* Sağ panel — form */}
-      <div className="flex flex-1 items-center justify-center px-8">
+      <div className="relative flex flex-1 items-center justify-center px-8">
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#C4AD87"}`, cursor: "pointer", fontSize: 11, color: dark ? "#C4B49C" : "#44403C", padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
+            {lang === "en" ? "TR" : "EN"}
+          </button>
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="lg:hidden mb-10 flex items-center gap-4">
@@ -93,12 +119,12 @@ export default function Login() {
                 width: "2px",
                 height: "48px",
                 background:
-                  "linear-gradient(to bottom, transparent 0%, #A8936A 20%, #A8936A 80%, transparent 100%)",
+                  "linear-gradient(to bottom, transparent 0%, #6B5D3F 20%, #6B5D3F 80%, transparent 100%)",
               }}
             />
             <h1
               className="text-2xl font-semibold"
-              style={{ fontFamily: "Playfair Display, Georgia, serif", color: "#1C1917" }}
+              style={{ fontFamily: "Playfair Display, Georgia, serif", color: dark ? "#E8E6E0" : "#1C1917" }}
             >
               ClauseIQ
             </h1>
@@ -106,12 +132,12 @@ export default function Login() {
 
           <h2
             className="text-xl font-semibold mb-1"
-            style={{ fontFamily: "Playfair Display, Georgia, serif", color: "#1C1917" }}
+            style={{ fontFamily: "Playfair Display, Georgia, serif", color: dark ? "#E8E6E0" : "#1C1917" }}
           >
-            Oturum Aç
+            {t("login.title")}
           </h2>
-          <p className="text-sm mb-8" style={{ color: "#44403C" }}>
-            Devam etmek için giriş yapın.
+          <p className="text-sm mb-8" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
+            {t("login.subtitle")}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -120,9 +146,9 @@ export default function Login() {
               <label
                 htmlFor="email"
                 className="block text-xs font-medium mb-1 uppercase tracking-wide"
-                style={{ color: "#44403C" }}
+                style={{ color: dark ? "#C4B49C" : "#44403C" }}
               >
-                E-posta
+                {t("login.email")}
               </label>
               <input
                 id="email"
@@ -131,15 +157,15 @@ export default function Login() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 text-sm outline-none transition-colors"
+                className="w-full px-4 py-4 text-sm outline-none transition-colors"
                 style={{
-                  backgroundColor: "#E7E3DC",
-                  border: "1px solid #C4AD87",
-                  color: "#1C1917",
+                  backgroundColor: dark ? "#2E3340" : "#E7E3DC",
+                  border: `1px solid ${dark ? "#3D4456" : "#C4AD87"}`,
+                  color: dark ? "#E8E6E0" : "#1C1917",
                   fontFamily: "Inter, sans-serif",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = "#A8936A")}
-                onBlur={(e) => (e.target.style.borderColor = "#C4AD87")}
+                onFocus={(e) => (e.target.style.borderColor = "#6B5D3F")}
+                onBlur={(e) => (e.target.style.borderColor = dark ? "#3D4456" : "#C4AD87")}
               />
             </div>
 
@@ -148,9 +174,9 @@ export default function Login() {
               <label
                 htmlFor="password"
                 className="block text-xs font-medium mb-1 uppercase tracking-wide"
-                style={{ color: "#44403C" }}
+                style={{ color: dark ? "#C4B49C" : "#44403C" }}
               >
-                Şifre
+                {t("login.password")}
               </label>
               <input
                 id="password"
@@ -159,40 +185,53 @@ export default function Login() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 text-sm outline-none transition-colors"
+                className="w-full px-4 py-4 text-sm outline-none transition-colors"
                 style={{
-                  backgroundColor: "#E7E3DC",
-                  border: "1px solid #C4AD87",
-                  color: "#1C1917",
+                  backgroundColor: dark ? "#2E3340" : "#E7E3DC",
+                  border: `1px solid ${dark ? "#3D4456" : "#C4AD87"}`,
+                  color: dark ? "#E8E6E0" : "#1C1917",
                   fontFamily: "Inter, sans-serif",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = "#A8936A")}
-                onBlur={(e) => (e.target.style.borderColor = "#C4AD87")}
+                onFocus={(e) => (e.target.style.borderColor = "#6B5D3F")}
+                onBlur={(e) => (e.target.style.borderColor = dark ? "#3D4456" : "#C4AD87")}
               />
             </div>
 
             {/* Hata */}
+            {/* Beni hatırla */}
+            <div className="flex items-center gap-3 mt-1">
+              <input
+                id="rememberMe"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 cursor-pointer accent-gold"
+                style={{ accentColor: "#6B5D3F" }}
+              />
+              <label
+                htmlFor="rememberMe"
+                className="text-xs cursor-pointer select-none"
+                style={{ color: dark ? "#C4B49C" : "#44403C" }}
+              >
+                {t("login.remember")}
+              </label>
+            </div>
+
             {error && (
-              <p className="text-sm" style={{ color: "#DC2626" }}>
+              <p className="text-sm" style={{ color: dark ? "#E07060" : "#A93226" }}>
                 {error}
               </p>
             )}
 
             {/* Submit */}
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full py-3 text-sm font-medium tracking-wide transition-opacity"
-              style={{
-                backgroundColor: loading ? "#C4AD87" : "#A8936A",
-                color: "#F5F2ED",
-                fontFamily: "Inter, sans-serif",
-                opacity: loading ? 0.7 : 1,
-                cursor: loading ? "not-allowed" : "pointer",
-              }}
+              loading={loading}
+              loadingText={t("login.loading") ?? "..."}
+              className="w-full"
             >
-              {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
-            </button>
+              {t("login.button")}
+            </Button>
           </form>
         </div>
       </div>

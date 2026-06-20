@@ -69,6 +69,35 @@ def validate_pdf_bytes(file_bytes: bytes, filename: str) -> None:
         raise ValueError("Geçersiz PDF formatı: dosya imzası tanınamadı.")
 
 
+ALLOWED_EXTENSIONS = {
+    "pdf", "docx", "doc", "xlsx", "xls",
+    "pptx", "ppt", "jpg", "jpeg", "png",
+    "dwg", "dxf", "txt", "csv",
+}
+
+def validate_document_bytes(file_bytes: bytes, filename: str) -> None:
+    """
+    Tüm desteklenen dosya tipleri için temel doğrulama.
+    PDF için magic bytes kontrolü de yapar.
+    Hata durumunda ValueError fırlatır.
+    """
+    if not file_bytes:
+        raise ValueError("Dosya boş.")
+    if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        raise ValueError(
+            f"Dosya boyutu sınırı aşıldı: "
+            f"{len(file_bytes) / 1024 / 1024:.1f} MB (max 50 MB)."
+        )
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise ValueError(
+            f"Desteklenmeyen dosya türü: .{ext}. "
+            f"İzin verilenler: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        )
+    if ext == "pdf" and not file_bytes.startswith(b"%PDF"):
+        raise ValueError("Geçersiz PDF formatı: dosya imzası tanınamadı.")
+
+
 def classify_pages(pdf_bytes: bytes) -> DocumentQuality:
     """
     PyMuPDF ile her sayfayı analiz eder, quality score üretir,

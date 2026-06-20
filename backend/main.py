@@ -42,7 +42,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",")],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 app.add_middleware(SlowAPIMiddleware)
@@ -75,11 +75,15 @@ async def security_headers(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=()"
-    if _is_production:
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'none'; "
-            "frame-ancestors 'none';"
-        )
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
     return response
 
 # ── CORS yukarida SlowAPIMiddleware den once eklendi ───────────────────────
@@ -99,13 +103,8 @@ app.include_router(documents.router, prefix=API_V1)
 # ── Health check ───────────────────────────────────────────────────────────
 @app.get("/", tags=["health"])
 def health():
-    return {"status": "ok", "service": "ClauseIQ API", "version": "1.0.0"}
+    return {"status": "ok"}
 
 @app.get("/health", tags=["health"])
 def health_detailed():
-    return {
-        "status": "ok",
-        "service": "ClauseIQ API",
-        "version": "1.0.0",
-        "modules": ["rfi", "correspondence", "change", "chronology", "deliverable", "document"],
-    }
+    return {"status": "ok"}

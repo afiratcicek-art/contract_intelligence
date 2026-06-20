@@ -103,3 +103,52 @@ merkezi izleme sistemi olmadan sorunlar gözden kaçabilir.
 **Sorun:** Frontend URL'leri henüz yazılmadı — /api/v1/ prefix gözetilerek yazılmalı.
 **Çözüm:** Frontend geliştirme başlarken base URL sabitini merkezi tanımla.
 **Ne zaman:** Frontend geliştirme başlangıcında.
+
+## [TD-SEARCH-001] Semantic Search — RAG Entegrasyonu
+**Öncelik:** V2
+**Modül:** Workspace / General
+**Tarih:** 19 Haziran 2026
+
+### Açıklama
+Global arama şu an PostgreSQL full-text search (tsvector/tsquery) ile çalışmaktadır.
+V2'de pgvector + embedding tabanlı semantic search entegre edilecek.
+
+### Beklenen Davranış
+"Kazı derinliği" araması → "hafriyat", "excavation depth", "foundation depth" içeren
+belgeleri de bulabilmeli. Cross-language ve synonym matching desteklenmeli.
+
+### Teknik Gereksinimler
+- pgvector extension (Supabase'de mevcut)
+- Embedding model: mevcut two-layer LLM mimarisi ile entegre
+- RAG pipeline: rag_service.py'daki hybrid retrieval (BM25 + pgvector + RRF fusion)
+- HITL approval: yeni belge embedding'leri human approval sonrası sisteme girer
+- Opt-out toggle: kullanıcı UI'dan semantic search'ü devre dışı bırakabilir
+
+### İlgili Dosyalar
+- backend/services/rag_service.py
+- backend/services/claude_service.py
+- backend/routers/ (yeni /search endpoint eklenecek)
+
+## [TD-CHART-001] Overview ±15 Gün Chart — Görsel İyileştirme
+**Öncelik:** V1.5
+**Modül:** Overview / ProjectDetail
+**Tarih:** 20 Haziran 2026
+
+### Açıklama
+Şu an: Stacked bar, belge tipine göre renkli (Seçenek D), bugün çizgisi ile geçmiş/gelecek ayrımı.
+Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
+
+### Değerlendirilecek Alternatifler
+- Seçenek A: Stacked bar, belge tipine göre renkli — mevcut seçim
+- Seçenek B: İki ayrı mini chart (geçmiş aktivite / gelecek deadline'lar)
+- Belge tiplerini 2'ye indirme: "Correspondence" + "Diğerleri"
+- Tooltip ile detay gösterimi
+
+### Karar Kriteri
+- 4 rengin dar barlarda okunabilirliği test edilecek
+- Gerçek veri ile görsel yoğunluk değerlendirilecek
+- Warhol kuralı (ekonomik renk) ve Rönesans hiyerarşisi gözetilecek
+
+### İlgili Dosyalar
+- frontend/src/pages/ProjectDetail.tsx
+- frontend/src/components/CorrespondenceChart.tsx (genişletilecek)

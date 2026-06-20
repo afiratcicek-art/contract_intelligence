@@ -22,7 +22,7 @@ from backend.core.limiter import limiter
 from backend.database import get_admin_client
 from backend.services.permission_service import PermissionService
 from backend.utils.file_handler import upload_document, delete_document, get_signed_url
-from backend.utils.pdf_utils import validate_pdf_bytes
+from backend.utils.pdf_utils import validate_pdf_bytes, validate_document_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def upload_pdf(
     # Temel doğrulama — boyut, uzantı, magic bytes
     # Ağır işlem (OCR) worker'a bırakılır
     try:
-        validate_pdf_bytes(file_bytes, filename)
+        validate_document_bytes(file_bytes, filename)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

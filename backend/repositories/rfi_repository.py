@@ -48,7 +48,7 @@ class RFIRepository(BaseRepository):
         """Bu RFI'ya referans veren correspondence'ları getirir."""
         result = (
             self.db.table("correspondence_references")
-            .select("correspondence_id, correspondences(id, corr_number, type, subject, correspondence_date, status)")
+            .select("correspondence_id, correspondences!correspondence_references_correspondence_id_fkey(id, corr_number, type, subject, correspondence_date, status)")
             .eq("rfi_id", rfi_id)
             .eq("ref_type", "rfi")
             .execute()

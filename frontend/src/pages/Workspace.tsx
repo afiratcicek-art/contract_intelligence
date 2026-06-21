@@ -9,8 +9,8 @@ import { useLanguage } from "../context/LanguageContext";
 type Module = "general" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
 interface SearchResult { module: string; label: string; ref: string; subject: string; status: string; date: string; id: string; }
-interface CorrItem { id: string; corr_number: string; subject: string; type: string; status: string; correspondence_date: string; direction: string; response_due_date: string | null; }
-interface RFIItem { id: string; rfi_number: string; subject: string; status: string; submitted_date: string; response_due_date: string | null; discipline: string | null; }
+interface CorrItem { id: string; corr_number: string; subject: string; type: string; status: string; correspondence_date: string; direction: string; response_due_date: string | null; parent_id: string | null; has_response: boolean; }
+interface RFIItem { id: string; rfi_number: string; subject: string; status: string; submitted_date: string; response_due_date: string | null; discipline: string | null; parent_id: string | null; rfi_type: string; }
 interface ChangeItem { id: string; change_number: string; title: string; status: string; origin: string; notice_due_date: string | null; created_at: string; }
 interface DeliverableItem { id: string; title: string; status: string; due_date: string | null; category: string | null; is_pre_completion: boolean; }
 
@@ -88,6 +88,8 @@ export default function Workspace() {
   const [rfiDateTo, setRfiDateTo] = useState("");
   const [rfiDueDateFrom, setRfiDueDateFrom] = useState("");
   const [rfiDueDateTo, setRfiDueDateTo] = useState("");
+  const [corrDropdown, setCorrDropdown] = useState(false);
+  const [rfiDropdown, setRfiDropdown] = useState(false);
   const [rfiDateField, setRfiDateField] = useState<"submitted_date" | "response_due_date">("submitted_date");
 
   const [changes, setChanges] = useState<ChangeItem[]>([]);
@@ -353,41 +355,127 @@ export default function Workspace() {
           {/* CORRESPONDENCE */}
           {activeModule === "correspondence" && (
             <div>
-              {moduleHeader("Correspondence", () => navigate(`/projects/${projectId}/workspace/correspondence/new`), t("action.newcorrespondence"))}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
+                <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600 }}>Correspondence</div>
+                <div style={{ position: "relative" as const }}>
+                  <button onClick={() => setCorrDropdown(!corrDropdown)} style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                    {t("action.newcorrespondence")} ▾
+                  </button>
+                  {corrDropdown && (
+                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: 100, backgroundColor: dark ? "#2E3340" : "#F5F2ED", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
+                      <button onClick={() => { setCorrDropdown(false); navigate(`/projects/${projectId}/workspace/correspondence/new?mode=new`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
+                        {lang === "tr" ? "Yeni Yazışma" : "New Correspondence"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
               {filterRow(
                 keywordSearch(corrKeyword, setCorrKeyword),
                 <div key="div1" style={{ width: "0.5px", background: border, height: 20 }} />,
                 ...["", "incoming", "outgoing"].map((d) => chip(d === "" ? t("filter.alldirections") : d === "incoming" ? t("filter.incoming") : t("filter.outgoing"), corrDir === d, () => setCorrDir(d)))
               )}
-              {filterRow(...["", "open", "draft", "under_review", "approved", "published", "closed", "overdue"].map((s) => chip(s === "" ? t("filter.all") : s.replace("_", " "), corrStatus === s, () => setCorrStatus(s))))}
+              {filterRow(...["", "open", "responded", "draft", "under_review", "approved", "published", "closed", "overdue"].map((s) => chip(s === "" ? t("filter.all") : s.replace("_", " "), corrStatus === s, () => setCorrStatus(s))))}
               {filterRow(
                 chip(t("filter.issuedate"), corrDateField === "correspondence_date", () => setCorrDateField("correspondence_date")),
                 chip(t("filter.duedate"), corrDateField === "response_due_date", () => setCorrDateField("response_due_date")),
                 <div key="cdiv" style={{ width: "0.5px", background: border, height: 20 }} />,
                 dateRange(corrDateField === "correspondence_date" ? t("filter.issuedate") : t("filter.duedate"), corrDateFrom, corrDateTo, setCorrDateFrom, setCorrDateTo)
               )}
-              {corrLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : filteredCorrs.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.nocorrespondence")}</p> : (
-                <div>
-                  {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.subject"), width: "1fr" }, { label: t("col.direction"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.deadline"), width: "90px" }, { label: t("col.status"), width: "90px" }])}
-                  {filteredCorrs.map((c) => (
-                    <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px 90px 90px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${c.status === "overdue" ? (dark ? "#E07060" : "#A93226") : c.status === "open" ? gold : "transparent"}` }}>
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary }}>{c.corr_number}</span>
-                      <div><p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{c.subject}</p><p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{c.type}</p></div>
-                      <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" }}>{c.direction}</span>
+              {corrLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : filteredCorrs.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.nocorrespondence")}</p> : (() => {
+                // Parent-child gruplama
+                const allIds = new Set(filteredCorrs.map(c => c.id));
+                const childIds = new Set(filteredCorrs.filter(c => c.parent_id).map(c => c.id));
+                
+                // Filtrelenmiş listede child varsa parent'ı da dahil et (ghost parent)
+                const ghostParents = corrs.filter(c => 
+                  !allIds.has(c.id) && 
+                  filteredCorrs.some(fc => fc.parent_id === c.id)
+                );
+                
+                const allCorrs = [...ghostParents, ...filteredCorrs];
+                const parents = allCorrs.filter(c => !c.parent_id);
+                const childMap = new Map<string, typeof filteredCorrs>();
+                allCorrs.filter(c => c.parent_id).forEach(c => {
+                  const arr = childMap.get(c.parent_id!) ?? [];
+                  arr.push(c);
+                  childMap.set(c.parent_id!, arr);
+                });
+
+                const corrRow = (c: CorrItem, isChild = false) => (
+                  <div key={c.id}>
+                    <div
+                      onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${c.id}`)}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "90px 1fr 90px 90px 90px 90px",
+                        gap: 8,
+                        padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+                        background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
+                        marginBottom: 2,
+                        cursor: "pointer",
+                        borderLeft: isChild
+                          ? `2px solid ${gold}`
+                          : `2px solid ${c.status === "overdue" ? (dark ? "#E07060" : "#A93226") : c.status === "open" ? gold : c.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "transparent"}`,
+                      }}
+                    >
+                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                        {isChild && <span style={{ color: gold, marginRight: 2 }}>└</span>}
+                        {c.corr_number}
+                        {c.has_response && <span style={{ fontSize: 8, color: gold }}>🔗</span>}
+                      </span>
+                      <div>
+                        <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, margin: 0 }}>{c.subject}</p>
+                        <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{c.type}</p>
+                      </div>
+                      <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const }}>{c.direction}</span>
                       <span style={{ fontSize: 11, color: textSecondary }}>{c.correspondence_date?.slice(0, 10)}</span>
                       <span style={{ fontSize: 11, color: c.response_due_date && c.response_due_date < today ? (dark ? "#E07060" : "#A93226") : textSecondary }}>{c.response_due_date?.slice(0, 10) ?? "—"}</span>
                       {statusPill(c.status)}
                     </div>
-                  ))}
-                </div>
-              )}
+                    {/* Children */}
+                    {(childMap.get(c.id) ?? []).map(child => corrRow(child, true))}
+                  </div>
+                );
+
+                return (
+                  <div>
+                    {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.subject"), width: "1fr" }, { label: t("col.direction"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.deadline"), width: "90px" }, { label: t("col.status"), width: "90px" }])}
+                    {parents.map(c => corrRow(c, false))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
           {/* RFIs */}
           {activeModule === "rfis" && (
             <div>
-              {moduleHeader("RFIs", () => navigate(`/projects/${projectId}/workspace/rfis/new`), t("action.newrfi"))}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
+                <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600 }}>RFIs</div>
+                <div style={{ position: "relative" as const }}>
+                  <button onClick={() => setRfiDropdown(!rfiDropdown)} style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                    {t("action.newrfi")} ▾
+                  </button>
+                  {rfiDropdown && (
+                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: 100, backgroundColor: dark ? "#2E3340" : "#F5F2ED", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
+                      <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=new`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
+                        {lang === "tr" ? "Yeni RFI" : "New RFI"}
+                      </button>
+                      <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=response`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
+                        {lang === "tr" ? "↩ Yanıt Ekle" : "↩ Add Response"}
+                      </button>
+                      <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=revision`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
+                        {lang === "tr" ? "↺ Revize Ekle" : "↺ Add Revision"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
               {filterRow(
                 keywordSearch(rfiKeyword, setRfiKeyword),
                 <div key="div1" style={{ width: "0.5px", background: border, height: 20 }} />,
@@ -405,7 +493,15 @@ export default function Workspace() {
                   {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.subject"), width: "1fr" }, { label: t("col.discipline"), width: "100px" }, { label: t("col.submitted"), width: "90px" }, { label: t("col.due"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
                   {filteredRfis.map((r) => (
                     <div key={r.id} onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${r.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 100px 90px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${r.status === "overdue" ? (dark ? "#E07060" : "#A93226") : r.status === "open" ? gold : "transparent"}` }}>
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary }}>{r.rfi_number}</span>
+                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                        {r.rfi_number}
+                        {r.parent_id && <span style={{ fontSize: 9, color: gold }} title="Zincirde">🔗</span>}
+                        {r.rfi_type && r.rfi_type !== "original" && (
+                          <span style={{ fontSize: 8, fontWeight: 600, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#1F2A3A" : "#E8F0FE"), color: r.rfi_type === "response" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#7BA7D4" : "#1A56A4"), textTransform: "uppercase" as const }}>
+                            {r.rfi_type === "response" ? (lang === "tr" ? "YNT" : "RES") : (lang === "tr" ? "REV" : "REV")}
+                          </span>
+                        )}
+                      </span>
                       <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{r.subject}</p>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" }}>{r.discipline ?? "—"}</span>
                       <span style={{ fontSize: 11, color: textSecondary }}>{r.submitted_date?.slice(0, 10)}</span>

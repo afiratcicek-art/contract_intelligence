@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
@@ -33,6 +33,12 @@ export default function NewRFI() {
   const dark = useDarkMode();
   const { lang, toggle: toggleLang, t } = useLanguage();
   const auth = getAuth();
+  const location = useLocation();
+  const qp = new URLSearchParams(location.search);
+  const mode = qp.get("mode") ?? "new";
+  const parentId = qp.get("parent_id") ?? null;
+  const parentNumber = qp.get("parent_number") ?? null;
+  const rfiType = mode === "response" ? "response" : mode === "revision" ? "revision" : "original";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +46,21 @@ export default function NewRFI() {
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // Parent RFI verisini çek — mode=response veya revision ise
+  useEffect(() => {
+    if (!parentId || !projectId) return;
+    api.get<{ subject: string; discipline: string | null }>(`/projects/${projectId}/rfis/${parentId}`)
+      .then((parent) => {
+        const prefix = mode === "revision" ? "Revision 1 - " : "Response to: ";
+        setForm((prev) => ({
+          ...prev,
+          subject: prefix + (parent.subject ?? ""),
+          discipline: parent.discipline ?? prev.discipline,
+        }));
+      })
+      .catch(() => {});
+  }, [parentId, projectId, mode]);
 
   const [form, setForm] = useState({
     rfi_number: "",
@@ -98,7 +119,9 @@ export default function NewRFI() {
         rfi_number: form.rfi_number.trim(),
         subject: form.subject.trim(),
         submitted_date: form.submitted_date,
+        rfi_type: rfiType,
       };
+      if (parentId) body.parent_id = parentId;
       if (form.description.trim()) body.description = form.description.trim();
       if (form.discipline) body.discipline = form.discipline;
       if (form.submitted_by.trim()) body.submitted_by = form.submitted_by.trim();
@@ -153,7 +176,13 @@ export default function NewRFI() {
           <span style={{ color: "#C4AD87" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=rfis`)}>{t("module.rfis")}</span>
           <span style={{ color: "#C4AD87" }}>/</span>
-          <span style={{ color: textPrimary, fontWeight: 500 }}>{lang === "tr" ? "Yeni RFI" : "New RFI"}</span>
+          <span style={{ color: textPrimary, fontWeight: 500 }}>
+            {mode === "response"
+              ? (lang === "tr" ? `Yanıt — ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
+              : mode === "revision"
+              ? (lang === "tr" ? `Revize — ${parentNumber ?? ""}` : `Revision of ${parentNumber ?? ""}`)
+              : (lang === "tr" ? "Yeni RFI" : "New RFI")}
+          </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
@@ -165,10 +194,18 @@ export default function NewRFI() {
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 24px" }}>
         <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600, marginBottom: 8 }}>
-          {lang === "tr" ? "Yeni RFI" : "New RFI"}
+          {mode === "response"
+            ? (lang === "tr" ? `Yanıt: ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
+            : mode === "revision"
+            ? (lang === "tr" ? `Revize: ${parentNumber ?? ""}` : `Revision of ${parentNumber ?? ""}`)
+            : (lang === "tr" ? "Yeni RFI" : "New RFI")}
         </p>
         <p style={{ fontSize: 13, color: textSecondary, marginBottom: 28 }}>
-          {lang === "tr" ? "Bilgi talebi oluşturun." : "Create a request for information."}
+          {mode === "response"
+            ? (lang === "tr" ? "Bu RFI için yanıt oluşturun." : "Create a response to this RFI.")
+            : mode === "revision"
+            ? (lang === "tr" ? "Bu RFI için revize oluşturun." : "Create a revision of this RFI.")
+            : (lang === "tr" ? "Bilgi talebi oluşturun." : "Create a request for information.")}
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

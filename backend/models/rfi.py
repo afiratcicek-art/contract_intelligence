@@ -18,6 +18,8 @@ class RFICreate(BaseModel):
     response_due_day_type: Optional[DayType] = None
     assigned_to: Optional[UUID] = None
     external_ref: Optional[str] = None
+    parent_id: Optional[UUID] = None
+    rfi_type: Optional[str] = "original"
 
     @field_validator("rfi_number", mode="before")
     @classmethod
@@ -91,6 +93,8 @@ class RFIResponse(BaseModel):
     close_note: Optional[str] = None
     assigned_to: Optional[UUID] = None
     external_ref: Optional[str] = None
+    parent_id: Optional[UUID] = None
+    rfi_type: str = "original"
     created_by: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime

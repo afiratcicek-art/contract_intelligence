@@ -73,6 +73,16 @@ def create_correspondence(
         data["response_due_date"] = str(data["response_due_date"])
 
     corr = repo.create(data)
+    # Parent varsa ownership doğrula sonra güncelle
+    if body.parent_id:
+        parent_corr = repo.get(str(body.parent_id))
+        if not parent_corr or parent_corr.get("project_id") != str(project_id):
+            from fastapi import HTTPException
+            raise HTTPException(403, "Geçersiz parent_id")
+        repo.update_parent_response_status(
+            parent_id=str(body.parent_id),
+            response_corr_id=corr["id"],
+        )
     audit.log(
         action="create", entity_type="correspondence", entity_id=corr["id"],
         user_id=access["user"]["id"], project_id=str(project_id),
@@ -118,6 +128,7 @@ def get_correspondence(
         raise NotFoundError()
     if corr["project_id"] != str(project_id):
         raise NotFoundError()
+    corr["children"] = repo.get_children(str(corr_id), str(project_id))
     try:
         corr["references"] = repo.get_references(str(corr_id))
     except Exception as exc:

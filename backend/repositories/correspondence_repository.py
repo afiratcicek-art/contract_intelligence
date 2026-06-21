@@ -55,6 +55,34 @@ class CorrespondenceRepository(BaseRepository):
         corr["breadcrumb"] = list(reversed(breadcrumb))
         return corr
 
+    def get_children(self, corr_id: str, project_id: str) -> list[dict]:
+        """Bu correspondence'a yanıt olarak yazılmış belgeler."""
+        result = (
+            self.db.table("correspondences")
+            .select("id, corr_number, subject, type, direction, status, correspondence_date, has_response")
+            .eq("parent_id", corr_id)
+            .eq("project_id", project_id)
+            .eq("is_deleted", False)
+            .order("correspondence_date", desc=False)
+            .execute()
+        )
+        return result.data or []
+
+    def update_parent_response_status(
+        self, parent_id: str, response_corr_id: str
+    ) -> None:
+        """
+        Bir yanıt yazışması oluşturulduğunda parent'ı günceller.
+        has_response = True, response_corr_id = yeni yanıtın ID'si.
+        status = "responded" — otomatik.
+        Forensic: sadece has_response False iken günceller.
+        """
+        self.db.table("correspondences").update({
+            "has_response": True,
+            "response_corr_id": response_corr_id,
+            "status": "responded",
+        }).eq("id", parent_id).eq("has_response", False).execute()
+
     def get_references(self, corr_id: str) -> list[dict]:
         result = (
             self.db.table("correspondence_references")

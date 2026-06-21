@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
@@ -28,8 +28,15 @@ export default function NewCorrespondence() {
   const dark = useDarkMode();
   const { lang, toggle: toggleLang, t } = useLanguage();
   const auth = getAuth();
+  const location = useLocation();
+  const qp = new URLSearchParams(location.search);
+  const mode = qp.get("mode") ?? "new";
+  const parentId = qp.get("parent_id") ?? null;
+  const parentNumber = qp.get("parent_number") ?? null;
 
-  const [direction, setDirection] = useState<"incoming" | "outgoing" | null>(null);
+  const [direction, setDirection] = useState<"incoming" | "outgoing" | null>(
+    mode === "response" || mode === "followup" ? "outgoing" : null
+  );
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +65,34 @@ export default function NewCorrespondence() {
       .then(setParties)
       .catch(() => setParties([]));
   }, [projectId]);
+
+  // Parent correspondence fetch — mode=response veya followup ise
+  useEffect(() => {
+    if (!parentId || !projectId) return;
+    if (mode !== "response" && mode !== "followup") return;
+    api.get<{ subject: string; direction: string; corr_number: string }>(`/projects/${projectId}/correspondences/${parentId}`)
+      .then((parent) => {
+        // Direction: response → tersine çevir, followup → aynı
+        const newDirection = mode === "response"
+          ? (parent.direction === "outgoing" ? "incoming" : "outgoing")
+          : parent.direction as "incoming" | "outgoing";
+        setDirection(newDirection);
+        // Subject prefix
+        const prefix = mode === "response" ? "Re: " : "Fw: ";
+        setForm((prev) => ({
+          ...prev,
+          subject: prefix + (parent.subject ?? ""),
+        }));
+      })
+      .catch(() => {});
+  }, [parentId, projectId, mode]);
+
+  // mode=response veya followup ama parent_id yoksa listeye yönlendir
+  useEffect(() => {
+    if ((mode === "response" || mode === "followup") && !parentId) {
+      navigate(`/projects/${projectId}/workspace?module=correspondence`);
+    }
+  }, [mode, parentId]);
 
   const inputStyle = {
     width: "100%",
@@ -98,6 +133,7 @@ export default function NewCorrespondence() {
         subject: form.subject.trim(),
         correspondence_date: form.correspondence_date,
       };
+      if (parentId) body.parent_id = parentId;
       if (form.external_ref.trim()) body.external_ref = form.external_ref.trim();
       if (form.from_party_id) body.from_party_id = form.from_party_id;
       if (form.to_party_id) body.to_party_id = form.to_party_id;
@@ -148,7 +184,13 @@ export default function NewCorrespondence() {
           <span style={{ color: "#C4AD87" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}>{t("module.correspondence")}</span>
           <span style={{ color: "#C4AD87" }}>/</span>
-          <span style={{ color: textPrimary, fontWeight: 500 }}>{lang === "tr" ? "Yeni Yazışma" : "New Correspondence"}</span>
+          <span style={{ color: textPrimary, fontWeight: 500 }}>
+            {mode === "response"
+              ? (lang === "tr" ? `Yanıt — ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
+              : mode === "followup"
+              ? (lang === "tr" ? `Followup — ${parentNumber ?? ""}` : `Followup to ${parentNumber ?? ""}`)
+              : (lang === "tr" ? "Yeni Yazışma" : "New Correspondence")}
+          </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
@@ -192,8 +234,14 @@ export default function NewCorrespondence() {
         {direction && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-              <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600 }}>
-                {direction === "outgoing" ? (lang === "tr" ? "Giden Yazışma" : "Outgoing Correspondence") : (lang === "tr" ? "Gelen Yazışmayı Kaydet" : "Register Incoming Correspondence")}
+              <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600, marginBottom: 8 }}>
+                {mode === "response"
+                  ? (lang === "tr" ? `Yanıt: ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
+                  : mode === "followup"
+                  ? (lang === "tr" ? `Followup: ${parentNumber ?? ""}` : `Followup to ${parentNumber ?? ""}`)
+                  : direction === "outgoing"
+                  ? (lang === "tr" ? "Giden Yazışma" : "Outgoing Correspondence")
+                  : (lang === "tr" ? "Gelen Yazışmayı Kaydet" : "Register Incoming Correspondence")}
               </p>
               <button
                 onClick={() => setDirection(null)}

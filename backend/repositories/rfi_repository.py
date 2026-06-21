@@ -44,6 +44,67 @@ class RFIRepository(BaseRepository):
         )
         return result.data or []
 
+    def get_chain(self, rfi_id: str, project_id: str) -> dict:
+        """
+        Bu RFI'nın tam zincirini döndürür.
+        root: zincirin ilk RFI'ı (parent_id IS NULL)
+        ancestors: parent'tan root'a doğru sıralı liste
+        children: bu RFI'ya doğrudan yanıt/revize olanlar
+        is_latest: bu RFI'nın hiç child'ı yok mu
+        """
+        # Mevcut RFI
+        rfi = self.get(rfi_id)
+        if not rfi or rfi["project_id"] != project_id:
+            return {"ancestors": [], "children": [], "is_latest": True}
+
+        # Ancestors (parent zinciri — en yakın parent'tan root'a)
+        ancestors = []
+        current = rfi
+        depth = 0
+        while current.get("parent_id") and depth < 20:
+            parent = self.get(current["parent_id"])
+            if not parent or parent["project_id"] != project_id:
+                break
+            ancestors.append({
+                "id": parent["id"],
+                "rfi_number": parent["rfi_number"],
+                "subject": parent["subject"],
+                "rfi_type": parent.get("rfi_type", "original"),
+                "status": parent["status"],
+                "submitted_date": parent["submitted_date"],
+            })
+            current = parent
+            depth += 1
+        ancestors = list(reversed(ancestors))  # root'tan bu RFI'ya doğru
+
+        # Children (bu RFI'ya doğrudan bağlı yanıt/revizeler)
+        children_result = (
+            self.db.table("rfis")
+            .select("id, rfi_number, subject, rfi_type, status, submitted_date")
+            .eq("parent_id", rfi_id)
+            .eq("project_id", project_id)
+            .eq("is_deleted", False)
+            .order("submitted_date", desc=False)
+            .execute()
+        )
+        children = children_result.data or []
+
+        return {
+            "ancestors": ancestors,
+            "children": children,
+            "is_latest": len(children) == 0,
+        }
+
+    def update_parent_rfi_status(self, parent_id: str) -> None:
+        """
+        Bir yanıt veya revize RFI oluşturulduğunda parent RFI'ı günceller.
+        status = "responded" — otomatik.
+        Forensic: sadece open veya overdue iken günceller.
+        """
+        self.db.table("rfis").update({
+            "status": "responded",
+        }).eq("id", parent_id).in_("status", ["open", "overdue"]).execute()
+
     def get_linked_correspondences(self, rfi_id: str) -> list[dict]:
         """Bu RFI'ya referans veren correspondence'ları getirir."""
         result = (

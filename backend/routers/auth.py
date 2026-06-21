@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from backend.database import get_db, get_admin_client
+from backend.core.cache import cache_delete_prefix
 from backend.core.security import get_current_user
 from backend.core.limiter import limiter
 from backend.core.config import settings
@@ -68,8 +69,14 @@ def login(request: Request, response: Response, body: LoginRequest, db=Depends(g
 
 
 @router.post("/logout")
-def logout(response: Response, db=Depends(get_db)):
-    """Oturumu kapatır, cookie'yi siler."""
+def logout(request: Request, response: Response, db=Depends(get_db)):
+    """Oturumu kapatır, cookie'yi siler, auth cache'i temizler."""
+    # Auth cache'i temizle — token artık geçersiz
+    token = request.cookies.get(_COOKIE_NAME)
+    if token:
+        import hashlib
+        cache_key = "auth:" + hashlib.sha256(token.encode()).hexdigest()[:32]
+        cache_delete_prefix(cache_key)
     try:
         db.auth.sign_out()
     except Exception:

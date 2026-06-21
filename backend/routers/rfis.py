@@ -48,6 +48,14 @@ def create_rfi(
     data["created_by"] = access["user"]["id"]
     if "submitted_date" in data:
         data["submitted_date"] = str(data["submitted_date"])
+    if "parent_id" in data and data["parent_id"]:
+        data["parent_id"] = str(data["parent_id"])
+        parent_rfi = repo.get(str(data["parent_id"]))
+        if not parent_rfi or parent_rfi.get("project_id") != str(project_id):
+            from fastapi import HTTPException
+            raise HTTPException(403, "Geçersiz parent_id")
+        # Parent RFI status → "responded" otomatik
+        repo.update_parent_rfi_status(str(data["parent_id"]))
 
     if not body.response_due_date:
         deadline_svc = DeadlineService()
@@ -113,6 +121,7 @@ def get_rfi(
     if rfi["project_id"] != str(project_id):
         raise NotFoundError()
     rfi["linked_correspondences"] = repo.get_linked_correspondences(str(rfi_id))
+    rfi["chain"] = repo.get_chain(str(rfi_id), str(project_id))
     return rfi
 
 

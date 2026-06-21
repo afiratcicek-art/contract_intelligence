@@ -3,6 +3,14 @@ import hashlib
 from fastapi import Request
 from backend.database import get_anon_client, get_admin_client
 from backend.core.exceptions import UnauthorizedError, ForbiddenError
+from backend.core.cache import cache_get, cache_set, cache_delete
+
+_AUTH_CACHE_TTL = 60  # seconds
+
+def _auth_cache_key(token: str) -> str:
+    """Token'ın SHA256 hash'ini cache key olarak kullan — raw token cache'de durmasın."""
+    import hashlib
+    return "auth:" + hashlib.sha256(token.encode()).hexdigest()[:32]
 
 _COOKIE_NAME = "clauseiq_token"
 
@@ -10,11 +18,17 @@ _COOKIE_NAME = "clauseiq_token"
 def get_current_user(request: Request) -> dict:
     """
     httpOnly cookie'den JWT token okur, Supabase Auth ile doğrular,
-    profil döndürür. Sync.
+    profil döndürür. Sync. Auth sonucu 60s cache'lenir.
     """
     token = request.cookies.get(_COOKIE_NAME)
     if not token:
         raise UnauthorizedError()
+
+    # Cache kontrolü — is_active False ise cache bypass
+    cache_key = _auth_cache_key(token)
+    cached = cache_get(cache_key)
+    if cached is not None and cached.get("is_active"):
+        return cached
 
     try:
         db = get_anon_client()
@@ -36,6 +50,8 @@ def get_current_user(request: Request) -> dict:
 
         user_data = result.data
         user_data["_meta"] = {"token": token}
+        # Cache'e yaz — sadece active kullanıcılar
+        cache_set(cache_key, user_data, _AUTH_CACHE_TTL)
         return user_data
 
     except (UnauthorizedError, ForbiddenError):

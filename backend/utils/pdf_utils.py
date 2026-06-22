@@ -184,6 +184,29 @@ def clean_extracted_text(raw_text: str) -> str:
     return text.strip()
 
 
+def _get_scan_command(file_path: str) -> list[str]:
+    """
+    clamd daemon varsa clamdscan (~0.1s) kullan.
+    Yoksa clamscan (~15s) fallback.
+    """
+    import shutil
+    if shutil.which("clamdscan"):
+        try:
+            # clamd erişilebilir mi kontrol et
+            test = subprocess.run(
+                ["clamdscan", "--version"],
+                capture_output=True,
+                timeout=2,
+            )
+            if test.returncode == 0 and b"Connection refused" not in test.stdout:
+                logger.debug("ClamAV daemon aktif — clamdscan kullanılıyor.")
+                return ["clamdscan", "--no-summary", file_path]
+        except Exception:
+            pass
+    logger.debug("clamd erişilemez — clamscan fallback.")
+    return ["clamscan", "--no-summary", file_path]
+
+
 def scan_for_virus(file_bytes: bytes, filename: str) -> None:
     """
     ClamAV ile virüs taraması yapar.
@@ -199,14 +222,14 @@ def scan_for_virus(file_bytes: bytes, filename: str) -> None:
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(file_bytes)
             tmp_path = tmp.name
-
+        # Önce clamd daemon ile dene (~0.1s) — başarısız olursa clamscan (~15s)
+        scan_cmd = _get_scan_command(tmp_path)
         result = subprocess.run(
-            ["clamscan", "--no-summary", tmp_path],
+            scan_cmd,
             capture_output=True,
             text=True,
             timeout=60,
         )
-
         if result.returncode == 1:
             raise ValueError(
                 f"Güvenlik taraması başarısız: '{filename}' dosyasında "
@@ -215,7 +238,6 @@ def scan_for_virus(file_bytes: bytes, filename: str) -> None:
         if result.returncode == 2:
             logger.error("ClamAV tarama hatası: %s", result.stderr)
             raise RuntimeError("Virüs taraması sırasında hata oluştu.")
-
     except FileNotFoundError:
         if settings.APP_ENV == "production":
             raise RuntimeError(

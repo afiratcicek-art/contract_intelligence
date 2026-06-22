@@ -65,6 +65,28 @@ export default function CorrespondenceDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Parse status polling — pending/processing belgeler için
+  // her 4 saniyede bir kontrol, tümü completed/failed olunca durur
+  useEffect(() => {
+    const hasPending = docs.some(
+      (d) => d.parse_status === "pending" || d.parse_status === "processing"
+    );
+    if (!hasPending) return;
+    const interval = setInterval(async () => {
+      try {
+        const updated = await api.get<Document[]>(
+          `/projects/${projectId}/documents/?entity_type=correspondence&entity_id=${corrId}`
+        );
+        if (Array.isArray(updated)) {
+          setDocs(updated);
+        }
+      } catch {
+        // Sessizce devam et — polling hata verirse bir sonraki turda dener
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [docs, projectId, corrId]);
+
   const bg          = dark ? "#1F2228" : "#F5F2ED";
   const cardBg      = dark ? "#2E3340" : "#E7E3DC";
   const border      = dark ? "#3D4456" : "#E7E3DC";

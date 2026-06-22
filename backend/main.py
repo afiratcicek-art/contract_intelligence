@@ -15,6 +15,7 @@ from backend.core.limiter import limiter
 from backend.routers import auth, projects, rfis, correspondences, changes, chronologies, deliverables
 from backend.routers import config as config_router
 from backend.routers import documents
+from backend.database import get_admin_client as _get_admin_for_startup
 
 logging.basicConfig(
     level=logging.INFO,
@@ -118,6 +119,30 @@ async def security_headers(request: Request, call_next):
     return response
 
 # ── CORS yukarida SlowAPIMiddleware den once eklendi ───────────────────────
+
+# ── Startup: processing kayıtlarını pending'e döndür ──────────────────────
+@app.on_event("startup")
+async def recover_stalled_pdf_jobs():
+    try:
+        from datetime import datetime, timezone
+        admin = _get_admin_for_startup()
+        result = (
+            admin.table("pdf_document")
+            .update({
+                "parse_status": "pending",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            })
+            .eq("parse_status", "processing")
+            .execute()
+        )
+        count = len(result.data) if result.data else 0
+        if count > 0:
+            logger.info(
+                "Startup recovery: %d takılı PDF kaydı pending'e döndürüldü.",
+                count,
+            )
+    except Exception as exc:
+        logger.error("Startup recovery hatası: %s", exc)
 
 # ── Routers ────────────────────────────────────────────────────────────────
 API_V1 = "/api/v1"

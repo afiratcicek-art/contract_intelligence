@@ -1,5 +1,5 @@
-fastapi==0.115.14
-uvicorn==0.30.0
+fastapi==0.138.0
+uvicorn==0.34.0
 supabase==2.5.0
 pydantic==2.12.4
 pydantic-settings==2.7.0
@@ -10,9 +10,9 @@ slowapi==0.1.9
 python-docx==1.1.0
 pymupdf==1.24.14
 pytesseract==0.3.13
-# llama-parse — DEFERRED: pydantic>=2.8 gerektirir, mevcut pydantic==2.7.0 ile çakışır.
-# LlamaParse API key hazır olduğunda: pydantic upgrade kararıyla birlikte eklenecek.
-# Kurulum: pip install llama-parse==0.6.94 (o tarihte latest stable'ı kontrol et)
-# İlgili kod: backend/services/pdf_pipeline_service.py → _extract_llamaparse()
+# llama-parse — DEFERRED: pydantic>=2.8 gerekli.
+# Mevcut pydantic==2.12.4 uyumlu — LlamaParse API key
+# hazır olduğunda eklenecek.
+# İlgili kod: backend/services/pdf_pipeline_service.py
 python-multipart==0.0.32
 pillow==12.2.0

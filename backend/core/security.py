@@ -49,9 +49,10 @@ def get_current_user(request: Request) -> dict:
             raise ForbiddenError()
 
         user_data = result.data
-        user_data["_meta"] = {"token": token}
         # Cache'e yaz — sadece active kullanıcılar
+        # _meta (raw token) cache'e yazılmaz — memory exposure riski
         cache_set(cache_key, user_data, _AUTH_CACHE_TTL)
+        user_data["_meta"] = {"token": token}
         return user_data
 
     except (UnauthorizedError, ForbiddenError):

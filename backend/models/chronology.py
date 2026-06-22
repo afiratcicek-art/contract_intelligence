@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from backend.core.sanitizer import sanitize_short, sanitize_medium, sanitize_content
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
@@ -8,6 +9,14 @@ class ChronologyCreate(BaseModel):
     title: str
     entity_type: str
     entity_id: Optional[UUID] = None
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def clean_title(cls, v): return sanitize_medium(v)
+
+    @field_validator("entity_type", mode="before")
+    @classmethod
+    def clean_entity_type(cls, v): return sanitize_short(v)
 
 
 class ChronologyEventCreate(BaseModel):
@@ -23,9 +32,17 @@ class ChronologyEventCreate(BaseModel):
 class NarrativeApprove(BaseModel):
     approved_narrative: str
 
+    @field_validator("approved_narrative", mode="before")
+    @classmethod
+    def clean_narrative(cls, v): return sanitize_content(v)
+
 
 class EventInactivate(BaseModel):
     reason: str
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def clean_reason(cls, v): return sanitize_medium(v)
 
 
 class ChronologyResponse(BaseModel):

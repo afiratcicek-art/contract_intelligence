@@ -1,5 +1,6 @@
 """Supabase Storage dosya işlemleri."""
 import logging
+import os
 
 from backend.database import get_admin_client
 from backend.utils.pdf_utils import scan_for_virus
@@ -29,6 +30,10 @@ def upload_document(
     Hata durumunda RuntimeError veya ValueError fırlatır.
     Aynı path'e ikinci yükleme SDK default davranışıyla reddedilir (upsert kapalı).
     """
+    # Path traversal koruması — ../  ve benzeri karakterleri temizle
+    file_name = os.path.basename(file_name.replace("\\", "/"))
+    if not file_name:
+        raise ValueError("Geçersiz dosya adı.")
     ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
     if ext not in ALLOWED_TYPES:
         raise ValueError(f"İzin verilmeyen dosya türü: .{ext}")

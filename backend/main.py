@@ -22,6 +22,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ── Production güvenlik kontrolleri ───────────────────────────
+if settings.APP_ENV == "production":
+    if settings.SECRET_KEY == "change-me-in-production":
+        raise RuntimeError(
+            "SECRET_KEY varsayılan değerle production'a alınamaz. "
+            ".env dosyasında SECRET_KEY'i güncelleyin."
+        )
+    if "*" in settings.CORS_ORIGINS or "localhost" in settings.CORS_ORIGINS:
+        raise RuntimeError(
+            "CORS_ORIGINS production'da localhost veya * içeremez. "
+            ".env dosyasında CORS_ORIGINS'i güncelleyin."
+        )
+
 # ── FastAPI app ────────────────────────────────────────────────────────────
 _is_production = settings.APP_ENV == "production"
 
@@ -43,7 +56,7 @@ app.add_middleware(
     allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Accept", "X-Requested-With"],
 )
 app.add_middleware(SlowAPIMiddleware)
 
@@ -61,6 +74,24 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Sunucu hatası. Lütfen daha sonra tekrar deneyin."},
     )
+
+# ── Timing middleware ──────────────────────────────────────
+import time as _time
+
+@app.middleware("http")
+async def timing_middleware(request: Request, call_next):
+    t0 = _time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (_time.perf_counter() - t0) * 1000
+    response.headers["X-Response-Time"] = f"{elapsed_ms:.1f}ms"
+    logger.info(
+        "REQUEST %s %s → %s | %.1fms",
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
 
 # ── Security headers middleware ────────────────────────────────────────────
 @app.middleware("http")

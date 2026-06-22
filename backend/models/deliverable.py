@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from backend.core.sanitizer import sanitize_short, sanitize_medium, sanitize_long
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
@@ -20,6 +21,19 @@ class DeliverableCreate(BaseModel):
     correspondence_id: Optional[UUID] = None
     change_id: Optional[UUID] = None
 
+    @field_validator("title", "category", "subcategory", mode="before")
+    @classmethod
+    def clean_medium_fields(cls, v): return sanitize_medium(v)
+
+    @field_validator("source", "source_clause",
+                     "due_date_source", "due_date_clause", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def clean_description(cls, v): return sanitize_long(v)
+
 
 class DeliverableUpdate(BaseModel):
     version: int
@@ -35,6 +49,19 @@ class DeliverableUpdate(BaseModel):
     is_pre_completion: Optional[bool] = None
     status: Optional[str] = None
     rejection_reason: Optional[str] = None
+
+    @field_validator("title", "category", "subcategory", mode="before")
+    @classmethod
+    def clean_medium_fields(cls, v): return sanitize_medium(v)
+
+    @field_validator("source_clause", "due_date_source",
+                     "due_date_clause", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
+    @field_validator("description", "rejection_reason", mode="before")
+    @classmethod
+    def clean_long_fields(cls, v): return sanitize_long(v)
 
 
 class DeliverableResponse(BaseModel):

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { api } from "../services/api";
@@ -138,12 +138,18 @@ export default function Workspace() {
     finally { setSearching(false); }
   }, [projectId]);
 
-  useEffect(() => { if (projectId) handleSearch(""); }, [projectId]);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSearchDebounced = useCallback((q: string) => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => handleSearch(q), 400);
+  }, [handleSearch]);
+
+  useEffect(() => { if (projectId) handleSearch(""); }, [projectId, handleSearch]);
 
   useEffect(() => {
     if (activeModule !== "correspondence") return;
     setCorrLoading(true);
-    let url = `/projects/${projectId}/correspondences?limit=500`;
+    let url = `/projects/${projectId}/correspondences?limit=100`;
     if (corrStatus) url += `&status=${corrStatus}`;
     if (corrDir) url += `&direction=${corrDir}`;
     api.get<CorrItem[]>(url).then(setCorrs).catch(() => setCorrs([])).finally(() => setCorrLoading(false));
@@ -152,7 +158,7 @@ export default function Workspace() {
   useEffect(() => {
     if (activeModule !== "rfis") return;
     setRfiLoading(true);
-    let url = `/projects/${projectId}/rfis?limit=500`;
+    let url = `/projects/${projectId}/rfis?limit=100`;
     if (rfiStatus) url += `&status=${rfiStatus}`;
     if (rfiDiscipline) url += `&discipline=${rfiDiscipline}`;
     api.get<RFIItem[]>(url).then(setRfis).catch(() => setRfis([])).finally(() => setRfiLoading(false));
@@ -161,7 +167,7 @@ export default function Workspace() {
   useEffect(() => {
     if (activeModule !== "changes") return;
     setChangeLoading(true);
-    let url = `/projects/${projectId}/changes?limit=500`;
+    let url = `/projects/${projectId}/changes?limit=100`;
     if (changeStatus) url += `&status=${changeStatus}`;
     if (changeOrigin) url += `&origin=${changeOrigin}`;
     api.get<ChangeItem[]>(url).then(setChanges).catch(() => setChanges([])).finally(() => setChangeLoading(false));
@@ -170,7 +176,7 @@ export default function Workspace() {
   useEffect(() => {
     if (activeModule !== "deliverables") return;
     setDelivLoading(true);
-    let url = `/projects/${projectId}/deliverables?limit=500`;
+    let url = `/projects/${projectId}/deliverables?limit=100`;
     if (delivStatus) url += `&status=${delivStatus}`;
     api.get<DeliverableItem[]>(url).then(setDeliverables).catch(() => setDeliverables([])).finally(() => setDelivLoading(false));
   }, [activeModule, projectId, delivStatus]);
@@ -312,7 +318,7 @@ export default function Workspace() {
               {moduleHeader(t("general.title"))}
               <div style={{ display: "flex", alignItems: "center", gap: 8, background: cardBg, border: `1px solid ${dark ? "#3D4456" : "#C4AD87"}`, padding: "10px 14px", maxWidth: 560, marginBottom: 16 }}>
                 <span style={{ color: textSecondary, fontSize: 16 }}>⌕</span>
-                <input value={searchQuery} onChange={(e) => handleSearch(e.target.value)} placeholder={t("general.placeholder")} style={{ background: "none", border: "none", outline: "none", fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", width: "100%" }} />
+                <input value={searchQuery} onChange={(e) => handleSearchDebounced(e.target.value)} placeholder={t("general.placeholder")} style={{ background: "none", border: "none", outline: "none", fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", width: "100%" }} />
                 {searching && <span style={{ fontSize: 11, color: textSecondary }}>{t("general.searching")}</span>}
                 {searchQuery && <button onClick={() => handleSearch("")} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
               </div>

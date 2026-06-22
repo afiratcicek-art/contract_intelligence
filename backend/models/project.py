@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
+from backend.core.sanitizer import sanitize_short, sanitize_medium
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
@@ -37,6 +38,15 @@ class ProjectCreate(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
 
+    @field_validator("name", "employer_name", "contractor_name",
+                     "engineer_name", mode="before")
+    @classmethod
+    def clean_medium_fields(cls, v): return sanitize_medium(v)
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
@@ -49,6 +59,15 @@ class ProjectUpdate(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     status: Optional[ProjectStatus] = None
+
+    @field_validator("name", "employer_name", "contractor_name",
+                     "engineer_name", mode="before")
+    @classmethod
+    def clean_medium_fields(cls, v): return sanitize_medium(v)
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
 
 
 class ProjectResponse(BaseModel):
@@ -100,6 +119,14 @@ class ProjectMemberResponse(BaseModel):
 class ProjectPartyCreate(BaseModel):
     party_name: str
     party_type: Optional[str] = None
+
+    @field_validator("party_name", mode="before")
+    @classmethod
+    def clean_party_name(cls, v): return sanitize_medium(v)
+
+    @field_validator("party_type", mode="before")
+    @classmethod
+    def clean_party_type(cls, v): return sanitize_short(v)
 
 
 class ProjectPartyResponse(BaseModel):

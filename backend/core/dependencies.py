@@ -94,7 +94,7 @@ def require_permission(entity_type: str, permission: str):
         cached = cache_get(cache_key)
         if cached is not None:
             if not cached:
-                raise Exception("İzin yok")
+                raise NotFoundError()
             return access
 
         # DB sorgusu — project_members duplicate sorgu yok

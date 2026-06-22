@@ -79,7 +79,7 @@ export default function ProjectDetail() {
   const { correspondences, rfis, changes, deliverables, trend, loading: tabLoading } =
     useProjectTabs(projectId!);
 
-  const openCorr = correspondences.filter((c) => c.status === "open" || c.status === "draft").length;
+  const openCorr = correspondences.filter((c) => c.status === "open").length;
   const overdueRFI = rfis.filter((r) => r.status === "overdue").length;
   const daysLeft = project?.end_date ? daysUntil(project.end_date) : null;
   const dark = useDarkMode();

@@ -8,7 +8,7 @@ import { useLanguage } from "../context/LanguageContext";
 
 type Module = "general" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
-interface SearchResult { module: string; label: string; ref: string; subject: string; status: string; date: string; id: string; }
+interface SearchResult { module: string; label: string; ref: string; subject: string; status: string; date: string; id: string; parent_id?: string | null; has_response?: boolean; rfi_type?: string; }
 interface CorrItem { id: string; corr_number: string; subject: string; type: string; status: string; correspondence_date: string; direction: string; response_due_date: string | null; parent_id: string | null; has_response: boolean; }
 interface RFIItem { id: string; rfi_number: string; subject: string; status: string; submitted_date: string; response_due_date: string | null; discipline: string | null; parent_id: string | null; rfi_type: string; }
 interface ChangeItem { id: string; change_number: string; title: string; status: string; origin: string; notice_due_date: string | null; created_at: string; }
@@ -339,6 +339,105 @@ export default function Workspace() {
                 const group = filteredGeneral.filter((r) => r.module === mod);
                 if (group.length === 0) return null;
                 const label = mod === "correspondence" ? "Correspondence" : mod === "rfi" ? "RFIs" : mod === "change" ? "Changes" : "Deliverables";
+
+                // Correspondence — parent-child gruplama
+                if (mod === "correspondence") {
+                  const corrChildMap = new Map<string, SearchResult[]>();
+                  group.filter(r => r.parent_id).forEach(r => {
+                    const arr = corrChildMap.get(r.parent_id!) ?? [];
+                    arr.push(r);
+                    corrChildMap.set(r.parent_id!, arr);
+                  });
+                  const corrParents = group.filter(r => !r.parent_id);
+                  const renderCorrRow = (r: SearchResult, isChild = false) => (
+                    <div key={r.id}>
+                      <div
+                        onClick={() => navigate(generalNavTarget(mod, r.id))}
+                        style={{
+                          display: "flex", alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+                          background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
+                          marginBottom: 2, cursor: "pointer",
+                          borderLeft: `2px solid ${isChild ? gold : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : gold}`,
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                            {isChild && <span style={{ color: gold, marginRight: 2 }}>└</span>}
+                            {r.ref}
+                            {r.has_response && <span style={{ fontSize: 8, color: gold }}>↩</span>}
+                          </span>
+                          <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
+                          <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{r.date}</p>
+                        </div>
+                        {statusPill(r.status)}
+                      </div>
+                      {(corrChildMap.get(r.id) ?? []).map(child => renderCorrRow(child, true))}
+                    </div>
+                  );
+                  return (
+                    <div key={mod} style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
+                      {corrParents.map(r => renderCorrRow(r, false))}
+                      {/* Orphan children — parent search sonucunda yok */}
+                      {group.filter(r => r.parent_id && !group.find(p => p.id === r.parent_id)).map(r => renderCorrRow(r, false))}
+                    </div>
+                  );
+                }
+
+                // RFI — parent-child gruplama
+                if (mod === "rfi") {
+                  const rfiSChildMap = new Map<string, SearchResult[]>();
+                  group.filter(r => r.parent_id).forEach(r => {
+                    const arr = rfiSChildMap.get(r.parent_id!) ?? [];
+                    arr.push(r);
+                    rfiSChildMap.set(r.parent_id!, arr);
+                  });
+                  const rfiSParents = group.filter(r => !r.parent_id);
+                  const renderRfiRow = (r: SearchResult, isChild = false) => (
+                    <div key={r.id}>
+                      <div
+                        onClick={() => navigate(generalNavTarget(mod, r.id))}
+                        style={{
+                          display: "flex", alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+                          background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
+                          marginBottom: 2, cursor: "pointer",
+                          borderLeft: `2px solid ${isChild ? gold : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : gold}`,
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                            {isChild && <span style={{ color: gold, marginRight: 2 }}>└</span>}
+                            {r.ref}
+                            {r.rfi_type && r.rfi_type !== "original" && (
+                              <span style={{ fontSize: 8, fontWeight: 600, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#1F2A3A" : "#E8F0FE"), color: r.rfi_type === "response" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#7BA7D4" : "#1A56A4"), textTransform: "uppercase" as const }}>
+                                {r.rfi_type === "response" ? (lang === "tr" ? "YNT" : "RES") : (lang === "tr" ? "REV" : "REV")}
+                              </span>
+                            )}
+                          </span>
+                          <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
+                          <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{r.date}</p>
+                        </div>
+                        {r.rfi_type === "response"
+                          ? <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", backgroundColor: dark ? "#0F2D1A" : "#E6F4EE", color: dark ? "#4DB88A" : "#1F6B4E", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                          : statusPill(r.status)}
+                      </div>
+                      {(rfiSChildMap.get(r.id) ?? []).map(child => renderRfiRow(child, true))}
+                    </div>
+                  );
+                  return (
+                    <div key={mod} style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
+                      {rfiSParents.map(r => renderRfiRow(r, false))}
+                      {group.filter(r => r.parent_id && !group.find(p => p.id === r.parent_id)).map(r => renderRfiRow(r, false))}
+                    </div>
+                  );
+                }
+
+                // Diğer modüller — düz liste
                 return (
                   <div key={mod} style={{ marginBottom: 20 }}>
                     <div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
@@ -494,29 +593,65 @@ export default function Workspace() {
                 <div key="rdiv" style={{ width: "0.5px", background: border, height: 20 }} />,
                 dateRange(rfiDateField === "submitted_date" ? t("filter.submitteddate") : t("filter.duedate"), rfiDateFrom, rfiDateTo, setRfiDateFrom, setRfiDateTo)
               )}
-              {rfiLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : filteredRfis.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.norfis")}</p> : (
-                <div>
-                  {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.subject"), width: "1fr" }, { label: t("col.discipline"), width: "100px" }, { label: t("col.submitted"), width: "90px" }, { label: t("col.due"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
-                  {filteredRfis.map((r) => (
-                    <div key={r.id} onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${r.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 100px 90px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${r.status === "overdue" ? (dark ? "#E07060" : "#A93226") : r.status === "open" ? gold : "transparent"}` }}>
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+              {rfiLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : filteredRfis.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.norfis")}</p> : (() => {
+                // Parent-child gruplama
+                const rfiAllIds = new Set(filteredRfis.map(r => r.id));
+                const rfiGhostParents = rfis.filter(r =>
+                  !rfiAllIds.has(r.id) &&
+                  filteredRfis.some(fr => fr.parent_id === r.id)
+                );
+                const allRfis = [...rfiGhostParents, ...filteredRfis];
+                const rfiParents = allRfis.filter(r => !r.parent_id);
+                const rfiChildMap = new Map<string, typeof filteredRfis>();
+                allRfis.filter(r => r.parent_id).forEach(r => {
+                  const arr = rfiChildMap.get(r.parent_id!) ?? [];
+                  arr.push(r);
+                  rfiChildMap.set(r.parent_id!, arr);
+                });
+                const rfiRow = (r: RFIItem, isChild = false) => (
+                  <div key={r.id}>
+                    <div
+                      onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${r.id}`)}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "90px 1fr 100px 90px 90px 80px",
+                        gap: 8,
+                        padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+                        background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
+                        marginBottom: 2,
+                        cursor: "pointer",
+                        borderLeft: isChild
+                          ? `2px solid ${gold}`
+                          : `2px solid ${r.status === "overdue" ? (dark ? "#E07060" : "#A93226") : r.status === "open" ? gold : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "transparent"}`,
+                      }}
+                    >
+                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                        {isChild && <span style={{ color: gold, marginRight: 2 }}>└</span>}
                         {r.rfi_number}
-                        {r.parent_id && <span style={{ fontSize: 9, color: gold }} title="Zincirde">🔗</span>}
                         {r.rfi_type && r.rfi_type !== "original" && (
                           <span style={{ fontSize: 8, fontWeight: 600, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#1F2A3A" : "#E8F0FE"), color: r.rfi_type === "response" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#7BA7D4" : "#1A56A4"), textTransform: "uppercase" as const }}>
                             {r.rfi_type === "response" ? (lang === "tr" ? "YNT" : "RES") : (lang === "tr" ? "REV" : "REV")}
                           </span>
                         )}
                       </span>
-                      <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{r.subject}</p>
-                      <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" }}>{r.discipline ?? "—"}</span>
+                      <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500 }}>{r.subject}</p>
+                      <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const }}>{r.discipline ?? "—"}</span>
                       <span style={{ fontSize: 11, color: textSecondary }}>{r.submitted_date?.slice(0, 10)}</span>
                       <span style={{ fontSize: 11, color: r.response_due_date && r.response_due_date < today ? (dark ? "#E07060" : "#A93226") : textSecondary }}>{r.response_due_date?.slice(0, 10) ?? "—"}</span>
-                      {statusPill(r.status)}
+                      {r.rfi_type === "response"
+                        ? <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", backgroundColor: dark ? "#0F2D1A" : "#E6F4EE", color: dark ? "#4DB88A" : "#1F6B4E", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                        : statusPill(r.status)}
                     </div>
-                  ))}
-                </div>
-              )}
+                    {(rfiChildMap.get(r.id) ?? []).map(child => rfiRow(child, true))}
+                  </div>
+                );
+                return (
+                  <div>
+                    {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.subject"), width: "1fr" }, { label: t("col.discipline"), width: "100px" }, { label: t("col.submitted"), width: "90px" }, { label: t("col.due"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
+                    {rfiParents.map(r => rfiRow(r, false))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

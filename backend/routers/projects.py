@@ -654,7 +654,7 @@ def search_project(
     # Correspondence
     corr = (
         db.table("correspondences")
-        .select("id, corr_number, subject, type, status, correspondence_date, direction")
+        .select("id, corr_number, subject, type, status, correspondence_date, direction, parent_id, has_response")
         .eq("project_id", str(project_id))
         .eq("is_deleted", False)
         .ilike("subject", keyword)
@@ -670,12 +670,14 @@ def search_project(
             "status": r.get("status", ""),
             "date": r.get("correspondence_date", ""),
             "id": r["id"],
+            "parent_id": r.get("parent_id"),
+            "has_response": r.get("has_response", False),
         })
 
     # RFI
     rfis = (
         db.table("rfis")
-        .select("id, rfi_number, subject, status, submitted_date, discipline")
+        .select("id, rfi_number, subject, status, submitted_date, discipline, parent_id, rfi_type")
         .eq("project_id", str(project_id))
         .eq("is_deleted", False)
         .ilike("subject", keyword)
@@ -691,6 +693,8 @@ def search_project(
             "status": r.get("status", ""),
             "date": r.get("submitted_date", ""),
             "id": r["id"],
+            "parent_id": r.get("parent_id"),
+            "rfi_type": r.get("rfi_type", "original"),
         })
 
     # Change

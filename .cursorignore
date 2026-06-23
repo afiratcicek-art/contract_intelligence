@@ -1,0 +1,6 @@
+﻿.env
+.env.*
+*.key
+*.pem
+secrets/
+backend/prompts/*.enc

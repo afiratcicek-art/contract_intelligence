@@ -388,7 +388,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               background: "var(--color-background-secondary)",
               borderLeft: `4px solid ${borderColor}`,
               borderTop: "0.5px solid var(--color-border-tertiary)",
-              borderRight: "0.5px solid var(--color-border-tertiary)",
+              borderRight: "1px solid var(--color-border-medium)",
               borderBottom: "0.5px solid var(--color-border-tertiary)",
               marginBottom: 12,
               borderRadius: 0,
@@ -400,7 +400,8 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "16px 16px 0 16px",
+                gap: 12,
+                padding: "12px 12px 0 12px",
               }}
             >
               <span style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 14, color: "var(--color-text-primary)", fontWeight: 500 }}>
@@ -417,6 +418,9 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   fontWeight: 500,
                   letterSpacing: "0.04em",
                   borderRadius: 0,
+                  flexShrink: 0,
+                  marginRight: 0,
+                  position: "relative",
                 }}
               >
                 {alertItem.priority}
@@ -467,7 +471,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   style={{
                     fontSize: 11,
                     fontFamily: "Inter, sans-serif",
-                    color: isWithin7Days(alertItem.notice_deadline) ? "#C0392B" : "var(--color-text-secondary)",
+                    color: isWithin7Days(alertItem.notice_deadline) ? "var(--color-danger)" : "var(--color-text-secondary)",
                   }}
                 >
                   Deadline: {formatDate(alertItem.notice_deadline)}
@@ -483,8 +487,10 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 display: "block",
                 width: "100%",
                 background: "none",
-                border: "none",
                 borderTop: "0.5px solid var(--color-border-tertiary)",
+                borderLeft: "none",
+                borderRight: "none",
+                borderBottom: "none",
                 cursor: "pointer",
                 fontSize: 12,
                 color: ACCENT,
@@ -504,15 +510,16 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               <div
                 style={{
                   background: "var(--color-background-tertiary)",
-                  border: "0.5px solid var(--color-border-secondary)",
+                  border: "0.5px solid var(--color-border-medium)",
                   borderTop: "none",
-                  marginLeft: -4,
+                  marginLeft: 0,
                   marginRight: 0,
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr",
                   alignItems: "start",
                   overflowY: "visible",
                   marginTop: 0,
+                  boxShadow: "inset 0 1px 0 var(--color-border-medium)",
                 }}
               >
                 {/* Left column — source document */}
@@ -535,16 +542,44 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                     <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>No actions yet.</p>
                   )}
                   {actions.map((action) => (
-                    <div key={action.id} style={{ fontSize: 12, color: "var(--color-text-primary)", marginBottom: 6, fontFamily: "Inter, sans-serif" }}>
+                    <div
+                      key={action.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 6,
+                        fontSize: 12,
+                        color: "var(--color-text-primary)",
+                        marginBottom: 0,
+                        paddingBottom: 8,
+                        paddingTop: 8,
+                        borderBottom: "0.5px solid var(--color-border-light)",
+                        fontFamily: "Inter, sans-serif",
+                      }}
+                    >
                       {action.action_type === "note" && (
-                        <span>📝 {action.note} — {formatDate(action.created_at)}</span>
+                        <>
+                          <i
+                            className="ti ti-notes"
+                            aria-hidden="true"
+                            style={{ fontSize: 13, marginRight: 4, color: ACCENT, flexShrink: 0 }}
+                          />
+                          <span>{action.note} — {formatDate(action.created_at)}</span>
+                        </>
                       )}
                       {action.action_type === "assignment" && (
-                        <span>
-                          👤 {action.assigned_to_role ?? "User"}
-                          {action.due_date ? ` · due ${formatDate(action.due_date)}` : ""}
-                          {" — "}{formatDate(action.created_at)}
-                        </span>
+                        <>
+                          <i
+                            className="ti ti-user"
+                            aria-hidden="true"
+                            style={{ fontSize: 13, marginRight: 4, color: ACCENT, flexShrink: 0 }}
+                          />
+                          <span>
+                            {action.assigned_to_role ?? "User"}
+                            {action.due_date ? ` · due ${formatDate(action.due_date)}` : ""}
+                            {" — "}{formatDate(action.created_at)}
+                          </span>
+                        </>
                       )}
                       {action.action_type !== "note" && action.action_type !== "assignment" && (
                         <span>{action.action_type} — {formatDate(action.created_at)}</span>
@@ -577,7 +612,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
 
                   {/* Add Action form */}
                   {showAddAction === alertItem.id && (
-                    <div style={{ background: "var(--color-background-primary)", padding: 12, marginTop: 8, border: "0.5px solid var(--color-border-tertiary)", borderRadius: 0 }}>
+                    <div style={{ background: "var(--color-bg-secondary)", padding: 12, marginTop: 8, border: "0.5px solid var(--color-border-tertiary)", borderRadius: 0 }}>
                       <div style={{ display: "flex", gap: 0, marginBottom: 12 }}>
                         {(["note", "assignment"] as const).map((type) => (
                           <button
@@ -585,13 +620,13 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                             onClick={() => setActionType(type)}
                             style={{
                               background: actionType === type
-                                ? "var(--color-text-primary)"
-                                : "transparent",
+                                ? "var(--color-accent)"
+                                : "var(--color-bg-secondary)",
                               color: actionType === type
                                 ? "#FFFFFF"
-                                : "var(--color-text-secondary)",
+                                : "var(--color-text-primary)",
                               border: actionType === type
-                                ? "0.5px solid var(--color-text-primary)"
+                                ? "0.5px solid var(--color-accent)"
                                 : "0.5px solid var(--color-border-primary)",
                               borderRadius: 0,
                               padding: "5px 14px",
@@ -621,6 +656,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                             borderRadius: 0,
                             resize: "vertical",
                             boxSizing: "border-box",
+                            background: "var(--color-bg-secondary)",
                           }}
                         />
                       )}
@@ -673,7 +709,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                           onClick={() => handleSubmitAction(alertItem.id)}
                           disabled={submitting}
                           style={{
-                            background: "var(--color-text-primary)",
+                            background: ACCENT,
                             color: "#FFFFFF",
                             padding: "6px 14px",
                             border: "none",

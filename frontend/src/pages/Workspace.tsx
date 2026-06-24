@@ -729,8 +729,8 @@ export default function Workspace() {
                     <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/changes/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${c.status === "open" ? gold : "transparent"}` }}>
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary }}>{c.change_number}</span>
                       <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{c.title}</p>
-                      <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" }}>{c.origin}</span>
-                      <span style={{ fontSize: 11, color: textSecondary }}>{c.created_at?.slice(0, 10)}</span>
+                      <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{c.origin}</span>
+                      <span style={{ fontSize: 11, color: textSecondary, whiteSpace: "nowrap" }}>{c.created_at?.slice(0, 10)}</span>
                       {statusPill(c.status)}
                     </div>
                   ))}

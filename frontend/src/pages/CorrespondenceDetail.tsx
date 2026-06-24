@@ -64,9 +64,36 @@ export default function CorrespondenceDetail() {
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [flagOpen, setFlagOpen] = useState(false);
+  const [noticeConfigs, setNoticeConfigs] = useState<{ id: string; label: string; notice_period_days: number }[]>([]);
+  const [members, setMembers] = useState<{ user_id: string; full_name: string; project_role: string }[]>([]);
+  const [flagForm, setFlagForm] = useState<{
+    narrative: string;
+    notice_config_id: string;
+    assigned_to_user: string;
+    document_references: string[];
+    newFile: File | null;
+  }>({
+    narrative: "",
+    notice_config_id: "",
+    assigned_to_user: "",
+    document_references: [],
+    newFile: null,
+  });
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
 
   // Parse status polling — pending/processing belgeler için
   // her 4 saniyede bir kontrol, tümü completed/failed olunca durur
+  useEffect(() => {
+    if (!projectId) return;
+    api.get<{ id: string; label: string; notice_period_days: number }[]>(
+      `/projects/${projectId}/notice-config`
+    ).then(setNoticeConfigs).catch(() => {});
+    api.get<{ user_id: string; full_name: string; project_role: string }[]>(
+      `/projects/${projectId}/members`
+    ).then(setMembers).catch(() => {});
+  }, [projectId]);
+
   useEffect(() => {
     const hasPending = docs.some(
       (d) => d.parse_status === "pending" || d.parse_status === "processing"
@@ -172,7 +199,7 @@ export default function CorrespondenceDetail() {
           <span style={{ color: "#C4AD87" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}>{t("module.correspondence")}</span>
           <span style={{ color: "#C4AD87" }}>/</span>
-          <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}>{corr.corr_number}</span>
+            <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "JetBrains Mono, monospace", fontSize: 11 }}>{corr.corr_number}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
@@ -247,13 +274,18 @@ export default function CorrespondenceDetail() {
           <div style={{ display: "flex", flexDirection: "column" as const, gap: 6, flexShrink: 0, marginLeft: 24 }}>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/new?mode=response&parent_id=${corr.id}&parent_number=${corr.corr_number}`)}
-              style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "7px 14px", fontSize: 11, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
+              style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "6px 12px", fontSize: 11, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
             >
               {lang === "tr" ? "↩ Yanıt Yaz" : "↩ Write Response"}
             </button>
             <button
+              onClick={() => setFlagOpen(true)}
+              style={{ backgroundColor: "transparent", color: dark ? "#D4956A" : "#92400E", border: `1px solid ${dark ? "#D4956A" : "#92400E"}`, padding: "6px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+              ⚠ {lang === "tr" ? "Potansiyel Etki" : "Potential Impact"}
+            </button>
+            <button
               onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/new?mode=followup&parent_id=${corr.id}&parent_number=${corr.corr_number}`)}
-              style={{ backgroundColor: "transparent", color: gold, border: `1px solid ${gold}`, padding: "7px 14px", fontSize: 11, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
+              style={{ backgroundColor: "transparent", color: gold, border: `1px solid ${gold}`, padding: "6px 12px", fontSize: 11, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
             >
               {lang === "tr" ? "+ Followup Ekle" : "+ Add Followup"}
             </button>
@@ -347,13 +379,168 @@ export default function CorrespondenceDetail() {
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: `0.5px solid ${border}` }}>
           <button
             onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}
-            style={{ background: "none", border: `0.5px solid ${border}`, padding: "8px 16px", fontSize: 12, color: textSecond, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+            style={{ background: "none", border: `1px solid ${gold}`, padding: "8px 16px", fontSize: 12, color: gold, cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}
           >
             {lang === "tr" ? "← Yazışma Listesine Dön" : "← Back to Correspondence"}
           </button>
         </div>
-
       </div>
+
+      {/* Flag Modal */}
+      {flagOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 24 }}
+          onClick={() => !flagSubmitting && setFlagOpen(false)}
+        >
+          <div
+            style={{ backgroundColor: cardBg, padding: 24, width: "100%", maxWidth: 520, border: `1px solid ${border}`, maxHeight: "90vh", overflowY: "auto" as const }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 18, fontWeight: 600, color: textPrimary, margin: "0 0 8px" }}>
+              {lang === "tr" ? "Potansiyel Etki Bildir" : "Flag Potential Impact"}
+            </h2>
+            <p style={{ fontSize: 12, color: textSecond, margin: "0 0 20px", lineHeight: 1.5 }}>
+              {lang === "tr"
+                ? "İç aksiyon alerti oluşturulur. Seçilen kişi bilgilendirilir."
+                : "Creates an internal action alert. The assigned person will be notified."}
+            </p>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                {lang === "tr" ? "Açıklama *" : "Narrative *"}
+              </label>
+              <textarea
+                value={flagForm.narrative}
+                onChange={(e) => setFlagForm({ ...flagForm, narrative: e.target.value })}
+                rows={4}
+                placeholder={lang === "tr" ? "Potansiyel etkiyi açıklayın..." : "Describe the potential impact..."}
+                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: dark ? "#1F2228" : "#F5F2ED", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif", resize: "vertical" as const, boxSizing: "border-box" as const }}
+              />
+            </div>
+
+            {noticeConfigs.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                  {lang === "tr" ? "Potansiyel Sözleşme Maddesi (Opsiyonel)" : "Potential Contractual Trigger (Optional)"}
+                </label>
+                <select
+                  value={flagForm.notice_config_id}
+                  onChange={(e) => setFlagForm({ ...flagForm, notice_config_id: e.target.value })}
+                  style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: dark ? "#1F2228" : "#F5F2ED", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
+                >
+                  <option value="">{lang === "tr" ? "— Seçiniz —" : "— Select —"}</option>
+                  {noticeConfigs.map((c) => (
+                    <option key={c.id} value={c.id}>{c.label} ({c.notice_period_days}d)</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {docs.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                  {lang === "tr" ? "İlgili Belgeler (Opsiyonel)" : "Related Documents (Optional)"}
+                </label>
+                <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: dark ? "#1F2228" : "#F5F2ED" }}>
+                  {docs.map((d) => (
+                    <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={flagForm.document_references.includes(d.id)}
+                        onChange={(e) => {
+                          const refs = e.target.checked
+                            ? [...flagForm.document_references, d.id]
+                            : flagForm.document_references.filter((id) => id !== d.id);
+                          setFlagForm({ ...flagForm, document_references: refs });
+                        }}
+                      />
+                      <span style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}>{d.original_filename}</span>
+                      <span style={{ fontSize: 10, color: textSecond, marginLeft: "auto" }}>{d.parse_status}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                {lang === "tr" ? "Yeni Dosya Ekle (Opsiyonel)" : "Add New File (Optional)"}
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.dwg,.dxf"
+                onChange={(e) => setFlagForm({ ...flagForm, newFile: e.target.files?.[0] || null })}
+                style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                {lang === "tr" ? "Bildir" : "Notify"}
+              </label>
+              <select
+                value={flagForm.assigned_to_user}
+                onChange={(e) => setFlagForm({ ...flagForm, assigned_to_user: e.target.value })}
+                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: dark ? "#1F2228" : "#F5F2ED", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
+              >
+                <option value="">{lang === "tr" ? "— Tüm Ekip —" : "— Entire Team —"}</option>
+                {members.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>{m.full_name} ({m.project_role})</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => { setFlagOpen(false); setFlagForm({ narrative: "", notice_config_id: "", assigned_to_user: "", document_references: [], newFile: null }); }}
+                disabled={flagSubmitting}
+                style={{ background: "none", border: `1px solid ${border}`, padding: "8px 16px", fontSize: 12, color: textSecond, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+              >
+                {lang === "tr" ? "İptal" : "Cancel"}
+              </button>
+              <button
+                disabled={flagSubmitting || !flagForm.narrative.trim()}
+                onClick={async () => {
+                  if (!projectId || !corr) return;
+                  setFlagSubmitting(true);
+                  try {
+                    const res = await api.post<{ id: string }>(`/projects/${projectId}/alerts`, {
+                      alert_type: "potential_impact",
+                      source_entity_type: "correspondence",
+                      source_entity_id: corr.id,
+                      narrative: flagForm.narrative,
+                      notice_config_id: flagForm.notice_config_id || undefined,
+                      assigned_to_user: flagForm.assigned_to_user || undefined,
+                      document_references: flagForm.document_references.length > 0
+                        ? flagForm.document_references : undefined,
+                    });
+                    if (flagForm.newFile && res?.id) {
+                      const fd = new FormData();
+                      fd.append("file", flagForm.newFile);
+                      await api.postForm(
+                        `/projects/${projectId}/documents/upload?entity_type=internal_alert&entity_id=${res.id}`,
+                        fd
+                      );
+                    }
+                    setFlagOpen(false);
+                    setFlagForm({ narrative: "", notice_config_id: "", assigned_to_user: "", document_references: [], newFile: null });
+                  } catch {
+                    /* silent */
+                  } finally {
+                    setFlagSubmitting(false);
+                  }
+                }}
+                style={{ backgroundColor: flagForm.narrative.trim() ? gold : (dark ? "#3D4456" : "#D4CFC8"), color: flagForm.narrative.trim() ? (dark ? "#E8E6E0" : "#F5F2ED") : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "Inter, sans-serif", opacity: flagSubmitting ? 0.6 : 1 }}
+              >
+                {flagSubmitting
+                  ? (lang === "tr" ? "Gönderiliyor…" : "Submitting…")
+                  : (lang === "tr" ? "Flag Olarak İşaretle" : "Flag as Potential Impact")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

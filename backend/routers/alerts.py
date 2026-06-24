@@ -94,7 +94,10 @@ def create_alert(
         narrative=body.narrative or "",
         notice_config_id=str(body.notice_config_id)
         if body.notice_config_id else None,
-        notice_start_date=body.notice_start_date,
+        assigned_to_user=str(body.assigned_to_user)
+        if body.assigned_to_user else None,
+        document_references=[str(d) for d in body.document_references]
+        if body.document_references else None,
         calendar_config=calendar_config,
     )
 

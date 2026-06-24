@@ -96,6 +96,27 @@ export const api = {
   post: <T>(path: string, body: unknown) => request<T>("POST", path, body),
   put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
   delete: <T>(path: string) => request<T>("DELETE", path),
+  postForm: async <T>(path: string, formData: FormData): Promise<T> => {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+      // Content-Type intentionally omitted — browser sets multipart boundary
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        const { clearAuth } = await import("../store/auth");
+        clearAuth();
+        window.location.href = "/login";
+        throw new Error("Oturum süresi doldu");
+      }
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail ?? "Sunucu hatası");
+    }
+    const { markSessionActive } = await import("../store/auth");
+    markSessionActive();
+    return res.json();
+  },
 };
 
 export interface LoginResponse {

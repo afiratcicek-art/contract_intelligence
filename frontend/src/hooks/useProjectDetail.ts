@@ -41,6 +41,19 @@ export interface DeliverableItem {
   is_pre_completion: boolean;
 }
 
+export interface AlertItem {
+  id: string;
+  alert_type: string;
+  status: string;
+  priority: string;
+  source_entity_type: string | null;
+  source_entity_id: string | null;
+  narrative: string | null;
+  notice_deadline: string | null;
+  flagged_at: string;
+  cm_decision: string | null;
+}
+
 export interface TrendPoint {
   date: string;
   incoming: number;
@@ -68,6 +81,7 @@ export function useProjectTabs(projectId: string) {
   const [rfis, setRFIs] = useState<RFIItem[]>([]);
   const [changes, setChanges] = useState<ChangeItem[]>([]);
   const [deliverables, setDeliverables] = useState<DeliverableItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -76,11 +90,13 @@ export function useProjectTabs(projectId: string) {
       api.get<RFIItem[]>(`/projects/${projectId}/rfis`).catch(() => []),
       api.get<ChangeItem[]>(`/projects/${projectId}/changes`).catch(() => []),
       api.get<DeliverableItem[]>(`/projects/${projectId}/deliverables`).catch(() => []),
-    ]).then(([corr, rfi, chng, deliv]) => {
+      api.get<AlertItem[]>(`/projects/${projectId}/alerts?status=pending&limit=50`).catch(() => []),
+    ]).then(([corr, rfi, chng, deliv, alrt]) => {
       setCorrespondences(Array.isArray(corr) ? corr : []);
       setRFIs(Array.isArray(rfi) ? rfi : []);
       setChanges(Array.isArray(chng) ? chng : []);
       setDeliverables(Array.isArray(deliv) ? deliv : []);
+      setAlerts(Array.isArray(alrt) ? alrt : []);
       setLoading(false);
     });
   }, [projectId]);
@@ -105,7 +121,7 @@ export function useProjectTabs(projectId: string) {
     return Object.values(days);
   })();
 
-  return { correspondences, rfis, changes, deliverables, trend, loading };
+  return { correspondences, rfis, changes, deliverables, alerts, trend, loading };
 }
 
 export interface ActivityPoint {

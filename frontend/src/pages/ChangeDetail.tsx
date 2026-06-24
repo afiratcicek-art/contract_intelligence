@@ -194,11 +194,11 @@ export default function ChangeDetail() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
           <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${gold} 20%, ${gold} 80%, transparent)` }} />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: textSecond }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: textSecond }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=changes`)}>{t("module.changes")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: textSecond }}>/</span>
           <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "JetBrains Mono, monospace", fontSize: 11 }}>{change.change_number}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
@@ -395,7 +395,7 @@ export default function ChangeDetail() {
         {/* Geri */}
         <div style={{ paddingTop: 16, borderTop: `0.5px solid ${border}` }}>
           <button onClick={() => navigate(`/projects/${projectId}/workspace?module=changes`)}
-            style={{ background: "none", border: `0.5px solid ${border}`, padding: "8px 16px", fontSize: 12, color: textSecond, cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
+            style={{ background: "none", border: `1px solid ${gold}`, padding: "8px 16px", fontSize: 12, color: gold, cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
             {lang === "tr" ? "← Changes Listesine Dön" : "← Back to Changes"}
           </button>
         </div>

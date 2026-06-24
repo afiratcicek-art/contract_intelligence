@@ -55,7 +55,7 @@ export default function NewCorrespondence() {
 
   const bg = dark ? "#1F2228" : "#F5F2ED";
   const cardBg = dark ? "#2E3340" : "#E7E3DC";
-  const border = dark ? "#3D4456" : "#C4AD87";
+  const border = dark ? "#3D4456" : "#E7E3DC";
   const textPrimary = dark ? "#E8E6E0" : "#1C1917";
   const textSecondary = dark ? "#C4B49C" : "#44403C";
   const gold = dark ? "#A0714A" : "#6B5D3F";
@@ -179,11 +179,11 @@ export default function NewCorrespondence() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
           <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, transparent, #6B5D3F 20%, #6B5D3F 80%, transparent)" }} />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: textSecondary }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: textSecondary }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}>{t("module.correspondence")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: textSecondary }}>/</span>
           <span style={{ color: textPrimary, fontWeight: 500 }}>
             {mode === "response"
               ? (lang === "tr" ? `Yanıt — ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
@@ -194,7 +194,7 @@ export default function NewCorrespondence() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#C4AD87"}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
         </div>
@@ -205,7 +205,7 @@ export default function NewCorrespondence() {
         {/* Direction selector */}
         {!direction && (
           <div>
-            <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600, marginBottom: 8 }}>
+            <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 600, marginBottom: 8 }}>
               {lang === "tr" ? "Yeni Yazışma" : "New Correspondence"}
             </p>
             <p style={{ fontSize: 13, color: textSecondary, marginBottom: 32 }}>
@@ -234,7 +234,7 @@ export default function NewCorrespondence() {
         {direction && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-              <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600, marginBottom: 8 }}>
+              <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 600, marginBottom: 8 }}>
                 {mode === "response"
                   ? (lang === "tr" ? `Yanıt: ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
                   : mode === "followup"

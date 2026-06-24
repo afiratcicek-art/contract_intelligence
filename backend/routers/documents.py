@@ -38,6 +38,7 @@ VALID_ENTITY_TYPES = {
     "deliverable",
     "chronology",
     "contract_document",
+    "internal_alert",
 }
 
 

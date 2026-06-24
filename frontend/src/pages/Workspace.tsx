@@ -6,7 +6,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import { getAuth, clearAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
 
-type Module = "general" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
+type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
 interface SearchResult { module: string; label: string; ref: string; subject: string; status: string; date: string; id: string; parent_id?: string | null; has_response?: boolean; rfi_type?: string; }
 interface CorrItem { id: string; corr_number: string; subject: string; type: string; status: string; correspondence_date: string; direction: string; response_due_date: string | null; parent_id: string | null; has_response: boolean; }
@@ -15,7 +15,8 @@ interface ChangeItem { id: string; change_number: string; title: string; status:
 interface DeliverableItem { id: string; title: string; status: string; due_date: string | null; category: string | null; is_pre_completion: boolean; }
 
 const MODULE_LABELS: Record<Module, string> = {
-  general: "General", correspondence: "Correspondence", rfis: "RFIs",
+  general: "General", alerts: "Alerts & Actions",
+  correspondence: "Correspondence", rfis: "RFIs",
   changes: "Changes", deliverables: "Deliverables", chronologies: "Chronologies",
   documents: "Documents", config: "Config",
 };
@@ -56,9 +57,18 @@ export default function Workspace() {
   const [activeModule, setActiveModule] = useState<Module>(() => {
     const params = new URLSearchParams(location.search);
     const m = params.get("module") as Module | null;
-    const valid: Module[] = ["general", "correspondence", "rfis", "changes", "deliverables", "chronologies", "documents", "config"];
+    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "documents", "config"];
     return m && valid.includes(m) ? m : "general";
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const m = params.get("module") as Module | null;
+    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "documents", "config"];
+    if (m && valid.includes(m)) {
+      setActiveModule(m);
+    }
+  }, [location.search]);
   const [projectName, setProjectName] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,6 +81,7 @@ export default function Workspace() {
   const [genDateField, setGenDateField] = useState<"date" | "due_date">("date");
 
   const [corrs, setCorrs] = useState<CorrItem[]>([]);
+  const [alertCount, setAlertCount] = useState<number>(0);
   const [corrLoading, setCorrLoading] = useState(false);
   const [corrKeyword, setCorrKeyword] = useState("");
   const [corrStatus, setCorrStatus] = useState("");
@@ -124,6 +135,13 @@ export default function Workspace() {
   useEffect(() => {
     if (!projectId) return;
     api.get<{ name: string }>(`/projects/${projectId}`).then((p) => setProjectName(p.name)).catch(() => {});
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    api.get<{ count: number }>(`/projects/${projectId}/alerts/count`)
+      .then((r) => setAlertCount(r.count))
+      .catch(() => {});
   }, [projectId]);
 
   const handleSearch = useCallback(async (q: string) => {
@@ -258,7 +276,7 @@ export default function Workspace() {
     dateInRange(genDateField === "date" ? r.date : r.date, genDateFrom, genDateTo)
   );
 
-  const SIDEBAR_MAIN: Module[] = ["general", "correspondence", "rfis", "changes", "deliverables", "chronologies"];
+  const SIDEBAR_MAIN: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies"];
   const SIDEBAR_SYS: Module[] = ["documents", "config"];
 
   const generalNavTarget = (mod: string, id: string) => {
@@ -297,8 +315,40 @@ export default function Workspace() {
             <div style={{ fontSize: 10, color: textSecondary, marginTop: 2 }}>{t("nav.workspace")}</div>
           </div>
           {SIDEBAR_MAIN.map((mod) => (
-            <button key={mod} onClick={() => setActiveModule(mod)} style={{ display: "flex", alignItems: "center", gap: 8, padding: mod === "general" ? "9px 16px" : "7px 16px", fontSize: mod === "general" ? 13 : 12, fontWeight: activeModule === mod ? 600 : 400, color: activeModule === mod ? textPrimary : textSecondary, background: activeModule === mod ? cardBg : "none", border: "none", borderLeft: activeModule === mod ? `3px solid ${gold}` : "3px solid transparent", cursor: "pointer", width: "100%", textAlign: "left", fontFamily: "Inter, sans-serif" }}>
-              {MODULE_LABELS[mod]}
+            <button
+              key={mod}
+              onClick={() => {
+                setActiveModule(mod);
+                if (mod === "alerts") setAlertCount(0);
+              }}
+              style={{
+                display: "flex", alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%", textAlign: "left" as const,
+                padding: mod === "general" ? "9px 16px" : "7px 16px",
+                fontSize: mod === "general" ? 13 : 12,
+                fontWeight: activeModule === mod ? 600 : 400,
+                fontFamily: "Inter, sans-serif",
+                background: activeModule === mod ? cardBg : "none",
+                borderLeft: activeModule === mod ? `3px solid ${gold}` : "3px solid transparent",
+                border: "none", cursor: "pointer",
+                color: activeModule === mod ? textPrimary : textSecondary,
+              }}
+            >
+              <span>{MODULE_LABELS[mod]}</span>
+              {mod === "alerts" && alertCount > 0 && (
+                <span style={{
+                  fontSize: 9, fontWeight: 700,
+                  backgroundColor: dark ? "#E07060" : "#A93226",
+                  color: "#F5F2ED",
+                  borderRadius: 10,
+                  padding: "1px 6px",
+                  minWidth: 16,
+                  textAlign: "center" as const,
+                }}>
+                  {alertCount}
+                </span>
+              )}
             </button>
           ))}
           <div style={{ height: "0.5px", background: border, margin: "8px 16px" }} />
@@ -715,7 +765,15 @@ export default function Workspace() {
           )}
 
           {/* OTHER */}
-          {!["general", "correspondence", "rfis", "changes", "deliverables"].includes(activeModule) && (
+          {activeModule === "alerts" && (
+            <div>
+              <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600, marginBottom: 16 }}>
+                Alerts & Actions
+              </div>
+              <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.comingsoon")}</p>
+            </div>
+          )}
+          {!["general", "alerts", "correspondence", "rfis", "changes", "deliverables"].includes(activeModule) && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
               <div style={{ textAlign: "center" }}>
                 <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 16, color: textPrimary, marginBottom: 8 }}>{MODULE_LABELS[activeModule]}</p>

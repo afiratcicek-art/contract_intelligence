@@ -106,7 +106,7 @@ export default function Login() {
       {/* Sağ panel — form */}
       <div className="relative flex flex-1 items-center justify-center px-8">
         <div className="absolute top-4 right-4 flex items-center gap-2">
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#C4AD87"}`, cursor: "pointer", fontSize: 11, color: dark ? "#C4B49C" : "#44403C", padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: dark ? "#C4B49C" : "#44403C", padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -160,12 +160,12 @@ export default function Login() {
                 className="w-full px-4 py-4 text-sm outline-none transition-colors"
                 style={{
                   backgroundColor: dark ? "#2E3340" : "#E7E3DC",
-                  border: `1px solid ${dark ? "#3D4456" : "#C4AD87"}`,
+                  border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`,
                   color: dark ? "#E8E6E0" : "#1C1917",
                   fontFamily: "Inter, sans-serif",
                 }}
                 onFocus={(e) => (e.target.style.borderColor = "#6B5D3F")}
-                onBlur={(e) => (e.target.style.borderColor = dark ? "#3D4456" : "#C4AD87")}
+                onBlur={(e) => (e.target.style.borderColor = dark ? "#3D4456" : "#E7E3DC")}
               />
             </div>
 
@@ -188,12 +188,12 @@ export default function Login() {
                 className="w-full px-4 py-4 text-sm outline-none transition-colors"
                 style={{
                   backgroundColor: dark ? "#2E3340" : "#E7E3DC",
-                  border: `1px solid ${dark ? "#3D4456" : "#C4AD87"}`,
+                  border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`,
                   color: dark ? "#E8E6E0" : "#1C1917",
                   fontFamily: "Inter, sans-serif",
                 }}
                 onFocus={(e) => (e.target.style.borderColor = "#6B5D3F")}
-                onBlur={(e) => (e.target.style.borderColor = dark ? "#3D4456" : "#C4AD87")}
+                onBlur={(e) => (e.target.style.borderColor = dark ? "#3D4456" : "#E7E3DC")}
               />
             </div>
 

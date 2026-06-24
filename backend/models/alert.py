@@ -48,7 +48,7 @@ class AlertCreate(BaseModel):
     source_entity_id: Optional[UUID] = None
     narrative: Optional[str] = None
     notice_config_id: Optional[UUID] = None
-    notice_start_date: Optional[date] = None
+    document_references: Optional[list[UUID]] = None
 
     @field_validator("narrative", mode="before")
     @classmethod

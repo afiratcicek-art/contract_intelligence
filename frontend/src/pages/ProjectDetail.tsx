@@ -8,7 +8,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
 import { useDarkMode } from "../hooks/useDarkMode";
 
-type Tab = "correspondence" | "rfis" | "changes" | "deliverables";
+type Tab = "correspondence" | "rfis" | "changes" | "deliverables" | "alerts";
 
 const CONTRACT_LABEL: Record<string, string> = {
   lump_sum: "Lump Sum", remeasure: "Remeasure", cost_plus: "Cost Plus",
@@ -76,7 +76,7 @@ export default function ProjectDetail() {
   const [activeTab, setActiveTab] = useState<Tab>("correspondence");
 
   const { project, loading: projLoading } = useProjectDetail(projectId!);
-  const { correspondences, rfis, changes, deliverables, trend, loading: tabLoading } =
+  const { correspondences, rfis, changes, deliverables, alerts, trend, loading: tabLoading } =
     useProjectTabs(projectId!);
 
   const openCorr = correspondences.filter((c) => c.status === "open").length;
@@ -98,6 +98,7 @@ export default function ProjectDetail() {
     { key: "rfis", label: "RFIs", count: rfis.length },
     { key: "changes", label: "Changes", count: changes.length },
     { key: "deliverables", label: "Deliverables", count: deliverables.length },
+    { key: "alerts", label: "Alerts & Actions", count: alerts.filter(a => a.status === "pending").length },
   ];
 
   if (projLoading) {
@@ -299,7 +300,7 @@ export default function ProjectDetail() {
                     <button
                       onClick={() => navigate(`/projects/${projectId}/workspace`)}
                       className="text-xs shrink-0 ml-2"
-                      style={{ color: dark ? "#C4AD87" : "#6B5D3F", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+                      style={{ color: dark ? "#A0714A" : "#6B5D3F", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
                     >
                       {t("overview.workspace")}
                     </button>
@@ -474,6 +475,60 @@ export default function ProjectDetail() {
                       </p>
                     </div>
                     <StatusPill status={d.status} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Alerts & Actions */}
+            {activeTab === "alerts" && (
+              <div className="flex flex-col gap-2">
+                {alerts.length === 0 && (
+                  <p className="text-sm py-8 text-center" style={{ color: dark ? "#C4B49C" : "#44403C" }}>No pending alerts.</p>
+                )}
+                {alerts.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between px-4 py-4 cursor-pointer transition-colors"
+                    style={{
+                      backgroundColor: dark ? "#2E3340" : "#E7E3DC",
+                      borderLeft: a.priority === "critical"
+                        ? `3px solid ${dark ? "#E07060" : "#A93226"}`
+                        : a.priority === "high"
+                        ? `3px solid ${dark ? "#D4956A" : "#92400E"}`
+                        : `3px solid ${dark ? "#A0714A" : "#6B5D3F"}`,
+                    }}
+                    onClick={() => navigate(`/projects/${projectId}/workspace?module=alerts`)}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = dark ? "#3D4456" : "#DDD9D1")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = dark ? "#2E3340" : "#E7E3DC")}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span
+                        className="text-xs w-24 shrink-0 uppercase"
+                        style={{ fontFamily: "JetBrains Mono, monospace", color: dark ? "#C4B49C" : "#44403C", letterSpacing: "0.05em" }}
+                      >
+                        {a.source_entity_type ?? "system"}
+                      </span>
+                      <div>
+                        <p className="text-sm" style={{ color: dark ? "#E8E6E0" : "#1C1917" }}>
+                          {a.narrative
+                            ? a.narrative.length > 80
+                              ? a.narrative.slice(0, 80) + "…"
+                              : a.narrative
+                            : "—"}
+                        </p>
+                        <p className="text-xs mt-0.5" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
+                          {a.alert_type.replace("_", " ")}
+                          {a.notice_deadline && ` · Deadline: ${a.notice_deadline}`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/projects/${projectId}/workspace?module=alerts`)}
+                      className="text-xs shrink-0 ml-2"
+                      style={{ color: dark ? "#A0714A" : "#6B5D3F", background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                    >
+                      Review →
+                    </button>
                   </div>
                 ))}
               </div>

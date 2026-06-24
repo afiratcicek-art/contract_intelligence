@@ -34,7 +34,8 @@ class AlertService:
         source_entity_id: str,
         narrative: str,
         notice_config_id: Optional[str],
-        notice_start_date: Optional[date],
+        assigned_to_user: Optional[str],
+        document_references: Optional[list] = None,
         calendar_config: Optional[dict] = None,
     ) -> dict:
         """
@@ -42,8 +43,11 @@ class AlertService:
         oluşturulan alert.
         Deadline hesabı deterministik — LLM yok.
         """
+        # Deadline hesabı: source entity tarihinden itibaren
+        # notice_start_date kullanıcıdan alınmaz —
+        # backend source entity created_at/submitted_date kullanır
         notice_deadline = None
-        if notice_config_id and notice_start_date:
+        if notice_config_id:
             config = (
                 get_admin_client()
                 .table("project_notice_config")
@@ -53,12 +57,17 @@ class AlertService:
                 .execute()
             )
             if config.data:
-                notice_deadline = self._deadline.calculate_deadline(
-                    start_date=notice_start_date,
-                    period_days=config.data["notice_period_days"],
-                    day_type=config.data["day_type"],
-                    calendar_config=calendar_config,
+                # Source entity tarihini al
+                source_date = self._get_source_date(
+                    source_entity_type, source_entity_id
                 )
+                if source_date:
+                    notice_deadline = self._deadline.calculate_deadline(
+                        start_date=source_date,
+                        period_days=config.data["notice_period_days"],
+                        day_type=config.data["day_type"],
+                        calendar_config=calendar_config,
+                    )
 
         data = {
             "project_id": project_id,
@@ -66,16 +75,16 @@ class AlertService:
             "status": "pending",
             "priority": self._calculate_priority(notice_deadline),
             "action_party": "us",
-            "assigned_to_role": "cm",
+            "assigned_to_role": "any" if not assigned_to_user else None,
+            "assigned_to_user": assigned_to_user,
             "source_entity_type": source_entity_type,
             "source_entity_id": source_entity_id,
             "flagged_by": flagged_by,
             "narrative": narrative,
             "notice_config_id": notice_config_id,
-            "notice_start_date": notice_start_date.isoformat()
-            if notice_start_date else None,
             "notice_deadline": notice_deadline.isoformat()
             if notice_deadline else None,
+            "document_references": document_references or [],
         }
 
         alert = self._alert_repo.create(data)
@@ -128,6 +137,51 @@ class AlertService:
             new_value={"decision": decision, "note": note},
         )
         return result
+
+    def _get_source_date(
+        self, entity_type: str, entity_id: str
+    ) -> Optional[date]:
+        """
+        Source entity'nin tarihini döndürür.
+        RFI → submitted_date
+        Correspondence → correspondence_date
+        Tarih bulunamazsa None döner — deadline hesaplanamaz.
+        """
+        try:
+            if entity_type == "rfi":
+                result = (
+                    get_admin_client()
+                    .table("rfis")
+                    .select("submitted_date")
+                    .eq("id", entity_id)
+                    .single()
+                    .execute()
+                )
+                if result.data and result.data.get("submitted_date"):
+                    from datetime import date as date_type
+                    return date_type.fromisoformat(
+                        result.data["submitted_date"]
+                    )
+            elif entity_type == "correspondence":
+                result = (
+                    get_admin_client()
+                    .table("correspondences")
+                    .select("correspondence_date")
+                    .eq("id", entity_id)
+                    .single()
+                    .execute()
+                )
+                if result.data and result.data.get("correspondence_date"):
+                    from datetime import date as date_type
+                    return date_type.fromisoformat(
+                        result.data["correspondence_date"]
+                    )
+        except Exception as exc:
+            logger.warning(
+                "Source date alınamadı: %s | %s | %s",
+                entity_type, entity_id, exc
+            )
+        return None
 
     def _calculate_priority(
         self, notice_deadline: Optional[date]

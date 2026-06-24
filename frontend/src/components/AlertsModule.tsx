@@ -1,21 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
-import type { AlertItem, AlertAction } from "../types/alerts";
+import type { AlertItem, AlertAction, AlertDocument } from "../types/alerts";
 import {
+  api,
   fetchAlerts,
   fetchAlertActions,
   createAlertAction,
+  fetchAlertDocuments,
 } from "../services/api";
 
 interface AlertsModuleProps {
   projectId: string;
 }
 
-const BG = "#F5F2ED";
-const TEXT_PRIMARY = "#1F2228";
 const ACCENT = "#A0714A";
-const WARM = "#6B5D3F";
-const BORDER = "#E8E4DE";
 
 const PRIORITY_BORDER: Record<string, string> = {
   critical: "#C0392B",
@@ -24,9 +22,18 @@ const PRIORITY_BORDER: Record<string, string> = {
 };
 
 const PRIORITY_BADGE: Record<string, { bg: string; color: string }> = {
-  critical: { bg: "#FDECEA", color: "#C0392B" },
-  high: { bg: "#FEF3C7", color: "#92400E" },
-  normal: { bg: "#F5F2ED", color: "#6B5D3F" },
+  critical: {
+    bg: "var(--color-background-danger)",
+    color: "#C0392B",
+  },
+  high: {
+    bg: "var(--color-background-warning)",
+    color: "#92400E",
+  },
+  normal: {
+    bg: "var(--color-background-tertiary)",
+    color: "#6B5D3F",
+  },
 };
 
 const ALERT_TYPE_LABELS: Record<string, string> = {
@@ -37,6 +44,16 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
 
 const STATUS_TABS = ["pending", "actioned", "snoozed", "dismissed"] as const;
 type StatusFilter = (typeof STATUS_TABS)[number];
+
+const SECTION_LABEL: CSSProperties = {
+  fontSize: 11,
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  color: "var(--color-text-secondary)",
+  fontWeight: 500,
+  marginBottom: 10,
+  fontFamily: "Inter, sans-serif",
+};
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -54,6 +71,26 @@ function formatAlertType(type: string): string {
   return ALERT_TYPE_LABELS[type] ?? type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function InfoRow({ label, value, status }: { label: string; value: string; status?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
+      <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>{label}</span>
+      <span
+        style={{
+          fontSize: 11,
+          color: status ? ACCENT : "var(--color-text-primary)",
+          fontWeight: 500,
+          fontFamily: "Inter, sans-serif",
+          textAlign: "left",
+          maxWidth: "60%",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function AlertsModule({ projectId }: AlertsModuleProps) {
   const navigate = useNavigate();
 
@@ -62,6 +99,9 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
   const [loading, setLoading] = useState(true);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
   const [actionsCache, setActionsCache] = useState<Record<string, AlertAction[]>>({});
+  const [entityCache, setEntityCache] = useState<Record<string, any>>({});
+  const [documentsCache, setDocumentsCache] = useState<Record<string, AlertDocument[]>>({});
+  const [documentsExpanded, setDocumentsExpanded] = useState<Record<string, boolean>>({});
   const [showAddAction, setShowAddAction] = useState<string | null>(null);
   const [actionType, setActionType] = useState<"note" | "assignment">("note");
   const [actionNote, setActionNote] = useState("");
@@ -77,16 +117,42 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
       .finally(() => setLoading(false));
   }, [projectId, statusFilter]);
 
-  const handleExpand = (alertId: string) => {
+  const handleExpand = (alertItem: AlertItem) => {
+    const alertId = alertItem.id;
     if (expandedAlertId === alertId) {
       setExpandedAlertId(null);
       return;
     }
     setExpandedAlertId(alertId);
-    if (actionsCache[alertId]) return;
-    fetchAlertActions(projectId, alertId)
-      .then((actions) => setActionsCache((prev) => ({ ...prev, [alertId]: actions })))
-      .catch(() => setActionsCache((prev) => ({ ...prev, [alertId]: [] })));
+
+    if (!actionsCache[alertId]) {
+      fetchAlertActions(projectId, alertId)
+        .then((actions) => setActionsCache((prev) => ({ ...prev, [alertId]: actions })))
+        .catch(() => setActionsCache((prev) => ({ ...prev, [alertId]: [] })));
+    }
+
+    if (!documentsCache[alertId]) {
+      fetchAlertDocuments(projectId, alertId)
+        .then((docs) => setDocumentsCache((prev) => ({ ...prev, [alertId]: docs })))
+        .catch(() => setDocumentsCache((prev) => ({ ...prev, [alertId]: [] })));
+    }
+
+    if (alertItem.source_entity_type && alertItem.source_entity_id && !entityCache[alertId]) {
+      const { source_entity_type, source_entity_id } = alertItem;
+      let url = "";
+      if (source_entity_type === "rfi") {
+        url = `/projects/${projectId}/rfis/${source_entity_id}`;
+      } else if (source_entity_type === "correspondence") {
+        url = `/projects/${projectId}/correspondences/${source_entity_id}`;
+      } else if (source_entity_type === "change") {
+        url = `/projects/${projectId}/changes/${source_entity_id}`;
+      }
+      if (url) {
+        api.get(url)
+          .then((data) => setEntityCache((prev) => ({ ...prev, [alertId]: data })))
+          .catch(() => {});
+      }
+    }
   };
 
   const handleSubmitAction = (alertId: string) => {
@@ -113,7 +179,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
         setActionRole("");
         setActionDueDate("");
       })
-      .catch((err) => alert(err.message))
+      .catch((err) => window.alert(err.message))
       .finally(() => setSubmitting(false));
   };
 
@@ -128,10 +194,137 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
     return "normal";
   };
 
+  const renderEntitySummary = (alertItem: AlertItem) => {
+    const entity = entityCache[alertItem.id];
+    const entityType = alertItem.source_entity_type;
+
+    if (!entityType) {
+      return (
+        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
+          No source document.
+        </p>
+      );
+    }
+
+    if (!entity) {
+      return (
+        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
+          Loading...
+        </p>
+      );
+    }
+
+    return (
+      <>
+        {entityType === "rfi" && (
+          <>
+            <InfoRow label="Type" value="RFI" />
+            <InfoRow label="Reference" value={entity.rfi_number ?? "—"} />
+            <InfoRow label="Subject" value={entity.subject ?? "—"} />
+            <InfoRow label="Status" value={entity.status ?? "—"} status />
+            <InfoRow label="Date" value={entity.submitted_date ? formatDate(entity.submitted_date) : "—"} />
+          </>
+        )}
+        {entityType === "correspondence" && (
+          <>
+            <InfoRow label="Type" value="Correspondence" />
+            <InfoRow label="Reference" value={entity.corr_number ?? "—"} />
+            <InfoRow label="Subject" value={entity.subject ?? "—"} />
+            <InfoRow label="Status" value={entity.status ?? "—"} status />
+            <InfoRow label="Date" value={entity.correspondence_date ? formatDate(entity.correspondence_date) : "—"} />
+          </>
+        )}
+        {entityType === "change" && (
+          <>
+            <InfoRow label="Type" value="Change" />
+            <InfoRow label="Reference" value={entity.change_number ?? "—"} />
+            <InfoRow label="Subject" value={entity.title ?? "—"} />
+            <InfoRow label="Status" value={entity.status ?? "—"} status />
+            <InfoRow label="Date" value={entity.created_at ? formatDate(entity.created_at) : "—"} />
+          </>
+        )}
+
+        {alertItem.source_entity_id && (
+          <button
+            type="button"
+            onClick={() => navigateToEntity(entityType, alertItem.source_entity_id!)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              color: ACCENT,
+              background: "none",
+              border: `0.5px solid ${ACCENT}`,
+              borderRadius: 0,
+              padding: "4px 10px",
+              cursor: "pointer",
+              marginTop: 10,
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            <i className="ti ti-external-link" style={{ fontSize: 11 }} />
+            Open full document
+          </button>
+        )}
+
+        {(documentsCache[alertItem.id]?.length ?? 0) > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() =>
+                setDocumentsExpanded((prev) => ({
+                  ...prev,
+                  [alertItem.id]: !prev[alertItem.id],
+                }))
+              }
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                color: "var(--color-text-primary)",
+                background: "var(--color-background-secondary)",
+                border: "0.5px solid var(--color-border-tertiary)",
+                borderRadius: 0,
+                padding: "5px 10px",
+                cursor: "pointer",
+                marginTop: 8,
+                marginLeft: 6,
+                fontFamily: "Inter, sans-serif",
+              }}
+            >
+              <i className="ti ti-file" style={{ fontSize: 13 }} />
+              {documentsCache[alertItem.id].length} attached file(s)
+            </button>
+            {documentsExpanded[alertItem.id] && (
+              <div style={{ marginTop: 8 }}>
+                {documentsCache[alertItem.id].map((doc) => (
+                  <div
+                    key={doc.id}
+                    style={{
+                      fontSize: 11,
+                      color: "var(--color-text-secondary)",
+                      marginBottom: 4,
+                      fontFamily: "Inter, sans-serif",
+                    }}
+                  >
+                    {doc.document_id}
+                    {doc.uploaded_at ? ` · ${formatDate(doc.uploaded_at)}` : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </>
+    );
+  };
+
   return (
     <div>
       {/* Status filter tabs */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: `1px solid ${BORDER}` }}>
+      <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--color-border-tertiary)" }}>
         {STATUS_TABS.map((tab) => (
           <button
             key={tab}
@@ -144,8 +337,8 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               padding: "8px 16px",
               fontSize: 12,
               fontFamily: "Inter, sans-serif",
-              color: statusFilter === tab ? TEXT_PRIMARY : WARM,
-              fontWeight: statusFilter === tab ? 600 : 400,
+              color: statusFilter === tab ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+              fontWeight: statusFilter === tab ? 500 : 400,
               cursor: "pointer",
               textTransform: "capitalize",
             }}
@@ -156,17 +349,17 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
       </div>
 
       {loading && (
-        <p style={{ textAlign: "center", fontFamily: "Inter, sans-serif", color: WARM, fontSize: 13 }}>
+        <p style={{ textAlign: "center", fontFamily: "Inter, sans-serif", color: "var(--color-text-secondary)", fontSize: 13 }}>
           Loading alerts...
         </p>
       )}
 
       {!loading && alerts.length === 0 && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>
-          <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 16, color: TEXT_PRIMARY, marginBottom: 8 }}>
+          <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 16, color: "var(--color-text-primary)", marginBottom: 8 }}>
             No {statusFilter} alerts.
           </p>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: WARM }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "var(--color-text-secondary)" }}>
             All clear for now.
           </p>
         </div>
@@ -183,30 +376,36 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
           <div
             key={alertItem.id}
             style={{
-              background: "#FFFFFF",
+              background: "var(--color-background-secondary)",
               borderLeft: `4px solid ${borderColor}`,
-              borderTop: `1px solid ${BORDER}`,
-              borderRight: `1px solid ${BORDER}`,
-              borderBottom: `1px solid ${BORDER}`,
-              padding: 16,
+              borderTop: "0.5px solid var(--color-border-tertiary)",
+              borderRight: "0.5px solid var(--color-border-tertiary)",
+              borderBottom: "0.5px solid var(--color-border-tertiary)",
               marginBottom: 12,
               borderRadius: 0,
             }}
           >
-            {/* Row A */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 14, color: TEXT_PRIMARY, fontWeight: 600 }}>
+            {/* Row A — full width with padding */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "16px 16px 0 16px",
+              }}
+            >
+              <span style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 14, color: "var(--color-text-primary)", fontWeight: 500 }}>
                 {formatAlertType(alertItem.alert_type)}
               </span>
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   padding: "2px 6px",
                   textTransform: "uppercase",
                   background: badge.bg,
                   color: badge.color,
                   fontFamily: "Inter, sans-serif",
-                  fontWeight: 600,
+                  fontWeight: 500,
                   letterSpacing: "0.04em",
                   borderRadius: 0,
                 }}
@@ -215,19 +414,19 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               </span>
             </div>
 
+            {/* Rows B-D — inner wrapper */}
+            <div style={{ paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: 0 }}>
             {/* Row B */}
             {alertItem.source_entity_type && (
               <p
-                onClick={() => alertItem.source_entity_id && navigateToEntity(alertItem.source_entity_type!, alertItem.source_entity_id)}
                 style={{
                   fontSize: 12,
-                  color: WARM,
+                  color: "var(--color-text-secondary)",
                   marginTop: 8,
-                  cursor: alertItem.source_entity_id ? "pointer" : "default",
                   fontFamily: "Inter, sans-serif",
                 }}
               >
-                From: {alertItem.source_entity_type.toUpperCase()} →
+                From: {alertItem.source_entity_type.toUpperCase()}
               </p>
             )}
 
@@ -236,7 +435,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               <p
                 style={{
                   fontSize: 13,
-                  color: TEXT_PRIMARY,
+                  color: "var(--color-text-primary)",
                   marginTop: 8,
                   fontFamily: "Inter, sans-serif",
                   overflow: "hidden",
@@ -251,7 +450,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
 
             {/* Row D */}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-              <span style={{ fontSize: 11, color: WARM, fontFamily: "Inter, sans-serif" }}>
+              <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
                 Flagged: {formatDate(alertItem.flagged_at)}
               </span>
               {alertItem.notice_deadline && (
@@ -259,195 +458,235 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   style={{
                     fontSize: 11,
                     fontFamily: "Inter, sans-serif",
-                    color: isWithin7Days(alertItem.notice_deadline) ? "#C0392B" : WARM,
+                    color: isWithin7Days(alertItem.notice_deadline) ? "#C0392B" : "var(--color-text-secondary)",
                   }}
                 >
                   Deadline: {formatDate(alertItem.notice_deadline)}
                 </span>
               )}
             </div>
+            </div>
 
             {/* Row E */}
             <button
-              onClick={() => handleExpand(alertItem.id)}
+              onClick={() => handleExpand(alertItem)}
               style={{
+                display: "block",
+                width: "100%",
                 background: "none",
                 border: "none",
+                borderTop: "0.5px solid var(--color-border-tertiary)",
                 cursor: "pointer",
                 fontSize: 12,
                 color: ACCENT,
-                marginTop: 8,
-                padding: 0,
+                paddingTop: 8,
+                paddingBottom: 8,
+                paddingLeft: 16,
+                paddingRight: 16,
                 fontFamily: "Inter, sans-serif",
+                textAlign: "left",
               }}
             >
-              {isExpanded ? "▴ Actions" : "▾ Actions"}
+              {isExpanded ? "▴ Actions & Details" : "▾ Actions & Details"}
             </button>
 
-            {/* Actions panel */}
+            {/* Actions & Details panel */}
             {isExpanded && (
-              <div style={{ background: BG, padding: 12, marginTop: 8, borderTop: `1px solid ${BORDER}` }}>
-                {actions.length === 0 && (
-                  <p style={{ fontSize: 12, color: WARM, fontFamily: "Inter, sans-serif" }}>No actions yet.</p>
-                )}
-                {actions.map((action) => (
-                  <div key={action.id} style={{ fontSize: 12, color: TEXT_PRIMARY, marginBottom: 6, fontFamily: "Inter, sans-serif" }}>
-                    {action.action_type === "note" && (
-                      <span>📝 {action.note} — {formatDate(action.created_at)}</span>
-                    )}
-                    {action.action_type === "assignment" && (
-                      <span>
-                        👤 {action.assigned_to_role ?? "User"}
-                        {action.due_date ? ` · due ${formatDate(action.due_date)}` : ""}
-                        {" — "}{formatDate(action.created_at)}
-                      </span>
-                    )}
-                    {action.action_type !== "note" && action.action_type !== "assignment" && (
-                      <span>{action.action_type} — {formatDate(action.created_at)}</span>
-                    )}
-                  </div>
-                ))}
-
-                <button
-                  onClick={() => {
-                    setShowAddAction(alertItem.id);
-                    setActionType("note");
-                    setActionNote("");
-                    setActionRole("");
-                    setActionDueDate("");
-                  }}
+              <div
+                style={{
+                  background: "var(--color-background-tertiary)",
+                  border: "0.5px solid var(--color-border-secondary)",
+                  borderTop: "none",
+                  marginLeft: -4,
+                  marginRight: 0,
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  alignItems: "stretch",
+                  marginTop: 0,
+                }}
+              >
+                {/* Left column — source document */}
+                <div
                   style={{
-                    marginTop: 8,
-                    background: ACCENT,
-                    color: "#FFFFFF",
-                    padding: "6px 12px",
-                    border: "none",
-                    borderRadius: 0,
-                    fontSize: 12,
-                    cursor: "pointer",
-                    fontFamily: "Inter, sans-serif",
+                    padding: "14px 16px",
+                    borderRight: "0.5px solid var(--color-border-tertiary)",
+                    minHeight: 160,
                   }}
                 >
-                  Add Action
-                </button>
+                  <div style={SECTION_LABEL}>SOURCE DOCUMENT</div>
+                  {renderEntitySummary(alertItem)}
+                </div>
 
-                {/* Add Action form */}
-                {showAddAction === alertItem.id && (
-                  <div style={{ background: "#FFFFFF", padding: 12, marginTop: 8, border: `1px solid ${BORDER}`, borderRadius: 0 }}>
-                    <div style={{ display: "flex", gap: 0, marginBottom: 12 }}>
-                      {(["note", "assignment"] as const).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => setActionType(type)}
-                          style={{
-                            background: actionType === type ? TEXT_PRIMARY : BG,
-                            color: actionType === type ? "#FFFFFF" : WARM,
-                            border: "none",
-                            borderRadius: 0,
-                            padding: "4px 10px",
-                            fontSize: 12,
-                            cursor: "pointer",
-                            fontFamily: "Inter, sans-serif",
-                            textTransform: "capitalize",
-                          }}
-                        >
-                          {type}
-                        </button>
-                      ))}
+                {/* Right column — actions */}
+                <div style={{ padding: "14px 16px", minHeight: 160 }}>
+                  <div style={SECTION_LABEL}>ACTIONS</div>
+
+                  {actions.length === 0 && (
+                    <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>No actions yet.</p>
+                  )}
+                  {actions.map((action) => (
+                    <div key={action.id} style={{ fontSize: 12, color: "var(--color-text-primary)", marginBottom: 6, fontFamily: "Inter, sans-serif" }}>
+                      {action.action_type === "note" && (
+                        <span>📝 {action.note} — {formatDate(action.created_at)}</span>
+                      )}
+                      {action.action_type === "assignment" && (
+                        <span>
+                          👤 {action.assigned_to_role ?? "User"}
+                          {action.due_date ? ` · due ${formatDate(action.due_date)}` : ""}
+                          {" — "}{formatDate(action.created_at)}
+                        </span>
+                      )}
+                      {action.action_type !== "note" && action.action_type !== "assignment" && (
+                        <span>{action.action_type} — {formatDate(action.created_at)}</span>
+                      )}
                     </div>
+                  ))}
 
-                    {actionType === "note" && (
-                      <textarea
-                        value={actionNote}
-                        onChange={(e) => setActionNote(e.target.value)}
-                        style={{
-                          width: "100%",
-                          minHeight: 60,
-                          border: `1px solid ${BORDER}`,
-                          padding: 8,
-                          fontSize: 13,
-                          fontFamily: "Inter, sans-serif",
-                          borderRadius: 0,
-                          resize: "vertical",
-                          boxSizing: "border-box",
-                        }}
-                      />
-                    )}
+                  <button
+                    onClick={() => {
+                      setShowAddAction(alertItem.id);
+                      setActionType("note");
+                      setActionNote("");
+                      setActionRole("");
+                      setActionDueDate("");
+                    }}
+                    style={{
+                      marginTop: 8,
+                      background: ACCENT,
+                      color: "#FFFFFF",
+                      padding: "6px 12px",
+                      border: "none",
+                      borderRadius: 0,
+                      fontSize: 12,
+                      cursor: "pointer",
+                      fontFamily: "Inter, sans-serif",
+                    }}
+                  >
+                    Add Action
+                  </button>
 
-                    {actionType === "assignment" && (
-                      <div>
-                        <select
-                          value={actionRole}
-                          onChange={(e) => setActionRole(e.target.value)}
+                  {/* Add Action form */}
+                  {showAddAction === alertItem.id && (
+                    <div style={{ background: "var(--color-background-primary)", padding: 12, marginTop: 8, border: "0.5px solid var(--color-border-tertiary)", borderRadius: 0 }}>
+                      <div style={{ display: "flex", gap: 0, marginBottom: 12 }}>
+                        {(["note", "assignment"] as const).map((type) => (
+                          <button
+                            key={type}
+                            onClick={() => setActionType(type)}
+                            style={{
+                              background: actionType === type ? "var(--color-text-primary)" : "var(--color-background-tertiary)",
+                              color: actionType === type ? "#FFFFFF" : "var(--color-text-secondary)",
+                              border: "none",
+                              borderRadius: 0,
+                              padding: "4px 10px",
+                              fontSize: 12,
+                              cursor: "pointer",
+                              fontFamily: "Inter, sans-serif",
+                              textTransform: "capitalize",
+                            }}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+
+                      {actionType === "note" && (
+                        <textarea
+                          value={actionNote}
+                          onChange={(e) => setActionNote(e.target.value)}
                           style={{
-                            border: `1px solid ${BORDER}`,
-                            padding: 6,
-                            fontSize: 13,
                             width: "100%",
+                            minHeight: 60,
+                            border: "1px solid var(--color-border-tertiary)",
+                            padding: 8,
+                            fontSize: 13,
                             fontFamily: "Inter, sans-serif",
                             borderRadius: 0,
-                            boxSizing: "border-box",
-                          }}
-                        >
-                          <option value="">Select role...</option>
-                          <option value="cm">cm</option>
-                          <option value="engineer">engineer</option>
-                          <option value="dcc">dcc</option>
-                          <option value="any">any</option>
-                        </select>
-                        <input
-                          type="date"
-                          value={actionDueDate}
-                          onChange={(e) => setActionDueDate(e.target.value)}
-                          style={{
-                            width: "100%",
-                            marginTop: 6,
-                            border: `1px solid ${BORDER}`,
-                            padding: 6,
-                            fontSize: 13,
-                            fontFamily: "Inter, sans-serif",
-                            borderRadius: 0,
+                            resize: "vertical",
                             boxSizing: "border-box",
                           }}
                         />
-                      </div>
-                    )}
+                      )}
 
-                    <div style={{ marginTop: 12 }}>
-                      <button
-                        onClick={() => handleSubmitAction(alertItem.id)}
-                        disabled={submitting}
-                        style={{
-                          background: TEXT_PRIMARY,
-                          color: "#FFFFFF",
-                          padding: "6px 14px",
-                          border: "none",
-                          borderRadius: 0,
-                          fontSize: 12,
-                          cursor: submitting ? "not-allowed" : "pointer",
-                          fontFamily: "Inter, sans-serif",
-                          opacity: submitting ? 0.6 : 1,
-                        }}
-                      >
-                        Save Action
-                      </button>
-                      <button
-                        onClick={() => setShowAddAction(null)}
-                        style={{
-                          background: "none",
-                          color: WARM,
-                          border: "none",
-                          fontSize: 12,
-                          cursor: "pointer",
-                          marginLeft: 8,
-                          fontFamily: "Inter, sans-serif",
-                        }}
-                      >
-                        Cancel
-                      </button>
+                      {actionType === "assignment" && (
+                        <div>
+                          <select
+                            value={actionRole}
+                            onChange={(e) => setActionRole(e.target.value)}
+                            style={{
+                              border: "0.5px solid var(--color-border-tertiary)",
+                              padding: 6,
+                              fontSize: 13,
+                              width: "100%",
+                              fontFamily: "Inter, sans-serif",
+                              borderRadius: 0,
+                              boxSizing: "border-box",
+                              background: "var(--color-background-primary)",
+                              color: "var(--color-text-primary)",
+                            }}
+                          >
+                            <option value="">Select role...</option>
+                            <option value="cm">CM</option>
+                            <option value="engineer">Engineer</option>
+                            <option value="dcc">DCC</option>
+                            <option value="any">Any</option>
+                          </select>
+                          <input
+                            type="date"
+                            value={actionDueDate}
+                            onChange={(e) => setActionDueDate(e.target.value)}
+                            style={{
+                              width: "100%",
+                              marginTop: 6,
+                              border: "0.5px solid var(--color-border-tertiary)",
+                              padding: 6,
+                              fontSize: 13,
+                              fontFamily: "Inter, sans-serif",
+                              borderRadius: 0,
+                              boxSizing: "border-box",
+                              background: "var(--color-background-primary)",
+                              color: "var(--color-text-primary)",
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: 12 }}>
+                        <button
+                          onClick={() => handleSubmitAction(alertItem.id)}
+                          disabled={submitting}
+                          style={{
+                            background: "var(--color-text-primary)",
+                            color: "#FFFFFF",
+                            padding: "6px 14px",
+                            border: "none",
+                            borderRadius: 0,
+                            fontSize: 12,
+                            cursor: submitting ? "not-allowed" : "pointer",
+                            fontFamily: "Inter, sans-serif",
+                            opacity: submitting ? 0.6 : 1,
+                          }}
+                        >
+                          Save Action
+                        </button>
+                        <button
+                          onClick={() => setShowAddAction(null)}
+                          style={{
+                            background: "none",
+                            color: "var(--color-text-secondary)",
+                            border: "none",
+                            fontSize: 12,
+                            cursor: "pointer",
+                            marginLeft: 8,
+                            fontFamily: "Inter, sans-serif",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>

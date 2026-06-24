@@ -41,18 +41,8 @@ export interface DeliverableItem {
   is_pre_completion: boolean;
 }
 
-export interface AlertItem {
-  id: string;
-  alert_type: string;
-  status: string;
-  priority: string;
-  source_entity_type: string | null;
-  source_entity_id: string | null;
-  narrative: string | null;
-  notice_deadline: string | null;
-  flagged_at: string;
-  cm_decision: string | null;
-}
+import type { AlertItem } from "../types/alerts";
+export type { AlertItem } from "../types/alerts";
 
 export interface TrendPoint {
   date: string;

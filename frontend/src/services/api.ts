@@ -1,3 +1,5 @@
+import type { AlertItem, AlertAction, AlertDocument } from "../types/alerts";
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? "/api/v1";
 
 // ── In-memory GET cache ──────────────────────────────────────────────────
@@ -126,4 +128,48 @@ export interface LoginResponse {
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
   return api.post<LoginResponse>("/auth/login", { email, password });
+}
+
+export async function fetchAlerts(
+  projectId: string,
+  status = "pending",
+  limit = 50
+): Promise<AlertItem[]> {
+  return api.get(
+    `/projects/${projectId}/alerts?status=${status}&limit=${limit}`
+  );
+}
+
+export async function fetchAlertActions(
+  projectId: string,
+  alertId: string
+): Promise<AlertAction[]> {
+  return api.get(
+    `/projects/${projectId}/alerts/${alertId}/actions`
+  );
+}
+
+export async function createAlertAction(
+  projectId: string,
+  alertId: string,
+  body: {
+    action_type: string;
+    note?: string;
+    assigned_to_role?: string;
+    due_date?: string;
+  }
+): Promise<AlertAction> {
+  return api.post(
+    `/projects/${projectId}/alerts/${alertId}/actions`,
+    body
+  );
+}
+
+export async function fetchAlertDocuments(
+  projectId: string,
+  alertId: string
+): Promise<AlertDocument[]> {
+  return api.get(
+    `/projects/${projectId}/alerts/${alertId}/documents`
+  );
 }

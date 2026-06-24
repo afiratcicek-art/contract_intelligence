@@ -5,6 +5,7 @@ import { api } from "../services/api";
 import ThemeToggle from "../components/ThemeToggle";
 import { getAuth, clearAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
+import AlertsModule from "../components/AlertsModule";
 
 type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
@@ -766,12 +767,7 @@ export default function Workspace() {
 
           {/* OTHER */}
           {activeModule === "alerts" && (
-            <div>
-              <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600, marginBottom: 16 }}>
-                Alerts & Actions
-              </div>
-              <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.comingsoon")}</p>
-            </div>
+            <AlertsModule projectId={String(projectId)} />
           )}
           {!["general", "alerts", "correspondence", "rfis", "changes", "deliverables"].includes(activeModule) && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>

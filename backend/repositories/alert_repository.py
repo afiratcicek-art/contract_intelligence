@@ -114,3 +114,69 @@ class AlertRepository(BaseRepository):
             .execute()
         )
         return result.data[0] if result.data else None
+
+    def create_action(
+        self,
+        alert_id: str,
+        action_type: str,
+        created_by: str,
+        note: str | None = None,
+        assigned_to_user: str | None = None,
+        assigned_to_role: str | None = None,
+        due_date=None,
+    ) -> dict:
+        """Insert into alert_actions, return created row."""
+        payload = {
+            "alert_id": alert_id,
+            "action_type": action_type,
+            "created_by": created_by,
+            "note": note,
+            "assigned_to_user": assigned_to_user,
+            "assigned_to_role": assigned_to_role,
+            "due_date": str(due_date) if due_date else None,
+        }
+        payload = {k: v for k, v in payload.items() if v is not None}
+        res = self.db.table("alert_actions").insert(payload).execute()
+        return res.data[0]
+
+    def list_actions(self, alert_id: str) -> list[dict]:
+        """List active actions for an alert, oldest first."""
+        res = (
+            self.db.table("alert_actions")
+            .select("*")
+            .eq("alert_id", alert_id)
+            .eq("is_deleted", False)
+            .order("created_at", desc=False)
+            .execute()
+        )
+        return res.data or []
+
+    def link_document(
+        self,
+        alert_id: str,
+        document_id: str,
+        uploaded_by: str,
+    ) -> dict:
+        """Insert into alert_documents junction table."""
+        res = (
+            self.db.table("alert_documents")
+            .insert({
+                "alert_id": alert_id,
+                "document_id": document_id,
+                "uploaded_by": uploaded_by,
+            })
+            .execute()
+        )
+        return res.data[0]
+
+    def list_documents(self, alert_id: str) -> list[dict]:
+        """List active documents linked to an alert."""
+        res = (
+            self.db.table("alert_documents")
+            .select("*, pdf_document(*)")
+            .eq("alert_id", alert_id)
+            .eq("is_deleted", False)
+            .order("uploaded_at", desc=False)
+            .execute()
+        )
+        return res.data or []

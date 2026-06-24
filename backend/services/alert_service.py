@@ -6,10 +6,9 @@ Chronology tablosuna ASLA yazmaz.
 import logging
 from datetime import date
 from typing import Optional
-from uuid import uuid4
 
+from backend.models.alert import AlertActionCreate
 from backend.repositories.alert_repository import AlertRepository
-from backend.repositories.notice_config_repository import NoticeConfigRepository
 from backend.services.audit_service import AuditService
 from backend.services.deadline_service import DeadlineService
 from backend.database import get_admin_client
@@ -22,7 +21,6 @@ class AlertService:
     def __init__(self, db):
         self.db = db
         self._alert_repo = AlertRepository(db)
-        self._config_repo = NoticeConfigRepository(db)
         self._audit = AuditService()
         self._deadline = DeadlineService()
 
@@ -35,7 +33,6 @@ class AlertService:
         narrative: str,
         notice_config_id: Optional[str],
         assigned_to_user: Optional[str],
-        document_references: Optional[list] = None,
         calendar_config: Optional[dict] = None,
     ) -> dict:
         """
@@ -84,7 +81,6 @@ class AlertService:
             "notice_config_id": notice_config_id,
             "notice_deadline": notice_deadline.isoformat()
             if notice_deadline else None,
-            "document_references": document_references or [],
         }
 
         alert = self._alert_repo.create(data)
@@ -137,6 +133,97 @@ class AlertService:
             new_value={"decision": decision, "note": note},
         )
         return result
+
+    def list_alerts(
+        self,
+        project_id: str,
+        user_role: str,
+        user_id: str,
+        status: Optional[str] = "pending",
+        limit: int = 50,
+    ) -> list[dict]:
+        """Role-filtered alert list for current user."""
+        return self._alert_repo.list_for_user(
+            project_id=project_id,
+            user_role=user_role,
+            user_id=user_id,
+            status=status,
+            limit=limit,
+        )
+
+    def get_alert(
+        self,
+        alert_id: str,
+        project_id: str,
+    ) -> Optional[dict]:
+        """
+        Get single alert.
+        Returns None if not found or project mismatch.
+        """
+        alert = self._alert_repo.get(alert_id)
+        if not alert or alert.get("project_id") != project_id:
+            return None
+        return alert
+
+    def create_action(
+        self,
+        project_id: str,
+        alert_id: str,
+        body: AlertActionCreate,
+        current_user: dict,
+    ) -> dict:
+        """Create a note or assignment action on an alert."""
+        body.validate_type_fields()
+        action = self._alert_repo.create_action(
+            alert_id=alert_id,
+            action_type=body.action_type,
+            created_by=str(current_user["id"]),
+            note=body.note,
+            assigned_to_user=str(body.assigned_to_user)
+            if body.assigned_to_user else None,
+            assigned_to_role=body.assigned_to_role,
+            due_date=body.due_date,
+        )
+        self._audit.log(
+            project_id=project_id,
+            user_id=str(current_user["id"]),
+            action="alert_action_created",
+            entity_type="internal_alert",
+            entity_id=alert_id,
+            new_value={"action_type": body.action_type},
+        )
+        return action
+
+    def list_actions(self, alert_id: str) -> list[dict]:
+        """Return active actions for an alert."""
+        return self._alert_repo.list_actions(alert_id)
+
+    def link_document(
+        self,
+        project_id: str,
+        alert_id: str,
+        document_id: str,
+        current_user: dict,
+    ) -> dict:
+        """Link an existing pdf_document to an alert."""
+        result = self._alert_repo.link_document(
+            alert_id=alert_id,
+            document_id=document_id,
+            uploaded_by=str(current_user["id"]),
+        )
+        self._audit.log(
+            project_id=project_id,
+            user_id=str(current_user["id"]),
+            action="alert_document_linked",
+            entity_type="internal_alert",
+            entity_id=alert_id,
+            new_value={"document_id": document_id},
+        )
+        return result
+
+    def list_documents(self, alert_id: str) -> list[dict]:
+        """Return active documents linked to an alert."""
+        return self._alert_repo.list_documents(alert_id)
 
     def _get_source_date(
         self, entity_type: str, entity_id: str

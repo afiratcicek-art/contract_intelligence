@@ -117,6 +117,15 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
       .finally(() => setLoading(false));
   }, [projectId, statusFilter]);
 
+  useEffect(() => {
+    if (showAddAction) {
+      setActionType("note");
+      setActionNote("");
+      setActionRole("");
+      setActionDueDate("");
+    }
+  }, [showAddAction]);
+
   const handleExpand = (alertItem: AlertItem) => {
     const alertId = alertItem.id;
     if (expandedAlertId === alertId) {
@@ -501,7 +510,8 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   marginRight: 0,
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr",
-                  alignItems: "stretch",
+                  alignItems: "start",
+                  overflowY: "visible",
                   marginTop: 0,
                 }}
               >
@@ -510,7 +520,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   style={{
                     padding: "14px 16px",
                     borderRight: "0.5px solid var(--color-border-tertiary)",
-                    minHeight: 160,
+                    minHeight: 120,
                   }}
                 >
                   <div style={SECTION_LABEL}>SOURCE DOCUMENT</div>
@@ -518,7 +528,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 </div>
 
                 {/* Right column — actions */}
-                <div style={{ padding: "14px 16px", minHeight: 160 }}>
+                <div style={{ padding: "14px 16px", minHeight: 120, overflowY: "visible" }}>
                   <div style={SECTION_LABEL}>ACTIONS</div>
 
                   {actions.length === 0 && (
@@ -574,15 +584,22 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                             key={type}
                             onClick={() => setActionType(type)}
                             style={{
-                              background: actionType === type ? "var(--color-text-primary)" : "var(--color-background-tertiary)",
-                              color: actionType === type ? "#FFFFFF" : "var(--color-text-secondary)",
-                              border: "none",
+                              background: actionType === type
+                                ? "var(--color-text-primary)"
+                                : "transparent",
+                              color: actionType === type
+                                ? "#FFFFFF"
+                                : "var(--color-text-secondary)",
+                              border: actionType === type
+                                ? "0.5px solid var(--color-text-primary)"
+                                : "0.5px solid var(--color-border-primary)",
                               borderRadius: 0,
-                              padding: "4px 10px",
+                              padding: "5px 14px",
                               fontSize: 12,
                               cursor: "pointer",
                               fontFamily: "Inter, sans-serif",
                               textTransform: "capitalize",
+                              marginRight: 4,
                             }}
                           >
                             {type}
@@ -597,7 +614,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                           style={{
                             width: "100%",
                             minHeight: 60,
-                            border: "1px solid var(--color-border-tertiary)",
+                            border: "0.5px solid var(--color-border-secondary)",
                             padding: 8,
                             fontSize: 13,
                             fontFamily: "Inter, sans-serif",

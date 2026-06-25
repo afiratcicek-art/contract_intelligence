@@ -89,6 +89,27 @@ def unread_count(
     }
 
 
+@router.get("/read_ids")
+def list_read_alert_ids(
+    project_id: UUID,
+    access: dict = Depends(verify_project_access),
+):
+    """
+    Return alert IDs already read by current user
+    in this project. Used by AlertsModule on mount
+    to restore read state across browser sessions.
+    """
+    db = access["db"]
+    user = access["user"]
+    svc = AlertService(db)
+    return {
+        "read_ids": svc.list_read_alert_ids(
+            project_id=str(project_id),
+            user_id=str(user["id"]),
+        )
+    }
+
+
 @router.post("", status_code=201)
 def create_alert(
     project_id: UUID,

@@ -175,6 +175,15 @@ export async function markAlertAsRead(
   );
 }
 
+export async function fetchReadAlertIds(
+  projectId: string
+): Promise<string[]> {
+  const res = await api.get<{ read_ids: string[] }>(
+    `/projects/${projectId}/alerts/read_ids`
+  );
+  return res.read_ids;
+}
+
 export async function fetchUnreadCount(
   projectId: string
 ): Promise<number> {

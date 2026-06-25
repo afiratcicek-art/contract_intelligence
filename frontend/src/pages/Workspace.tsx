@@ -320,7 +320,6 @@ export default function Workspace() {
               key={mod}
               onClick={() => {
                 setActiveModule(mod);
-                if (mod === "alerts") setAlertCount(0);
               }}
               style={{
                 display: "flex", alignItems: "center",

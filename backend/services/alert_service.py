@@ -275,6 +275,21 @@ class AlertService:
         )
         return len(alert_ids) - len(read_ids)
 
+    def list_read_alert_ids(
+        self,
+        project_id: str,
+        user_id: str,
+    ) -> list[str]:
+        """
+        Return alert IDs already read by this user
+        in this project. Called on module mount
+        to restore read state across sessions.
+        """
+        return self._alert_repo.list_read_alert_ids(
+            project_id=project_id,
+            user_id=user_id,
+        )
+
     def _get_source_date(
         self, entity_type: str, entity_id: str
     ) -> Optional[date]:

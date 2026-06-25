@@ -186,18 +186,23 @@ class AlertRepository(BaseRepository):
     ) -> dict:
         """
         Mark alert as read for a specific user.
-        Uses UPSERT — safe to call multiple times.
-        Returns the alert_reads row.
+        Uses INSERT with ON CONFLICT DO NOTHING —
+        idempotent, safe to call multiple times.
+        Returns empty dict if already read.
         """
-        res = (
-            self.db.table("alert_reads")
-            .upsert(
-                {"alert_id": alert_id, "user_id": user_id},
-                on_conflict="alert_id,user_id",
+        try:
+            res = (
+                self.db.table("alert_reads")
+                .insert(
+                    {"alert_id": alert_id,
+                     "user_id": user_id}
+                )
+                .execute()
             )
-            .execute()
-        )
-        return res.data[0] if res.data else {}
+            return res.data[0] if res.data else {}
+        except Exception:
+            # Already marked as read — ignore duplicate
+            return {}
 
     def get_read_alert_ids(
         self, user_id: str, alert_ids: list[str]
@@ -216,3 +221,38 @@ class AlertRepository(BaseRepository):
             .execute()
         )
         return {row["alert_id"] for row in (res.data or [])}
+
+    def list_read_alert_ids(
+        self, project_id: str, user_id: str
+    ) -> list[str]:
+        """
+        Return all alert_ids read by this user
+        in the given project.
+        Called on AlertsModule mount to restore
+        read state across browser sessions.
+        Two queries: first get all read IDs for
+        user, then filter to this project only.
+        """
+        res = (
+            self.db.table("alert_reads")
+            .select("alert_id")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        all_read = [
+            row["alert_id"]
+            for row in (res.data or [])
+        ]
+        if not all_read:
+            return []
+        project_alerts = (
+            self.db.table("internal_alerts")
+            .select("id")
+            .eq("project_id", project_id)
+            .in_("id", all_read)
+            .execute()
+        )
+        return [
+            row["id"]
+            for row in (project_alerts.data or [])
+        ]

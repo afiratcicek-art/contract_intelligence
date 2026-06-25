@@ -8,6 +8,7 @@ import {
   createAlertAction,
   fetchAlertDocuments,
   markAlertAsRead,
+  fetchReadAlertIds,
 } from "../services/api";
 
 interface AlertsModuleProps {
@@ -128,6 +129,13 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
       setActionDueDate("");
     }
   }, [showAddAction]);
+
+  // Restore read state from DB on mount
+  useEffect(() => {
+    fetchReadAlertIds(projectId)
+      .then((ids) => setReadAlertIds(new Set(ids)))
+      .catch(() => {});
+  }, [projectId]);
 
   const handleExpand = (alertItem: AlertItem) => {
     const alertId = alertItem.id;
@@ -406,15 +414,13 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
             style={{
               background: "var(--color-background-secondary)",
               borderLeft: readAlertIds.has(alertItem.id)
-                ? "4px solid var(--color-border-medium)"
+                ? "4px solid var(--color-accent)"
                 : `4px solid ${borderColor}`,
               borderTop: "0.5px solid var(--color-border-tertiary)",
               borderRight: "1px solid var(--color-border-medium)",
               borderBottom: "0.5px solid var(--color-border-tertiary)",
               marginBottom: 12,
               borderRadius: 0,
-              opacity: readAlertIds.has(alertItem.id) ? 0.75 : 1,
-              transition: "opacity 0.3s ease, border-left-color 0.3s ease",
             }}
           >
             {/* Row A — full width with padding */}
@@ -427,6 +433,20 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 padding: "12px 12px 0 12px",
               }}
             >
+              {/* Unread indicator dot — hidden when read */}
+              {!readAlertIds.has(alertItem.id) && (
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: borderColor,
+                    flexShrink: 0,
+                    marginRight: 6,
+                    alignSelf: "center",
+                  }}
+                />
+              )}
               <span style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 14, color: "var(--color-text-primary)", fontWeight: 500 }}>
                 {formatAlertType(alertItem.alert_type)}
               </span>

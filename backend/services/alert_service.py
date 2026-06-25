@@ -225,6 +225,56 @@ class AlertService:
         """Return active documents linked to an alert."""
         return self._alert_repo.list_documents(alert_id)
 
+    def mark_as_read(
+        self,
+        project_id: str,
+        alert_id: str,
+        user_id: str,
+    ) -> dict:
+        """
+        Mark a specific alert as read for the user.
+        Audits the read action.
+        """
+        result = self._alert_repo.mark_as_read(
+            alert_id=alert_id,
+            user_id=user_id,
+        )
+        self._audit.log(
+            project_id=project_id,
+            user_id=user_id,
+            action="alert_read",
+            entity_type="internal_alert",
+            entity_id=alert_id,
+            new_value={"read_by": user_id},
+        )
+        return result
+
+    def get_unread_count(
+        self,
+        project_id: str,
+        user_role: str,
+        user_id: str,
+    ) -> int:
+        """
+        Count of unread pending alerts for this user.
+        Fetches alert list then subtracts read ones.
+        """
+        alerts = self._alert_repo.list_for_user(
+            project_id=project_id,
+            user_role=user_role,
+            user_id=user_id,
+            status="pending",
+            limit=200,
+        )
+        if not alerts:
+            return 0
+        alert_ids = [a["id"] for a in alerts]
+        read_ids = self._alert_repo.get_read_alert_ids(
+            user_id=user_id,
+            alert_ids=alert_ids,
+        )
+        return len(alert_ids) - len(read_ids)
+
     def _get_source_date(
         self, entity_type: str, entity_id: str
     ) -> Optional[date]:

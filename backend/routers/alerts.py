@@ -68,6 +68,27 @@ def alert_count(
     return {"count": len(alerts)}
 
 
+@router.get("/unread_count")
+def unread_count(
+    project_id: UUID,
+    access: dict = Depends(verify_project_access),
+):
+    """
+    Unread pending alert count for sidebar badge.
+    More accurate than /count — excludes read alerts.
+    """
+    db = access["db"]
+    user = access["user"]
+    svc = AlertService(db)
+    return {
+        "count": svc.get_unread_count(
+            project_id=str(project_id),
+            user_role=access["member"]["project_role"],
+            user_id=str(user["id"]),
+        )
+    }
+
+
 @router.post("", status_code=201)
 def create_alert(
     project_id: UUID,
@@ -213,3 +234,23 @@ def list_documents(
     db = access["db"]
     svc = AlertService(db)
     return svc.list_documents(alert_id=str(alert_id))
+
+
+@router.post("/{alert_id}/read", status_code=200)
+def mark_as_read(
+    project_id: UUID,
+    alert_id: UUID,
+    access: dict = Depends(verify_project_access),
+):
+    """
+    Mark alert as read for the current user.
+    Safe to call multiple times (UPSERT).
+    """
+    db = access["db"]
+    user = access["user"]
+    svc = AlertService(db)
+    return svc.mark_as_read(
+        project_id=str(project_id),
+        alert_id=str(alert_id),
+        user_id=str(user["id"]),
+    )

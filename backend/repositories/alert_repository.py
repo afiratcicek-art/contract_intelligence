@@ -180,3 +180,39 @@ class AlertRepository(BaseRepository):
             .execute()
         )
         return res.data or []
+
+    def mark_as_read(
+        self, alert_id: str, user_id: str
+    ) -> dict:
+        """
+        Mark alert as read for a specific user.
+        Uses UPSERT — safe to call multiple times.
+        Returns the alert_reads row.
+        """
+        res = (
+            self.db.table("alert_reads")
+            .upsert(
+                {"alert_id": alert_id, "user_id": user_id},
+                on_conflict="alert_id,user_id",
+            )
+            .execute()
+        )
+        return res.data[0] if res.data else {}
+
+    def get_read_alert_ids(
+        self, user_id: str, alert_ids: list[str]
+    ) -> set[str]:
+        """
+        Return set of alert_ids already read by this user
+        from the given list. Used to compute unread count.
+        """
+        if not alert_ids:
+            return set()
+        res = (
+            self.db.table("alert_reads")
+            .select("alert_id")
+            .eq("user_id", user_id)
+            .in_("alert_id", alert_ids)
+            .execute()
+        )
+        return {row["alert_id"] for row in (res.data or [])}

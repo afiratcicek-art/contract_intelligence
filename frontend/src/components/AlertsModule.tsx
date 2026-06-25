@@ -7,6 +7,7 @@ import {
   fetchAlertActions,
   createAlertAction,
   fetchAlertDocuments,
+  markAlertAsRead,
 } from "../services/api";
 
 interface AlertsModuleProps {
@@ -102,6 +103,8 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
   const [entityCache, setEntityCache] = useState<Record<string, any>>({});
   const [documentsCache, setDocumentsCache] = useState<Record<string, AlertDocument[]>>({});
   const [documentsExpanded, setDocumentsExpanded] = useState<Record<string, boolean>>({});
+  const [readAlertIds, setReadAlertIds] =
+    useState<Set<string>>(new Set());
   const [showAddAction, setShowAddAction] = useState<string | null>(null);
   const [actionType, setActionType] = useState<"note" | "assignment">("note");
   const [actionNote, setActionNote] = useState("");
@@ -133,6 +136,19 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
       return;
     }
     setExpandedAlertId(alertId);
+
+    // Mark alert as read — silent fail if network error
+    if (!readAlertIds.has(alertId)) {
+      markAlertAsRead(projectId, alertId)
+        .then(() =>
+          setReadAlertIds((prev) => {
+            const next = new Set(prev);
+            next.add(alertId);
+            return next;
+          })
+        )
+        .catch(() => {});
+    }
 
     if (!actionsCache[alertId]) {
       fetchAlertActions(projectId, alertId)
@@ -389,12 +405,16 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
             key={alertItem.id}
             style={{
               background: "var(--color-background-secondary)",
-              borderLeft: `4px solid ${borderColor}`,
+              borderLeft: readAlertIds.has(alertItem.id)
+                ? "4px solid var(--color-border-medium)"
+                : `4px solid ${borderColor}`,
               borderTop: "0.5px solid var(--color-border-tertiary)",
               borderRight: "1px solid var(--color-border-medium)",
               borderBottom: "0.5px solid var(--color-border-tertiary)",
               marginBottom: 12,
               borderRadius: 0,
+              opacity: readAlertIds.has(alertItem.id) ? 0.75 : 1,
+              transition: "opacity 0.3s ease, border-left-color 0.3s ease",
             }}
           >
             {/* Row A — full width with padding */}

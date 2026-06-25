@@ -51,6 +51,13 @@ CREATE POLICY "alert_reads_own_insert" ON alert_reads
         )
     );
 
+-- UPDATE policy required for UPSERT operations
+-- (conflict resolution on alert_id, user_id)
+CREATE POLICY "alert_reads_own_update" ON alert_reads
+    FOR UPDATE USING (
+        user_id = auth.uid()
+    );
+
 -- =============================================
 -- 3. audit_log action enum genişletme
 -- =============================================

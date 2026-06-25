@@ -165,6 +165,25 @@ export async function createAlertAction(
   );
 }
 
+export async function markAlertAsRead(
+  projectId: string,
+  alertId: string
+): Promise<void> {
+  await api.post(
+    `/projects/${projectId}/alerts/${alertId}/read`,
+    {}
+  );
+}
+
+export async function fetchUnreadCount(
+  projectId: string
+): Promise<number> {
+  const res = await api.get<{ count: number }>(
+    `/projects/${projectId}/alerts/unread_count`
+  );
+  return res.count;
+}
+
 export async function fetchAlertDocuments(
   projectId: string,
   alertId: string

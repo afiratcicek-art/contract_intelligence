@@ -193,9 +193,12 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
   };
 
   const navigateToEntity = (type: string, id: string) => {
-    if (type === "rfi") navigate(`/projects/${projectId}/rfis/${id}`);
-    else if (type === "correspondence") navigate(`/projects/${projectId}/correspondence/${id}`);
-    else if (type === "change") navigate(`/projects/${projectId}/changes/${id}`);
+    if (type === "rfi")
+      navigate(`/projects/${projectId}/workspace/rfis/${id}`);
+    else if (type === "correspondence")
+      navigate(`/projects/${projectId}/workspace/correspondence/${id}`);
+    else if (type === "change")
+      navigate(`/projects/${projectId}/workspace/changes/${id}`);
   };
 
   const priorityKey = (p: string) => {
@@ -674,7 +677,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                               fontFamily: "Inter, sans-serif",
                               borderRadius: 0,
                               boxSizing: "border-box",
-                              background: "var(--color-background-primary)",
+                              background: "var(--color-bg-secondary)",
                               color: "var(--color-text-primary)",
                             }}
                           >
@@ -697,7 +700,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                               fontFamily: "Inter, sans-serif",
                               borderRadius: 0,
                               boxSizing: "border-box",
-                              background: "var(--color-background-primary)",
+                              background: "var(--color-bg-secondary)",
                               color: "var(--color-text-primary)",
                             }}
                           />

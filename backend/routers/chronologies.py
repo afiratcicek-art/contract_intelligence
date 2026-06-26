@@ -4,7 +4,9 @@ from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import NotFoundError
 from backend.core.limiter import limiter
 from backend.models.chronology import (
-    ChronologyCreate, ChronologyEventCreate, NarrativeApprove, EventInactivate,
+    ChronologyCreate, ChronologyEventCreate,
+    NarrativeApprove, EventInactivate,
+    ChronologyResponse, ChronologyEventResponse,
 )
 from backend.repositories.chronology_repository import ChronologyRepository
 from backend.services.chronology_service import ChronologyService
@@ -14,7 +16,7 @@ from backend.services.claude_service import get_ai_service
 router = APIRouter(prefix="/projects/{project_id}/chronologies", tags=["chronologies"])
 
 
-@router.get("")
+@router.get("", response_model=list[ChronologyResponse])
 def list_chronologies(
     project_id: UUID,
     access: dict = Depends(verify_project_access),
@@ -24,7 +26,7 @@ def list_chronologies(
     return repo.list_by_project(str(project_id))
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=ChronologyResponse)
 def create_chronology(
     project_id: UUID,
     body: ChronologyCreate,
@@ -45,7 +47,7 @@ def create_chronology(
     return result.data[0]
 
 
-@router.get("/{chronology_id}")
+@router.get("/{chronology_id}", response_model=ChronologyResponse)
 def get_chronology(
     project_id: UUID,
     chronology_id: UUID,
@@ -63,7 +65,7 @@ def get_chronology(
     return chrono
 
 
-@router.post("/{chronology_id}/events", status_code=201)
+@router.post("/{chronology_id}/events", status_code=201, response_model=ChronologyEventResponse)
 @limiter.limit("10/minute")
 def add_event(
     request: Request,
@@ -75,7 +77,13 @@ def add_event(
     db = access["db"]
     audit = AuditService()
     ai = get_ai_service(db)
-    service = ChronologyService(db, ai_service=ai, audit_service=audit)
+    service = ChronologyService(
+        db,
+        ai_service=ai,
+        audit_service=audit,
+        project_id=str(project_id),
+        user_id=str(access["user"]["id"]),
+    )
 
     return service.record_event(
         chronology_id=str(chronology_id),
@@ -91,7 +99,7 @@ def add_event(
     )
 
 
-@router.post("/{chronology_id}/events/{event_id}/approve-narrative")
+@router.post("/{chronology_id}/events/{event_id}/approve-narrative", response_model=ChronologyEventResponse)
 def approve_narrative(
     project_id: UUID,
     chronology_id: UUID,
@@ -110,7 +118,7 @@ def approve_narrative(
     )
 
 
-@router.post("/{chronology_id}/events/{event_id}/inactivate")
+@router.post("/{chronology_id}/events/{event_id}/inactivate", response_model=ChronologyEventResponse)
 def inactivate_event(
     project_id: UUID,
     chronology_id: UUID,

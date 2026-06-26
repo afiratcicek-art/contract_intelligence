@@ -5,6 +5,13 @@ from datetime import date, datetime
 from uuid import UUID
 
 
+# Valid entity types for a chronology container.
+# Each chronology belongs to one entity.
+CHRONOLOGY_ENTITY_TYPES = {
+    "change", "rfi", "correspondence", "general"
+}
+
+
 class ChronologyCreate(BaseModel):
     title: str
     entity_type: str
@@ -16,7 +23,27 @@ class ChronologyCreate(BaseModel):
 
     @field_validator("entity_type", mode="before")
     @classmethod
-    def clean_entity_type(cls, v): return sanitize_short(v)
+    def clean_and_validate_entity_type(cls, v):
+        if not v:
+            raise ValueError("entity_type is required")
+        cleaned = sanitize_short(str(v))
+        if cleaned not in CHRONOLOGY_ENTITY_TYPES:
+            raise ValueError(
+                f"entity_type must be one of: "
+                f"{sorted(CHRONOLOGY_ENTITY_TYPES)}"
+            )
+        return cleaned
+
+
+# Event types allowed for manual user entry.
+# 'dispute_step' is system-triggered (Dispute Register)
+# and not listed here but remains valid in DB.
+MANUAL_EVENT_TYPES = {
+    "rfi", "correspondence", "notice",
+    "submission", "response", "meeting",
+    "inspection", "work_permit",
+    "status_change", "other",
+}
 
 
 class ChronologyEventCreate(BaseModel):
@@ -27,6 +54,21 @@ class ChronologyEventCreate(BaseModel):
     is_key_event: bool = False
     activity_id: Optional[str] = None
     boq_ref: Optional[str] = None
+
+    @field_validator("event_type", mode="before")
+    @classmethod
+    def clean_and_validate_event_type(cls, v):
+        if not v:
+            raise ValueError("event_type is required")
+        cleaned = sanitize_short(str(v))
+        # dispute_step is valid but system-triggered only
+        all_valid = MANUAL_EVENT_TYPES | {"dispute_step"}
+        if cleaned not in all_valid:
+            raise ValueError(
+                f"event_type must be one of: "
+                f"{sorted(all_valid)}"
+            )
+        return cleaned
 
 
 class NarrativeApprove(BaseModel):
@@ -43,17 +85,6 @@ class EventInactivate(BaseModel):
     @field_validator("reason", mode="before")
     @classmethod
     def clean_reason(cls, v): return sanitize_medium(v)
-
-
-class ChronologyResponse(BaseModel):
-    id: UUID
-    project_id: UUID
-    title: str
-    entity_type: str
-    entity_id: Optional[UUID] = None
-    is_active: bool
-    created_by: Optional[UUID] = None
-    created_at: datetime
 
 
 class ChronologyEventResponse(BaseModel):
@@ -74,3 +105,15 @@ class ChronologyEventResponse(BaseModel):
     boq_ref: Optional[str] = None
     created_by: Optional[UUID] = None
     created_at: datetime
+
+
+class ChronologyResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    title: str
+    entity_type: str
+    entity_id: Optional[UUID] = None
+    is_active: bool
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    events: list[ChronologyEventResponse] = []

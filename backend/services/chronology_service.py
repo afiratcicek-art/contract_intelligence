@@ -12,10 +12,19 @@ class ChronologyService:
     AI narrative önerisi oluşturur, CM onaylayana kadar taslak olarak kalır.
     """
 
-    def __init__(self, db, ai_service=None, audit_service=None):
+    def __init__(
+        self,
+        db,
+        ai_service=None,
+        audit_service=None,
+        project_id: str | None = None,
+        user_id: str | None = None,
+    ):
         self.db = db
         self.ai = ai_service
         self.audit = audit_service
+        self.project_id = project_id
+        self.user_id = user_id
 
     def auto_create_for_change(
         self,
@@ -82,10 +91,18 @@ class ChronologyService:
         if auto_generate_narrative and self.ai is not None:
             try:
                 preceding = self._get_preceding_events(chronology_id, limit=5)
+                event_data = {
+                    "type": event_type,
+                    "date": str(event_date),
+                    "ref": document_ref_id,
+                    "note": note,
+                }
                 result = self.ai.generate_chronology_narrative(
-                    event={"type": event_type, "date": str(event_date), "ref": document_ref_id, "note": note},
+                    event=event_data,
                     change_context=change_context or {},
                     preceding_events=preceding,
+                    project_id=self.project_id,
+                    user_id=self.user_id,
                 )
                 auto_narrative = result.narrative_text
             except Exception as exc:

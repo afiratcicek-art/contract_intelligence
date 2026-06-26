@@ -231,7 +231,7 @@ export default function ChronologiesModule(
               background: "none",
               border: `0.5px solid ${ACCENT}`,
               borderRadius: 0,
-              padding: "3px 8px",
+              padding: "4px 10px",
               cursor: "pointer",
               fontFamily: "Inter, sans-serif",
             }}
@@ -510,12 +510,12 @@ export default function ChronologiesModule(
                 onClick={() =>
                   setShowAddEvent(true)}
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   background: ACCENT,
                   color: "#FFFFFF",
                   border: "none",
                   borderRadius: 0,
-                  padding: "5px 12px",
+                  padding: "8px 16px",
                   cursor: "pointer",
                   fontFamily: "Inter, sans-serif",
                   flexShrink: 0,

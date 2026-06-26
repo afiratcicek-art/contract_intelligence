@@ -6,6 +6,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import { getAuth, clearAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
 import AlertsModule from "../components/AlertsModule";
+import ChronologiesModule from "../components/ChronologiesModule";
 
 type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
@@ -768,11 +769,37 @@ export default function Workspace() {
           {activeModule === "alerts" && (
             <AlertsModule projectId={String(projectId)} />
           )}
-          {!["general", "alerts", "correspondence", "rfis", "changes", "deliverables"].includes(activeModule) && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
+          {activeModule === "chronologies" && (
+            <ChronologiesModule
+              projectId={String(projectId)}
+            />
+          )}
+          {!["general", "alerts", "correspondence",
+            "rfis", "changes", "deliverables",
+            "chronologies"].includes(activeModule) && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 300,
+            }}>
               <div style={{ textAlign: "center" }}>
-                <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 16, color: textPrimary, marginBottom: 8 }}>{MODULE_LABELS[activeModule]}</p>
-                <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.comingsoon")}</p>
+                <p style={{
+                  fontFamily:
+                    "Playfair Display, Georgia, serif",
+                  fontSize: 16,
+                  color: textPrimary,
+                  marginBottom: 8,
+                }}>
+                  {MODULE_LABELS[activeModule]}
+                </p>
+                <p style={{
+                  fontSize: 12,
+                  color: textSecondary,
+                  fontStyle: "italic",
+                }}>
+                  {t("state.comingsoon")}
+                </p>
               </div>
             </div>
           )}

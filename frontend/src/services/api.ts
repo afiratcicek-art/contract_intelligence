@@ -1,4 +1,5 @@
 import type { AlertItem, AlertAction, AlertDocument } from "../types/alerts";
+import type { Chronology, ChronologyEvent } from "../types/chronology";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "/api/v1";
 
@@ -182,6 +183,80 @@ export async function fetchReadAlertIds(
     `/projects/${projectId}/alerts/read_ids`
   );
   return res.read_ids;
+}
+
+export async function fetchChronologies(
+  projectId: string
+): Promise<Chronology[]> {
+  return api.get(
+    `/projects/${projectId}/chronologies`
+  );
+}
+
+export async function fetchChronology(
+  projectId: string,
+  chronologyId: string
+): Promise<Chronology> {
+  return api.get(
+    `/projects/${projectId}/chronologies/${chronologyId}`
+  );
+}
+
+export async function createChronology(
+  projectId: string,
+  body: {
+    title: string;
+    entity_type: string;
+    entity_id?: string;
+  }
+): Promise<Chronology> {
+  return api.post(
+    `/projects/${projectId}/chronologies`,
+    body
+  );
+}
+
+export async function addChronologyEvent(
+  projectId: string,
+  chronologyId: string,
+  body: {
+    event_date: string;
+    event_type: string;
+    document_ref_id?: string;
+    document_ref_type?: string;
+    is_key_event?: boolean;
+    activity_id?: string;
+    boq_ref?: string;
+  }
+): Promise<ChronologyEvent> {
+  return api.post(
+    `/projects/${projectId}/chronologies/${chronologyId}/events`,
+    body
+  );
+}
+
+export async function approveNarrative(
+  projectId: string,
+  chronologyId: string,
+  eventId: string,
+  approvedNarrative: string
+): Promise<ChronologyEvent> {
+  return api.post(
+    `/projects/${projectId}/chronologies/${chronologyId}/events/${eventId}/approve-narrative`,
+    { approved_narrative: approvedNarrative }
+  );
+}
+
+export async function inactivateChronologyEvent(
+  projectId: string,
+  chronologyId: string,
+  eventId: string,
+  reason: string
+): Promise<ChronologyEvent> {
+  return api.post(
+    `/projects/${projectId}/chronologies/${chronologyId}/events/${eventId}/inactivate`,
+    { reason }
+  );
 }
 
 export async function fetchUnreadCount(

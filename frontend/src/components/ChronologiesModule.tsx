@@ -398,7 +398,7 @@ export default function ChronologiesModule(
                   fontFamily: "Inter, sans-serif",
                 }}>
                   <span>
-                    {(c.events ?? []).length} events
+                    {(c.events ?? []).length === 1 ? "1 event" : `${(c.events ?? []).length} events`}
                   </span>
                 </div>
               </div>
@@ -482,7 +482,7 @@ export default function ChronologiesModule(
                   fontFamily: "Inter, sans-serif",
                 }}>
                   <span>
-                    {selected.events.length} events
+                    {selected.events.length === 1 ? "1 event" : `${selected.events.length} events`}
                   </span>
                   {selected.events.filter(
                     (e) =>

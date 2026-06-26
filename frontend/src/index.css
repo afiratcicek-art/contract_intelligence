@@ -4,7 +4,7 @@
   --color-bg-tertiary: #EDE9E4;
   --color-text-primary: #1F2228;
   --color-text-secondary: #6B5D3F;
-  --color-accent: #A0714A;
+  --color-accent: #6B5D3F;
   --color-border-light: #E8E4DE;
   --color-border-medium: #D4CFC8;
   --color-priority-critical: #C0392B;
@@ -32,7 +32,7 @@ html.dark {
   --color-bg-tertiary: #1F2228;
   --color-text-primary: #E8E6E0;
   --color-text-secondary: #B8A99A;
-  --color-accent: #C49A6C;
+  --color-accent: #A0714A;
   --color-border-light: #3A3D45;
   --color-border-medium: #4A4D55;
   --color-priority-critical: #E05555;

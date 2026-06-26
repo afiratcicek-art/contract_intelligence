@@ -185,6 +185,14 @@ export default function CorrespondenceDetail() {
     </div>
   );
 
+  const parseStatusLabel = (status: string | null, lang: string) => {
+    if (!status || status === "pending") return null;
+    if (status === "processing") return lang === "tr" ? "İşleniyor" : "Processing";
+    if (status === "done" || status === "completed") return null;
+    if (status === "failed") return lang === "tr" ? "İşlem başarısız" : "Upload failed";
+    return null;
+  };
+
   return (
     <div style={{ minHeight: "100vh", backgroundColor: bg }}>
 
@@ -352,8 +360,12 @@ export default function CorrespondenceDetail() {
                 <div>
                   <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{doc.original_filename}</p>
                   <p style={{ fontSize: 10, color: textSecond, marginTop: 2 }}>
-                    {(doc.file_size_bytes / 1024).toFixed(0)} KB ·{" "}
-                    <span style={{ color: parseStatusColor(doc.parse_status) }}>{doc.parse_status}</span>
+                    {(doc.file_size_bytes / 1024).toFixed(0)} KB
+                    {parseStatusLabel(doc.parse_status, lang) && (
+                      <span style={{ color: "var(--color-alert-red, #A93226)", fontSize: 11, fontFamily: "Inter, sans-serif" }}>
+                        · {parseStatusLabel(doc.parse_status, lang)}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <button
@@ -454,7 +466,11 @@ export default function CorrespondenceDetail() {
                         }}
                       />
                       <span style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}>{d.original_filename}</span>
-                      <span style={{ fontSize: 10, color: textSecond, marginLeft: "auto" }}>{d.parse_status}</span>
+                      {parseStatusLabel(d.parse_status, lang) && (
+                        <span style={{ color: "var(--color-alert-red, #A93226)", fontSize: 11, fontFamily: "Inter, sans-serif", marginLeft: "auto" }}>
+                          {parseStatusLabel(d.parse_status, lang)}
+                        </span>
+                      )}
                     </label>
                   ))}
                 </div>

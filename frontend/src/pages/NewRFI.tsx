@@ -80,7 +80,6 @@ export default function NewRFI() {
   const border = dark ? "#3D4456" : "#E7E3DC";
   const textPrimary = dark ? "#E8E6E0" : "#1C1917";
   const textSecondary = dark ? "#C4B49C" : "#44403C";
-  const gold = dark ? "#A0714A" : "#6B5D3F";
   const alertRed = dark ? "#E07060" : "#A93226";
 
   const inputStyle = {
@@ -97,7 +96,7 @@ export default function NewRFI() {
 
   const labelStyle = {
     fontSize: 10,
-    fontWeight: 600 as const,
+    fontWeight: 500 as const,
     textTransform: "uppercase" as const,
     letterSpacing: "0.08em",
     color: textSecondary,
@@ -169,7 +168,7 @@ export default function NewRFI() {
       {/* Nav */}
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${dark ? "#3D4456" : "#E7E3DC"}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
-          <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${gold} 20%, ${gold} 80%, transparent)` }} />
+          <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${"var(--color-accent)"} 20%, ${"var(--color-accent)"} 80%, transparent)` }} />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
           <span style={{ color: textSecondary }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
@@ -186,14 +185,14 @@ export default function NewRFI() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
         </div>
       </nav>
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 24px" }}>
-        <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 600, marginBottom: 8 }}>
+        <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
           {mode === "response"
             ? (lang === "tr" ? `Yanıt: ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
             : mode === "revision"
@@ -281,7 +280,7 @@ export default function NewRFI() {
 
           {/* Deadline — opsiyonel, manuel override */}
           <div style={{ padding: 16, backgroundColor: cardBg, border: `0.5px solid ${border}` }}>
-            <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecondary, marginBottom: 12 }}>
+            <p style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecondary, marginBottom: 12 }}>
               {lang === "tr" ? "Deadline (Opsiyonel)" : "Deadline (Optional)"}
             </p>
             <p style={{ fontSize: 11, color: textSecondary, fontStyle: "italic", marginBottom: 12 }}>
@@ -362,7 +361,7 @@ export default function NewRFI() {
             {selectedFiles.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {selectedFiles.map((file, idx) => (
-                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", backgroundColor: cardBg, borderLeft: `2px solid ${gold}` }}>
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", backgroundColor: cardBg, borderLeft: `2px solid ${"var(--color-accent)"}` }}>
                     <span style={{ fontSize: 12, color: textPrimary, flex: 1 }}>{file.name}</span>
                     <span style={{ fontSize: 10, color: textSecondary }}>{(file.size / 1024).toFixed(0)} KB</span>
                     <button onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))} style={{ background: "none", border: "none", color: textSecondary, cursor: "pointer", fontSize: 14, padding: 0 }}>×</button>
@@ -387,13 +386,13 @@ export default function NewRFI() {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 600, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
+              style={{ backgroundColor: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
             >
               {loading ? (lang === "tr" ? "Kaydediliyor..." : "Saving...") : (lang === "tr" ? "Kaydet" : "Save")}
             </button>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace?module=rfis`)}
-              style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}
+              style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}
             >
               {lang === "tr" ? "İptal" : "Cancel"}
             </button>

@@ -58,8 +58,6 @@ export default function NewCorrespondence() {
   const border = dark ? "#3D4456" : "#E7E3DC";
   const textPrimary = dark ? "#E8E6E0" : "#1C1917";
   const textSecondary = dark ? "#C4B49C" : "#44403C";
-  const gold = dark ? "#A0714A" : "#6B5D3F";
-
   useEffect(() => {
     api.get<Party[]>(`/projects/${projectId}/parties`)
       .then(setParties)
@@ -108,7 +106,7 @@ export default function NewCorrespondence() {
 
   const labelStyle = {
     fontSize: 10,
-    fontWeight: 600 as const,
+    fontWeight: 500 as const,
     textTransform: "uppercase" as const,
     letterSpacing: "0.08em",
     color: textSecondary,
@@ -194,7 +192,7 @@ export default function NewCorrespondence() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
         </div>
@@ -205,7 +203,7 @@ export default function NewCorrespondence() {
         {/* Direction selector */}
         {!direction && (
           <div>
-            <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 600, marginBottom: 8 }}>
+            <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
               {lang === "tr" ? "Yeni Yazışma" : "New Correspondence"}
             </p>
             <p style={{ fontSize: 13, color: textSecondary, marginBottom: 32 }}>
@@ -216,14 +214,14 @@ export default function NewCorrespondence() {
                 onClick={() => setDirection("outgoing")}
                 style={{ padding: "20px 24px", backgroundColor: cardBg, border: `1px solid ${border}`, cursor: "pointer", textAlign: "left", borderRadius: 0 }}
               >
-                <p style={{ fontSize: 13, fontWeight: 600, color: textPrimary, marginBottom: 4, fontFamily: "Inter, sans-serif" }}>Outgoing →</p>
+                <p style={{ fontSize: 13, fontWeight: 500, color: textPrimary, marginBottom: 4, fontFamily: "Inter, sans-serif" }}>Outgoing →</p>
                 <p style={{ fontSize: 11, color: textSecondary, fontFamily: "Inter, sans-serif" }}>{lang === "tr" ? "Bizden karşı tarafa gönderilen yazışma" : "Outgoing correspondence to the other party"}</p>
               </button>
               <button
                 onClick={() => setDirection("incoming")}
                 style={{ padding: "20px 24px", backgroundColor: cardBg, border: `1px solid ${border}`, cursor: "pointer", textAlign: "left", borderRadius: 0 }}
               >
-                <p style={{ fontSize: 13, fontWeight: 600, color: textPrimary, marginBottom: 4, fontFamily: "Inter, sans-serif" }}>← Incoming</p>
+                <p style={{ fontSize: 13, fontWeight: 500, color: textPrimary, marginBottom: 4, fontFamily: "Inter, sans-serif" }}>← Incoming</p>
                 <p style={{ fontSize: 11, color: textSecondary, fontFamily: "Inter, sans-serif" }}>{lang === "tr" ? "Karşı taraftan bize gelen yazışma" : "Incoming correspondence from the other party"}</p>
               </button>
             </div>
@@ -234,7 +232,7 @@ export default function NewCorrespondence() {
         {direction && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-              <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 600, marginBottom: 8 }}>
+              <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
                 {mode === "response"
                   ? (lang === "tr" ? `Yanıt: ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
                   : mode === "followup"
@@ -381,7 +379,7 @@ export default function NewCorrespondence() {
                 {selectedFiles.length > 0 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {selectedFiles.map((file, idx) => (
-                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", backgroundColor: cardBg, borderLeft: `2px solid ${gold}` }}>
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", backgroundColor: cardBg, borderLeft: `2px solid ${"var(--color-accent)"}` }}>
                         <span style={{ fontSize: 12, color: textPrimary, flex: 1 }}>{file.name}</span>
                         <span style={{ fontSize: 10, color: textSecondary }}>{(file.size / 1024).toFixed(0)} KB</span>
                         <button
@@ -418,13 +416,13 @@ export default function NewCorrespondence() {
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
-                  style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 600, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
+                  style={{ backgroundColor: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
                 >
                   {loading ? (lang === "tr" ? "Kaydediliyor..." : "Saving...") : (lang === "tr" ? "Kaydet" : "Save")}
                 </button>
                 <button
                   onClick={() => navigate(`/projects/${projectId}/workspace`)}
-                  style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}
+                  style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}
                 >
                   {lang === "tr" ? "İptal" : "Cancel"}
                 </button>

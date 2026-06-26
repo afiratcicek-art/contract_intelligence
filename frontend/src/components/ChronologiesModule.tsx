@@ -202,8 +202,7 @@ export default function ChronologiesModule(
           "0.5px solid var(--color-border-medium)",
         display: "flex",
         flexDirection: "column",
-        background:
-          "var(--color-background-secondary)",
+        background: "var(--color-bg-secondary)",
       }}>
 
         {/* Left header */}
@@ -412,8 +411,7 @@ export default function ChronologiesModule(
       <div style={{
         display: "flex",
         flexDirection: "column",
-        background:
-          "var(--color-background-primary)",
+        background: "transparent",
       }}>
 
         {/* Empty state */}

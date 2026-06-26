@@ -132,7 +132,6 @@ export default function ChangeDetail() {
   const border      = dark ? "#3D4456" : "#E7E3DC";
   const textPrimary = dark ? "#E8E6E0" : "#1C1917";
   const textSecond  = dark ? "#C4B49C" : "#44403C";
-  const gold        = dark ? "#A0714A" : "#6B5D3F";
   const alertRed    = dark ? "#E07060" : "#A93226";
   const successGrn  = dark ? "#4DB88A" : "#1F6B4E";
 
@@ -157,7 +156,7 @@ export default function ChangeDetail() {
     const colors = dark ? STATUS_COLORS_DARK : STATUS_COLORS;
     const c = colors[status] ?? (dark ? { bg: "#2E3340", text: "#C4B49C" } : { bg: "#E7E3DC", text: "#44403C" });
     return (
-      <span style={{ background: c.bg, color: c.text, fontSize: 10, fontWeight: 600, padding: "3px 8px", textTransform: "uppercase" as const, letterSpacing: "0.06em", whiteSpace: "nowrap" as const }}>
+      <span style={{ background: c.bg, color: c.text, fontSize: 10, fontWeight: 500, padding: "3px 8px", textTransform: "uppercase" as const, letterSpacing: "0.06em", whiteSpace: "nowrap" as const }}>
         {status.replace("_", " ")}
       </span>
     );
@@ -165,7 +164,7 @@ export default function ChangeDetail() {
 
   const field = (label: string, value: string | number | null | undefined, mono = false) => (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 3 }}>{label}</div>
       <div style={{ fontSize: 13, color: value !== null && value !== undefined ? textPrimary : textSecond, fontFamily: mono ? "JetBrains Mono, monospace" : "Inter, sans-serif", fontStyle: value !== null && value !== undefined ? "normal" : "italic" }}>
         {value ?? "—"}
       </div>
@@ -192,7 +191,7 @@ export default function ChangeDetail() {
       {/* Nav */}
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
-          <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${gold} 20%, ${gold} 80%, transparent)` }} />
+          <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${"var(--color-accent)"} 20%, ${"var(--color-accent)"} 80%, transparent)` }} />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
           <span style={{ color: textSecond }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
@@ -203,7 +202,7 @@ export default function ChangeDetail() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -217,7 +216,7 @@ export default function ChangeDetail() {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
             <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, marginBottom: 6, letterSpacing: "0.05em" }}>{change.change_number}</div>
-            <h1 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, fontWeight: 600, color: textPrimary, margin: 0, lineHeight: 1.3 }}>{change.title}</h1>
+            <h1 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, fontWeight: 500, color: textPrimary, margin: 0, lineHeight: 1.3 }}>{change.title}</h1>
           </div>
           <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 8, flexShrink: 0, marginLeft: 24 }}>
             {statusPill(change.status)}
@@ -232,7 +231,7 @@ export default function ChangeDetail() {
         {/* Künye kartı */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24 }}>
           <div style={{ background: cardBg, padding: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
               {lang === "tr" ? "Genel" : "General"}
             </div>
             {field(lang === "tr" ? "Kaynak" : "Origin", ORIGIN_LABELS[change.origin] ?? change.origin)}
@@ -243,10 +242,10 @@ export default function ChangeDetail() {
           </div>
 
           <div style={{ background: cardBg, padding: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
               {lang === "tr" ? "Maliyet Etkisi" : "Cost Impact"}
             </div>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
               {lang === "tr" ? "Durum" : "Status"}
             </div>
             <div style={{ fontSize: 12, color: textPrimary, marginBottom: 10 }}>{change.cost_impact_status.replace("_", " ")}</div>
@@ -255,10 +254,10 @@ export default function ChangeDetail() {
           </div>
 
           <div style={{ background: cardBg, padding: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
               {lang === "tr" ? "Süre Etkisi" : "Time Impact"}
             </div>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
               {lang === "tr" ? "Durum" : "Status"}
             </div>
             <div style={{ fontSize: 12, color: textPrimary, marginBottom: 10 }}>{change.time_impact_status.replace("_", " ")}</div>
@@ -270,7 +269,7 @@ export default function ChangeDetail() {
         {/* Description */}
         {change.description && (
           <div style={{ background: cardBg, padding: 16, marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 10, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>{lang === "tr" ? "Açıklama" : "Description"}</div>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 10, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>{lang === "tr" ? "Açıklama" : "Description"}</div>
             <p style={{ fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" as const }}>{change.description}</p>
           </div>
         )}
@@ -278,13 +277,13 @@ export default function ChangeDetail() {
         {/* Chronology — vertical timeline */}
         {chronology && chronology.events.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 16 }}>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 16 }}>
               {lang === "tr" ? "Olaylar Kronolojisi" : "Chronology of Events"}
             </div>
 
             <div style={{ position: "relative" as const, paddingLeft: 24 }}>
               {/* Dikey çizgi */}
-              <div style={{ position: "absolute" as const, left: 6, top: 6, bottom: 6, width: 1, backgroundColor: gold, opacity: 0.4 }} />
+              <div style={{ position: "absolute" as const, left: 6, top: 6, bottom: 6, width: 1, backgroundColor: "var(--color-accent)", opacity: 0.4 }} />
 
               {chronology.events.map((event, idx) => (
                 <div key={event.id} style={{ position: "relative" as const, marginBottom: idx < chronology.events.length - 1 ? 20 : 0 }}>
@@ -297,15 +296,15 @@ export default function ChangeDetail() {
                     width: event.is_key_event ? 9 : 6,
                     height: event.is_key_event ? 9 : 6,
                     borderRadius: "50%",
-                    backgroundColor: event.is_key_event ? gold : border,
-                    border: event.is_key_event ? `2px solid ${gold}` : `1px solid ${textSecond}`,
+                    backgroundColor: event.is_key_event ? "var(--color-accent)" : border,
+                    border: event.is_key_event ? `2px solid ${"var(--color-accent)"}` : `1px solid ${textSecond}`,
                     flexShrink: 0,
                   }} />
 
                   {/* Event kartı */}
                   <div style={{
                     background: event.is_key_event ? cardBg : "transparent",
-                    borderLeft: event.is_key_event ? `2px solid ${gold}` : "none",
+                    borderLeft: event.is_key_event ? `2px solid ${"var(--color-accent)"}` : "none",
                     padding: event.is_key_event ? "10px 14px" : "2px 0",
                   }}>
 
@@ -314,11 +313,11 @@ export default function ChangeDetail() {
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecond, whiteSpace: "nowrap" as const }}>
                         {event.event_date}
                       </span>
-                      <span style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: event.is_key_event ? gold : textSecond }}>
+                      <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: event.is_key_event ? "var(--color-accent)" : textSecond }}>
                         {EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}
                       </span>
                       {event.is_key_event && (
-                        <span style={{ fontSize: 9, fontWeight: 600, color: gold, border: `0.5px solid ${gold}`, padding: "1px 5px", letterSpacing: "0.05em" }}>KEY</span>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: "var(--color-accent)", border: `0.5px solid ${"var(--color-accent)"}`, padding: "1px 5px", letterSpacing: "0.05em" }}>KEY</span>
                       )}
                     </div>
 
@@ -338,12 +337,12 @@ export default function ChangeDetail() {
                               <div key={doc.id}
                                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${doc.correspondence_id}`)}
                                 style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
-                                <span style={{ fontSize: 9, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: gold, textDecoration: "underline" }}>
+                                <span style={{ fontSize: 11, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
+                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--color-accent)", textDecoration: "underline" }}>
                                   {doc.correspondences.corr_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.correspondences.subject}</span>
-                                <span style={{ fontSize: 9, color: textSecond, textTransform: "uppercase" as const }}>{doc.correspondences.type}</span>
+                                <span style={{ fontSize: 11, color: textSecond, textTransform: "uppercase" as const }}>{doc.correspondences.type}</span>
                               </div>
                             );
                           }
@@ -352,8 +351,8 @@ export default function ChangeDetail() {
                               <div key={doc.id}
                                 onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${doc.rfi_id}`)}
                                 style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
-                                <span style={{ fontSize: 9, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: gold, textDecoration: "underline" }}>
+                                <span style={{ fontSize: 11, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
+                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--color-accent)", textDecoration: "underline" }}>
                                   {doc.rfis.rfi_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.rfis.subject}</span>
@@ -374,13 +373,13 @@ export default function ChangeDetail() {
         {/* Linked Correspondences */}
         {change.linked_correspondences && change.linked_correspondences.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12 }}>
               {lang === "tr" ? `Bağlı Yazışmalar (${change.linked_correspondences.length})` : `Linked Correspondences (${change.linked_correspondences.length})`}
             </div>
             {change.linked_correspondences.map((lc) => (
               <div key={lc.id}
                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${lc.correspondences?.id}`)}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${gold}`, cursor: "pointer" }}>
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                 <div>
                   <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecond }}>{lc.correspondences?.corr_number}</span>
                   <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{lc.correspondences?.subject}</p>
@@ -395,7 +394,7 @@ export default function ChangeDetail() {
         {/* Geri */}
         <div style={{ paddingTop: 16, borderTop: `0.5px solid ${border}` }}>
           <button onClick={() => navigate(`/projects/${projectId}/workspace?module=changes`)}
-            style={{ background: "none", border: `1px solid ${gold}`, padding: "8px 16px", fontSize: 12, color: gold, cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
+            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
             {lang === "tr" ? "← Changes Listesine Dön" : "← Back to Changes"}
           </button>
         </div>

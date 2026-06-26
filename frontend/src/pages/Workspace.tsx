@@ -126,7 +126,6 @@ export default function Workspace() {
   const border = dark ? "#3D4456" : "#E7E3DC";
   const textPrimary = dark ? "#E8E6E0" : "#1C1917";
   const textSecondary = dark ? "#C4B49C" : "#44403C";
-  const gold = dark ? "#A0714A" : "#6B5D3F";
 
   const inputStyle: React.CSSProperties = {
     background: cardBg, border: `0.5px solid ${border}`, color: textPrimary,
@@ -210,7 +209,7 @@ export default function Workspace() {
   };
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
-    <button key={label} onClick={onClick} style={{ padding: "4px 10px", border: `0.5px solid ${active ? gold : border}`, fontSize: 11, color: active ? (dark ? "#E8E6E0" : "#F5F2ED") : textSecondary, background: active ? gold : cardBg, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+    <button key={label} onClick={onClick} style={{ padding: "4px 10px", border: `0.5px solid ${active ? "var(--color-accent)" : border}`, fontSize: 11, color: active ? (dark ? "#E8E6E0" : "#F5F2ED") : textSecondary, background: active ? "var(--color-accent)" : cardBg, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
       {label}
     </button>
   );
@@ -239,13 +238,13 @@ export default function Workspace() {
 
   const moduleHeader = (title: string, onNew?: () => void, newLabel?: string) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-      <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600 }}>{title}</div>
-      {onNew && <button onClick={onNew} style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>{newLabel}</button>}
+      <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>{title}</div>
+      {onNew && <button onClick={onNew} style={{ background: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>{newLabel}</button>}
     </div>
   );
 
   const listHeader = (cols: { label: string; width: string }[]) => (
-    <div style={{ display: "grid", gridTemplateColumns: cols.map(c => c.width).join(" "), gap: 8, padding: "6px 12px", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: textSecondary, borderBottom: `0.5px solid ${border}` }}>
+    <div style={{ display: "grid", gridTemplateColumns: cols.map(c => c.width).join(" "), gap: 8, padding: "6px 12px", fontSize: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: textSecondary, borderBottom: `0.5px solid ${border}` }}>
       {cols.map(c => <span key={c.label}>{c.label}</span>)}
     </div>
   );
@@ -302,7 +301,7 @@ export default function Workspace() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecondary }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${border}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${border}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -313,7 +312,7 @@ export default function Workspace() {
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         <aside style={{ width: 200, backgroundColor: bg, borderRight: `0.5px solid ${border}`, padding: "16px 0", flexShrink: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "0 16px 12px", borderBottom: `0.5px solid ${border}`, marginBottom: 8 }}>
-            <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 12, color: textPrimary, fontWeight: 600, lineHeight: 1.3 }}>{projectName}</div>
+            <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 12, color: textPrimary, fontWeight: 500, lineHeight: 1.3 }}>{projectName}</div>
             <div style={{ fontSize: 10, color: textSecondary, marginTop: 2 }}>{t("nav.workspace")}</div>
           </div>
           {SIDEBAR_MAIN.map((mod) => (
@@ -328,10 +327,10 @@ export default function Workspace() {
                 width: "100%", textAlign: "left" as const,
                 padding: mod === "general" ? "9px 16px" : "7px 16px",
                 fontSize: mod === "general" ? 13 : 12,
-                fontWeight: activeModule === mod ? 600 : 400,
+                fontWeight: activeModule === mod ? 500 : 400,
                 fontFamily: "Inter, sans-serif",
                 background: activeModule === mod ? cardBg : "none",
-                borderLeft: activeModule === mod ? `3px solid ${gold}` : "3px solid transparent",
+                borderLeft: activeModule === mod ? `3px solid ${"var(--color-accent)"}` : "3px solid transparent",
                 border: "none", cursor: "pointer",
                 color: activeModule === mod ? textPrimary : textSecondary,
               }}
@@ -339,7 +338,7 @@ export default function Workspace() {
               <span>{MODULE_LABELS[mod]}</span>
               {mod === "alerts" && alertCount > 0 && (
                 <span style={{
-                  fontSize: 9, fontWeight: 700,
+                  fontSize: 11, fontWeight: 500,
                   backgroundColor: dark ? "#E07060" : "#A93226",
                   color: "#F5F2ED",
                   borderRadius: 10,
@@ -353,9 +352,9 @@ export default function Workspace() {
             </button>
           ))}
           <div style={{ height: "0.5px", background: border, margin: "8px 16px" }} />
-          <div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, padding: "4px 16px" }}>System</div>
+          <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, padding: "4px 16px" }}>System</div>
           {SIDEBAR_SYS.map((mod) => (
-            <button key={mod} onClick={() => setActiveModule(mod)} style={{ display: "flex", alignItems: "center", padding: "7px 16px", fontSize: 12, fontWeight: activeModule === mod ? 600 : 400, color: activeModule === mod ? textPrimary : textSecondary, background: activeModule === mod ? cardBg : "none", border: "none", borderLeft: activeModule === mod ? `3px solid ${gold}` : "3px solid transparent", cursor: "pointer", width: "100%", textAlign: "left", fontFamily: "Inter, sans-serif" }}>
+            <button key={mod} onClick={() => setActiveModule(mod)} style={{ display: "flex", alignItems: "center", padding: "7px 16px", fontSize: 12, fontWeight: activeModule === mod ? 500 : 400, color: activeModule === mod ? textPrimary : textSecondary, background: activeModule === mod ? cardBg : "none", border: "none", borderLeft: activeModule === mod ? `3px solid ${"var(--color-accent)"}` : "3px solid transparent", cursor: "pointer", width: "100%", textAlign: "left", fontFamily: "Inter, sans-serif" }}>
               {MODULE_LABELS[mod]}
             </button>
           ))}
@@ -410,14 +409,14 @@ export default function Workspace() {
                           padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
                           background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
                           marginBottom: 2, cursor: "pointer",
-                          borderLeft: `2px solid ${isChild ? gold : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : gold}`,
+                          borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "var(--color-accent)"}`,
                         }}
                       >
                         <div>
                           <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
-                            {isChild && <span style={{ color: gold, marginRight: 2 }}>└</span>}
+                            {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
                             {r.ref}
-                            {r.has_response && <span style={{ fontSize: 8, color: gold }}>↩</span>}
+                            {r.has_response && <span style={{ fontSize: 11, color: "var(--color-accent)" }}>↩</span>}
                           </span>
                           <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
                           <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{r.date}</p>
@@ -429,7 +428,7 @@ export default function Workspace() {
                   );
                   return (
                     <div key={mod} style={{ marginBottom: 20 }}>
-                      <div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
+                      <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
                       {corrParents.map(r => renderCorrRow(r, false))}
                       {/* Orphan children — parent search sonucunda yok */}
                       {group.filter(r => r.parent_id && !group.find(p => p.id === r.parent_id)).map(r => renderCorrRow(r, false))}
@@ -456,15 +455,15 @@ export default function Workspace() {
                           padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
                           background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
                           marginBottom: 2, cursor: "pointer",
-                          borderLeft: `2px solid ${isChild ? gold : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : gold}`,
+                          borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "var(--color-accent)"}`,
                         }}
                       >
                         <div>
                           <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
-                            {isChild && <span style={{ color: gold, marginRight: 2 }}>└</span>}
+                            {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
                             {r.ref}
                             {r.rfi_type && r.rfi_type !== "original" && (
-                              <span style={{ fontSize: 8, fontWeight: 600, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#1F2A3A" : "#E8F0FE"), color: r.rfi_type === "response" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#7BA7D4" : "#1A56A4"), textTransform: "uppercase" as const }}>
+                              <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#1F2A3A" : "#E8F0FE"), color: r.rfi_type === "response" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#7BA7D4" : "#1A56A4"), textTransform: "uppercase" as const }}>
                                 {r.rfi_type === "response" ? (lang === "tr" ? "YNT" : "RES") : (lang === "tr" ? "REV" : "REV")}
                               </span>
                             )}
@@ -473,7 +472,7 @@ export default function Workspace() {
                           <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{r.date}</p>
                         </div>
                         {r.rfi_type === "response"
-                          ? <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", backgroundColor: dark ? "#0F2D1A" : "#E6F4EE", color: dark ? "#4DB88A" : "#1F6B4E", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                          ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: dark ? "#0F2D1A" : "#E6F4EE", color: dark ? "#4DB88A" : "#1F6B4E", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
                           : statusPill(r.status)}
                       </div>
                       {(rfiSChildMap.get(r.id) ?? []).map(child => renderRfiRow(child, true))}
@@ -481,7 +480,7 @@ export default function Workspace() {
                   );
                   return (
                     <div key={mod} style={{ marginBottom: 20 }}>
-                      <div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
+                      <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
                       {rfiSParents.map(r => renderRfiRow(r, false))}
                       {group.filter(r => r.parent_id && !group.find(p => p.id === r.parent_id)).map(r => renderRfiRow(r, false))}
                     </div>
@@ -491,9 +490,9 @@ export default function Workspace() {
                 // Diğer modüller — düz liste
                 return (
                   <div key={mod} style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
+                    <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
                     {group.map((r) => (
-                      <div key={r.id} onClick={() => navigate(generalNavTarget(mod, r.id))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${gold}`, cursor: "pointer" }}>
+                      <div key={r.id} onClick={() => navigate(generalNavTarget(mod, r.id))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                         <div>
                           <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary }}>{r.ref}</span>
                           <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
@@ -512,9 +511,9 @@ export default function Workspace() {
           {activeModule === "correspondence" && (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
-                <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600 }}>Correspondence</div>
+                <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>Correspondence</div>
                 <div style={{ position: "relative" as const }}>
-                  <button onClick={() => setCorrDropdown(!corrDropdown)} style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                  <button onClick={() => setCorrDropdown(!corrDropdown)} style={{ background: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
                     {t("action.newcorrespondence")} ▾
                   </button>
                   {corrDropdown && (
@@ -572,14 +571,14 @@ export default function Workspace() {
                         marginBottom: 2,
                         cursor: "pointer",
                         borderLeft: isChild
-                          ? `2px solid ${gold}`
-                          : `2px solid ${c.status === "overdue" ? (dark ? "#E07060" : "#A93226") : c.status === "open" ? gold : c.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "transparent"}`,
+                          ? `2px solid ${"var(--color-accent)"}`
+                          : `2px solid ${c.status === "overdue" ? (dark ? "#E07060" : "#A93226") : c.status === "open" ? "var(--color-accent)" : c.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "transparent"}`,
                       }}
                     >
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
-                        {isChild && <span style={{ color: gold, marginRight: 2 }}>└</span>}
+                        {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
                         {c.corr_number}
-                        {c.has_response && <span style={{ fontSize: 8, color: gold }}>🔗</span>}
+                        {c.has_response && <span style={{ fontSize: 11, color: "var(--color-accent)" }}>🔗</span>}
                       </span>
                       <div>
                         <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, margin: 0 }}>{c.subject}</p>
@@ -609,9 +608,9 @@ export default function Workspace() {
           {activeModule === "rfis" && (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
-                <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 600 }}>RFIs</div>
+                <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>RFIs</div>
                 <div style={{ position: "relative" as const }}>
-                  <button onClick={() => setRfiDropdown(!rfiDropdown)} style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                  <button onClick={() => setRfiDropdown(!rfiDropdown)} style={{ background: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
                     {t("action.newrfi")} ▾
                   </button>
                   {rfiDropdown && (
@@ -672,15 +671,15 @@ export default function Workspace() {
                         marginBottom: 2,
                         cursor: "pointer",
                         borderLeft: isChild
-                          ? `2px solid ${gold}`
-                          : `2px solid ${r.status === "overdue" ? (dark ? "#E07060" : "#A93226") : r.status === "open" ? gold : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "transparent"}`,
+                          ? `2px solid ${"var(--color-accent)"}`
+                          : `2px solid ${r.status === "overdue" ? (dark ? "#E07060" : "#A93226") : r.status === "open" ? "var(--color-accent)" : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "transparent"}`,
                       }}
                     >
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
-                        {isChild && <span style={{ color: gold, marginRight: 2 }}>└</span>}
+                        {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
                         {r.rfi_number}
                         {r.rfi_type && r.rfi_type !== "original" && (
-                          <span style={{ fontSize: 8, fontWeight: 600, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#1F2A3A" : "#E8F0FE"), color: r.rfi_type === "response" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#7BA7D4" : "#1A56A4"), textTransform: "uppercase" as const }}>
+                          <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#1F2A3A" : "#E8F0FE"), color: r.rfi_type === "response" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#7BA7D4" : "#1A56A4"), textTransform: "uppercase" as const }}>
                             {r.rfi_type === "response" ? (lang === "tr" ? "YNT" : "RES") : (lang === "tr" ? "REV" : "REV")}
                           </span>
                         )}
@@ -690,7 +689,7 @@ export default function Workspace() {
                       <span style={{ fontSize: 11, color: textSecondary }}>{r.submitted_date?.slice(0, 10)}</span>
                       <span style={{ fontSize: 11, color: r.response_due_date && r.response_due_date < today ? (dark ? "#E07060" : "#A93226") : textSecondary }}>{r.response_due_date?.slice(0, 10) ?? "—"}</span>
                       {r.rfi_type === "response"
-                        ? <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", backgroundColor: dark ? "#0F2D1A" : "#E6F4EE", color: dark ? "#4DB88A" : "#1F6B4E", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                        ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: dark ? "#0F2D1A" : "#E6F4EE", color: dark ? "#4DB88A" : "#1F6B4E", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
                         : statusPill(r.status)}
                     </div>
                     {(rfiChildMap.get(r.id) ?? []).map(child => rfiRow(child, true))}
@@ -726,7 +725,7 @@ export default function Workspace() {
                 <div>
                   {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.title"), width: "1fr" }, { label: t("col.origin"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
                   {filteredChanges.map((c) => (
-                    <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/changes/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${c.status === "open" ? gold : "transparent"}` }}>
+                    <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/changes/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${c.status === "open" ? "var(--color-accent)" : "transparent"}` }}>
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary }}>{c.change_number}</span>
                       <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{c.title}</p>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{c.origin}</span>
@@ -753,8 +752,8 @@ export default function Workspace() {
                 <div>
                   {listHeader([{ label: t("col.title"), width: "1fr" }, { label: t("col.category"), width: "100px" }, { label: t("col.duedate"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
                   {filteredDeliverables.map((d) => (
-                    <div key={d.id} onClick={() => navigate(`/projects/${projectId}/workspace/deliverables/${d.id}`)} style={{ display: "grid", gridTemplateColumns: "1fr 100px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${d.status === "in_progress" ? gold : "transparent"}` }}>
-                      <div><p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{d.title}</p>{d.is_pre_completion && <span style={{ fontSize: 9, color: gold }}>{t("state.precompletion")}</span>}</div>
+                    <div key={d.id} onClick={() => navigate(`/projects/${projectId}/workspace/deliverables/${d.id}`)} style={{ display: "grid", gridTemplateColumns: "1fr 100px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${d.status === "in_progress" ? "var(--color-accent)" : "transparent"}` }}>
+                      <div><p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{d.title}</p>{d.is_pre_completion && <span style={{ fontSize: 11, color: "var(--color-accent)" }}>{t("state.precompletion")}</span>}</div>
                       <span style={{ fontSize: 11, color: textSecondary }}>{d.category ?? "—"}</span>
                       <span style={{ fontSize: 11, color: d.due_date && d.due_date < today ? (dark ? "#E07060" : "#A93226") : textSecondary }}>{d.due_date ?? "—"}</span>
                       {statusPill(d.status)}

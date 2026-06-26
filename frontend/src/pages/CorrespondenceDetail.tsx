@@ -119,7 +119,6 @@ export default function CorrespondenceDetail() {
   const border      = dark ? "#3D4456" : "#E7E3DC";
   const textPrimary = dark ? "#E8E6E0" : "#1C1917";
   const textSecond  = dark ? "#C4B49C" : "#44403C";
-  const gold        = dark ? "#A0714A" : "#6B5D3F";
   const alertRed    = dark ? "#E07060" : "#A93226";
   const warnBg      = dark ? "#3D2E0A" : "#FEF9E7";
   const warnBorder  = dark ? "#D4956A" : "#92400E";
@@ -139,8 +138,8 @@ export default function CorrespondenceDetail() {
   }, [projectId, corrId]);
 
   const labelStyle = {
-    fontSize: 9,
-    fontWeight: 600 as const,
+    fontSize: 11,
+    fontWeight: 500 as const,
     textTransform: "uppercase" as const,
     letterSpacing: "0.08em",
     color: textSecond,
@@ -162,7 +161,7 @@ export default function CorrespondenceDetail() {
 
   const directionPill = (direction: string) => (
     <span style={{
-      fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const,
+      fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const,
       letterSpacing: "0.04em", padding: "2px 8px",
       backgroundColor: direction === "incoming" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#3D2E0A" : "#FEF3C7"),
       color: direction === "incoming" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#D4956A" : "#92400E"),
@@ -203,7 +202,7 @@ export default function CorrespondenceDetail() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -214,15 +213,15 @@ export default function CorrespondenceDetail() {
 
         {/* Parent zinciri breadcrumb */}
         {corr.breadcrumb && corr.breadcrumb.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 16, padding: "8px 12px", backgroundColor: cardBg, borderLeft: `2px solid ${gold}` }}>
-            <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginRight: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 16, padding: "8px 12px", backgroundColor: cardBg, borderLeft: `2px solid ${"var(--color-accent)"}` }}>
+            <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginRight: 4 }}>
               {lang === "tr" ? "Zincir:" : "Chain:"}
             </span>
             {corr.breadcrumb.map((b, idx) => (
               <span key={b.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span
                   onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${b.id}`)}
-                  style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: gold, cursor: "pointer", textDecoration: "underline" }}
+                  style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--color-accent)", cursor: "pointer", textDecoration: "underline" }}
                 >
                   {b.corr_number}
                 </span>
@@ -232,7 +231,7 @@ export default function CorrespondenceDetail() {
               </span>
             ))}
             <span style={{ fontSize: 10, color: textSecond }}>→</span>
-            <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textPrimary, fontWeight: 600 }}>{corr.corr_number}</span>
+            <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textPrimary, fontWeight: 500 }}>{corr.corr_number}</span>
           </div>
         )}
 
@@ -246,7 +245,7 @@ export default function CorrespondenceDetail() {
             </span>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${corr.response_corr_id}`)}
-              style={{ fontSize: 11, fontWeight: 600, color: warnBorder, background: "none", border: `0.5px solid ${warnBorder}`, padding: "3px 10px", cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+              style={{ fontSize: 11, fontWeight: 500, color: warnBorder, background: "none", border: `0.5px solid ${warnBorder}`, padding: "3px 10px", cursor: "pointer", fontFamily: "Inter, sans-serif" }}
             >
               {lang === "tr" ? "En Güncele Git →" : "Go to Latest →"}
             </button>
@@ -257,13 +256,13 @@ export default function CorrespondenceDetail() {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
           <div>
             <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, marginBottom: 4 }}>{corr.corr_number}</p>
-            <h1 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 600, lineHeight: 1.3, marginBottom: 8 }}>{corr.subject}</h1>
+            <h1 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, lineHeight: 1.3, marginBottom: 8 }}>{corr.subject}</h1>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               {directionPill(corr.direction)}
-              <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.type}</span>
-              <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.status}</span>
+              <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.type}</span>
+              <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.status}</span>
               {corr.parent_id && (
-                <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: dark ? "#1F2A3A" : "#E8F0FE", color: dark ? "#7BA7D4" : "#1A56A4" }}>
+                <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: dark ? "#1F2A3A" : "#E8F0FE", color: dark ? "#7BA7D4" : "#1A56A4" }}>
                   🔗 {lang === "tr" ? "Zincirde" : "In Chain"}
                 </span>
               )}
@@ -274,18 +273,18 @@ export default function CorrespondenceDetail() {
           <div style={{ display: "flex", flexDirection: "column" as const, gap: 6, flexShrink: 0, marginLeft: 24 }}>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/new?mode=response&parent_id=${corr.id}&parent_number=${corr.corr_number}`)}
-              style={{ backgroundColor: gold, color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "6px 12px", fontSize: 11, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
+              style={{ backgroundColor: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "6px 12px", fontSize: 11, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
             >
               {lang === "tr" ? "↩ Yanıt Yaz" : "↩ Write Response"}
             </button>
             <button
               onClick={() => setFlagOpen(true)}
-              style={{ backgroundColor: "transparent", color: dark ? "#D4956A" : "#92400E", border: `1px solid ${dark ? "#D4956A" : "#92400E"}`, padding: "6px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+              style={{ backgroundColor: "transparent", color: dark ? "#D4956A" : "#92400E", border: `1px solid ${dark ? "#D4956A" : "#92400E"}`, padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
               ⚠ {lang === "tr" ? "Potansiyel Etki" : "Potential Impact"}
             </button>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/new?mode=followup&parent_id=${corr.id}&parent_number=${corr.corr_number}`)}
-              style={{ backgroundColor: "transparent", color: gold, border: `1px solid ${gold}`, padding: "6px 12px", fontSize: 11, fontWeight: 600, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
+              style={{ backgroundColor: "transparent", color: "var(--color-accent)", border: `1px solid ${"var(--color-accent)"}`, padding: "6px 12px", fontSize: 11, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
             >
               {lang === "tr" ? "+ Followup Ekle" : "+ Add Followup"}
             </button>
@@ -313,23 +312,23 @@ export default function CorrespondenceDetail() {
         {/* Children — bu yazışmaya verilen yanıtlar */}
         {corr.children && corr.children.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 10 }}>
               {lang === "tr" ? `Yanıtlar / Followuplar (${corr.children.length})` : `Responses / Followups (${corr.children.length})`}
             </div>
             {corr.children.map((child) => (
               <div
                 key={child.id}
                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${child.id}`)}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${child.has_response ? textSecond : gold}`, cursor: "pointer" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${child.has_response ? textSecond : "var(--color-accent)"}`, cursor: "pointer" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: gold }}>{child.corr_number}</span>
+                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--color-accent)" }}>{child.corr_number}</span>
                   {directionPill(child.direction)}
                   <span style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{child.subject}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   {child.has_response && (
-                    <span style={{ fontSize: 9, color: textSecond, fontStyle: "italic" }}>
+                    <span style={{ fontSize: 11, color: textSecond, fontStyle: "italic" }}>
                       {lang === "tr" ? "yanıtlandı" : "responded"}
                     </span>
                   )}
@@ -342,7 +341,7 @@ export default function CorrespondenceDetail() {
 
         {/* Documents */}
         <div style={{ padding: 20, backgroundColor: cardBg }}>
-          <p style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12 }}>
+          <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12 }}>
             {lang === "tr" ? "EKLİ BELGELER" : "ATTACHED DOCUMENTS"} ({docs.length})
           </p>
           {docs.length === 0 ? (
@@ -366,7 +365,7 @@ export default function CorrespondenceDetail() {
                       alert(lang === "tr" ? "İndirme linki oluşturulamadı." : "Could not generate download link.");
                     }
                   }}
-                  style={{ fontSize: 11, color: gold, background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                  style={{ fontSize: 11, color: "var(--color-accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif" }}
                 >
                   {lang === "tr" ? "İndir →" : "Download →"}
                 </button>
@@ -379,7 +378,7 @@ export default function CorrespondenceDetail() {
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: `0.5px solid ${border}` }}>
           <button
             onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}
-            style={{ background: "none", border: `1px solid ${gold}`, padding: "8px 16px", fontSize: 12, color: gold, cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}
+            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}
           >
             {lang === "tr" ? "← Yazışma Listesine Dön" : "← Back to Correspondence"}
           </button>
@@ -396,7 +395,7 @@ export default function CorrespondenceDetail() {
             style={{ backgroundColor: cardBg, padding: 24, width: "100%", maxWidth: 520, border: `1px solid ${border}`, maxHeight: "90vh", overflowY: "auto" as const }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 18, fontWeight: 600, color: textPrimary, margin: "0 0 8px" }}>
+            <h2 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 18, fontWeight: 500, color: textPrimary, margin: "0 0 8px" }}>
               {lang === "tr" ? "Potansiyel Etki Bildir" : "Flag Potential Impact"}
             </h2>
             <p style={{ fontSize: 12, color: textSecond, margin: "0 0 20px", lineHeight: 1.5 }}>
@@ -406,7 +405,7 @@ export default function CorrespondenceDetail() {
             </p>
 
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                 {lang === "tr" ? "Açıklama *" : "Narrative *"}
               </label>
               <textarea
@@ -420,7 +419,7 @@ export default function CorrespondenceDetail() {
 
             {noticeConfigs.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                   {lang === "tr" ? "Potansiyel Sözleşme Maddesi (Opsiyonel)" : "Potential Contractual Trigger (Optional)"}
                 </label>
                 <select
@@ -438,7 +437,7 @@ export default function CorrespondenceDetail() {
 
             {docs.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                   {lang === "tr" ? "İlgili Belgeler (Opsiyonel)" : "Related Documents (Optional)"}
                 </label>
                 <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: dark ? "#1F2228" : "#F5F2ED" }}>
@@ -463,7 +462,7 @@ export default function CorrespondenceDetail() {
             )}
 
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                 {lang === "tr" ? "Yeni Dosya Ekle (Opsiyonel)" : "Add New File (Optional)"}
               </label>
               <input
@@ -475,7 +474,7 @@ export default function CorrespondenceDetail() {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                 {lang === "tr" ? "Bildir" : "Notify"}
               </label>
               <select
@@ -530,7 +529,7 @@ export default function CorrespondenceDetail() {
                     setFlagSubmitting(false);
                   }
                 }}
-                style={{ backgroundColor: flagForm.narrative.trim() ? gold : (dark ? "#3D4456" : "#D4CFC8"), color: flagForm.narrative.trim() ? (dark ? "#E8E6E0" : "#F5F2ED") : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "Inter, sans-serif", opacity: flagSubmitting ? 0.6 : 1 }}
+                style={{ backgroundColor: flagForm.narrative.trim() ? "var(--color-accent)" : (dark ? "#3D4456" : "#D4CFC8"), color: flagForm.narrative.trim() ? (dark ? "#E8E6E0" : "#F5F2ED") : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "Inter, sans-serif", opacity: flagSubmitting ? 0.6 : 1 }}
               >
                 {flagSubmitting
                   ? (lang === "tr" ? "Gönderiliyor…" : "Submitting…")

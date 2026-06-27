@@ -67,6 +67,8 @@ interface StripEvent {
   label: string;
   approved: boolean;
   isKey?: boolean;
+  narrative?: string | null;
+  subject?: string | null;
 }
 
 function HorizontalStrip({
@@ -76,19 +78,133 @@ function HorizontalStrip({
   events: StripEvent[];
   onClickEvent: (id: string) => void;
 }) {
+  const [popupId, setPopupId] = useState<string | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!popupId) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        popupRef.current &&
+        !popupRef.current.contains(e.target as Node)
+      ) {
+        setPopupId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [popupId]);
+
   if (events.length === 0) return null;
+
+  const activeEvent = events.find((e) => e.id === popupId) ?? null;
+
   return (
-    <div style={{
-      overflowX: "auto",
-      borderBottom: "0.5px solid var(--color-border-medium)",
-      background: "var(--color-bg-secondary)",
-      padding: "12px 20px",
-      display: "flex",
-      alignItems: "center",
-      gap: 0,
-      minHeight: 72,
-      flexShrink: 0,
-    }}>
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      {/* Narrative popup */}
+      {popupId && activeEvent && (
+        <div
+          ref={popupRef}
+          style={{
+            position: "absolute",
+            top: 80,
+            left: 20,
+            zIndex: 100,
+            background: "var(--color-bg-primary)",
+            border: "1px solid var(--color-border-medium)",
+            padding: "12px 14px",
+            minWidth: 240,
+            maxWidth: 380,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+            resize: "both",
+            overflow: "auto",
+            minHeight: 80,
+            maxHeight: 300,
+          }}
+        >
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 8,
+          }}>
+            <p style={{
+              fontSize: 10,
+              fontWeight: 500,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "var(--color-text-secondary)",
+              fontFamily: "Inter, sans-serif",
+              margin: 0,
+            }}>
+              {activeEvent.label} · {activeEvent.date}
+            </p>
+            <button
+              onClick={() => setPopupId(null)}
+              style={{
+                fontSize: 14,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--color-text-secondary)",
+                padding: "0 2px",
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+          {activeEvent.subject && (
+            <p style={{
+              fontSize: 11,
+              color: "var(--color-text-secondary)",
+              fontStyle: "italic",
+              fontFamily: "Inter, sans-serif",
+              margin: "0 0 6px",
+            }}>
+              {activeEvent.subject}
+            </p>
+          )}
+          {activeEvent.narrative ? (
+            <p style={{
+              fontSize: 12,
+              color: "var(--color-text-primary)",
+              lineHeight: 1.6,
+              fontFamily: "Inter, sans-serif",
+              margin: 0,
+            }}>
+              {activeEvent.narrative}
+            </p>
+          ) : (
+            <p style={{
+              fontSize: 12,
+              color: "var(--color-text-secondary)",
+              fontStyle: "italic",
+              fontFamily: "Inter, sans-serif",
+              margin: 0,
+            }}>
+              No narrative yet.
+            </p>
+          )}
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        style={{
+          overflowX: "auto",
+          borderBottom: "0.5px solid var(--color-border-medium)",
+          background: "var(--color-bg-secondary)",
+          padding: "12px 20px",
+          display: "flex",
+          alignItems: "center",
+          gap: 0,
+          minHeight: 72,
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+        }}
+      >
       {events.map((ev, idx) => (
         <div
           key={ev.id}
@@ -96,7 +212,14 @@ function HorizontalStrip({
         >
           {/* Node */}
           <div
-            onClick={() => onClickEvent(ev.id)}
+            onClick={() => {
+              if (popupId === ev.id) {
+                setPopupId(null);
+              } else {
+                setPopupId(ev.id);
+                onClickEvent(ev.id);
+              }
+            }}
             title={ev.label}
             style={{
               display: "flex",
@@ -154,6 +277,7 @@ function HorizontalStrip({
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 }
@@ -2153,6 +2277,8 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                         : ev.event_type.toUpperCase(),
                       approved: !!ev.approved_narrative,
                       isKey: ev.is_key_event,
+                      narrative: ev.approved_narrative ?? ev.auto_narrative ?? null,
+                      subject: ev.subject ?? null,
                     }))}
                   onClickEvent={scrollToEvent}
                 />

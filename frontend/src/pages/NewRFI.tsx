@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useDarkMode } from "../hooks/useDarkMode";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
@@ -30,7 +29,6 @@ const DAY_TYPES = [
 export default function NewRFI() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const dark = useDarkMode();
   const { lang, toggle: toggleLang, t } = useLanguage();
   const auth = getAuth();
   const location = useLocation();
@@ -75,12 +73,12 @@ export default function NewRFI() {
     response_due_day_type: "",
   });
 
-  const bg = dark ? "#1F2228" : "#F5F2ED";
-  const cardBg = dark ? "#2E3340" : "#E7E3DC";
-  const border = dark ? "#3D4456" : "#E7E3DC";
-  const textPrimary = dark ? "#E8E6E0" : "#1C1917";
-  const textSecondary = dark ? "#C4B49C" : "#44403C";
-  const alertRed = dark ? "#E07060" : "#A93226";
+  const bg            = "var(--color-bg-primary)";
+  const cardBg        = "var(--color-bg-secondary)";
+  const border        = "var(--color-border-light)";
+  const textPrimary   = "var(--color-text-primary)";
+  const textSecondary = "var(--color-text-secondary)";
+  const alertRed      = "var(--color-alert-red)";
 
   const inputStyle = {
     width: "100%",
@@ -166,7 +164,7 @@ export default function NewRFI() {
   return (
     <div style={{ minHeight: "100vh", backgroundColor: bg }}>
       {/* Nav */}
-      <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${dark ? "#3D4456" : "#E7E3DC"}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
           <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${"var(--color-accent)"} 20%, ${"var(--color-accent)"} 80%, transparent)` }} />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
@@ -185,7 +183,7 @@ export default function NewRFI() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
         </div>
@@ -386,7 +384,7 @@ export default function NewRFI() {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              style={{ backgroundColor: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
+              style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
             >
               {loading ? (lang === "tr" ? "Kaydediliyor..." : "Saving...") : (lang === "tr" ? "Kaydet" : "Save")}
             </button>

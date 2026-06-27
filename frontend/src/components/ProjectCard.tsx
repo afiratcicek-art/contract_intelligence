@@ -1,7 +1,6 @@
 import { useProjectHealth } from "../hooks/useProjects";
 import type { Project } from "../hooks/useProjects";
 import { useNavigate } from "react-router-dom";
-import { useDarkMode } from "../hooks/useDarkMode";
 
 interface Props {
   project: Project;
@@ -16,21 +15,20 @@ function HealthBadge({
   label: string;
   urgency: "red" | "amber" | "normal";
 }) {
-  const dark = useDarkMode();
   const colors = {
-    red:    { bg: dark ? "#3D1A1A" : "#F5E6E4", text: dark ? "#E07060" : "#A93226" },
-    amber:  { bg: dark ? "#3D2E0A" : "#FEF3C7", text: dark ? "#D4956A" : "#92400E" },
-    normal: { bg: dark ? "#2E3340" : "#E7E3DC",  text: dark ? "#C4B49C" : "#44403C" },
+    red:    { bg: "var(--color-alert-red-bg)",  text: "var(--color-alert-red)" },
+    amber:  { bg: "var(--color-warning-bg)",    text: "var(--color-warning)" },
+    normal: { bg: "var(--color-bg-secondary)",  text: "var(--color-text-secondary)" },
   };
   const c = colors[urgency];
   return (
     <div
-      className="flex flex-col items-center px-3 py-2 rounded"
+      className="flex flex-col items-center px-3 py-2"
       style={{ backgroundColor: c.bg }}
     >
       <span
-        className="text-lg font-semibold"
-        style={{ color: c.text, fontFamily: "JetBrains Mono, monospace" }}
+        className="text-lg"
+        style={{ color: c.text, fontFamily: "JetBrains Mono, monospace", fontWeight: 500 }}
       >
         {count}
       </span>
@@ -44,7 +42,6 @@ function HealthBadge({
 export default function ProjectCard({ project }: Props) {
   const navigate = useNavigate();
   const health = useProjectHealth(project.id);
-  const dark = useDarkMode();
 
   const contractTypeLabel: Record<string, string> = {
     lump_sum: "Lump Sum",
@@ -68,8 +65,8 @@ export default function ProjectCard({ project }: Props) {
         (e.currentTarget as HTMLElement).style.boxShadow = "none";
       }}
       style={{
-        backgroundColor: dark ? "#2E3340" : "#E7E3DC",
-        borderLeft: "3px solid #6B5D3F",
+        backgroundColor: "var(--color-bg-secondary)",
+        borderLeft: "3px solid var(--color-accent)",
         padding: "1.25rem 1.5rem",
       }}
       onClick={() => navigate(`/projects/${project.id}`)}
@@ -81,25 +78,24 @@ export default function ProjectCard({ project }: Props) {
             className="text-base font-semibold leading-snug"
             style={{
               fontFamily: "Playfair Display, Georgia, serif",
-              color: dark ? "#E8E6E0" : "#1C1917",
+              color: "var(--color-text-primary)",
             }}
           >
             {project.name}
           </h2>
-          <p className="text-xs mt-0.5" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
+          <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
             {project.employer_name} — {project.contractor_name}
           </p>
         </div>
         <span
-          className="text-xs px-2 py-0.5 rounded-full ml-4 shrink-0"
+          className="text-xs px-2 py-0.5 ml-4 shrink-0"
           style={{
-            backgroundColor:
-              project.status === "active"
-                ? (dark ? "#2E3340" : "#E7E3DC")
-                : (dark ? "#3D1A1A" : "#F5E6E4"),
+            backgroundColor: project.status === "active"
+              ? "var(--color-bg-secondary)"
+              : "var(--color-alert-red-bg)",
             color: project.status === "active"
-              ? (dark ? "#4DB88A" : "#1F6B4E")
-              : (dark ? "#E07060" : "#A93226"),
+              ? "var(--color-success)"
+              : "var(--color-alert-red)",
           }}
         >
           {project.status}
@@ -109,7 +105,7 @@ export default function ProjectCard({ project }: Props) {
       {/* Orta — contract info */}
       <div className="flex gap-4 mb-4">
         {project.contract_type && (
-          <span className="text-xs" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
+          <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
             {contractTypeLabel[project.contract_type] ?? project.contract_type}
           </span>
         )}
@@ -117,7 +113,7 @@ export default function ProjectCard({ project }: Props) {
           <span
             className="text-xs"
             style={{
-              color: dark ? "#C4B49C" : "#44403C",
+              color: "var(--color-text-secondary)",
               fontFamily: "JetBrains Mono, monospace",
             }}
           >
@@ -129,7 +125,7 @@ export default function ProjectCard({ project }: Props) {
 
       {/* Alt — health indicators */}
       {health.loading ? (
-        <div className="text-xs" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
+        <div className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
           Loading...
         </div>
       ) : (

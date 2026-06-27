@@ -18,13 +18,13 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div
           className="min-h-screen flex flex-col items-center justify-center gap-4"
-          style={{ backgroundColor: "#F5F2ED" }}
+          style={{ backgroundColor: "var(--color-bg-primary)" }}
         >
           <p
             style={{
               fontFamily: "Playfair Display, Georgia, serif",
               fontSize: "18px",
-              color: "#1C1917",
+              color: "var(--color-text-primary)",
             }}
           >
             Bir şeyler ters gitti.
@@ -32,8 +32,8 @@ export default class ErrorBoundary extends Component<Props, State> {
           <button
             onClick={() => window.location.reload()}
             style={{
-              backgroundColor: "#6B5D3F",
-              color: "#F5F2ED",
+              backgroundColor: "var(--color-accent)",
+              color: "var(--color-bg-primary)",
               border: "none",
               padding: "10px 24px",
               fontSize: "14px",

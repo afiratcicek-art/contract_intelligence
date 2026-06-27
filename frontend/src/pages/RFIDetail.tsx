@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDarkMode } from "../hooks/useDarkMode";
 import { api } from "../services/api";
 import { getAuth, clearAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
@@ -72,7 +71,6 @@ const RFI_TYPE_LABELS: Record<string, { en: string; tr: string }> = {
 export default function RFIDetail() {
   const { projectId, rfiId } = useParams<{ projectId: string; rfiId: string }>();
   const navigate = useNavigate();
-  const dark = useDarkMode();
   const auth = getAuth();
   const { lang, toggle: toggleLang, t } = useLanguage();
 
@@ -99,16 +97,20 @@ export default function RFIDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const bg          = dark ? "#1F2228" : "#F5F2ED";
-  const cardBg      = dark ? "#2E3340" : "#E7E3DC";
-  const border      = dark ? "#3D4456" : "#E7E3DC";
-  const textPrimary = dark ? "#E8E6E0" : "#1C1917";
-  const textSecond  = dark ? "#C4B49C" : "#44403C";
-  const alertRed    = dark ? "#E07060" : "#A93226";
+  const bg          = "var(--color-bg-primary)";
+  const cardBg      = "var(--color-bg-secondary)";
+  const border      = "var(--color-border-light)";
+  const textPrimary = "var(--color-text-primary)";
+  const textSecond  = "var(--color-text-secondary)";
+  const alertRed    = "var(--color-alert-red)";
 
-  const STATUS_COLORS = dark
-    ? { open: { bg: "#3D2E0A", text: "#D4956A" }, overdue: { bg: "#3D1A1A", text: "#E07060" }, closed: { bg: "#0F2D1A", text: "#4DB88A" }, responded: { bg: "#0F2D1A", text: "#4DB88A" }, draft: { bg: "#2E3340", text: "#C4B49C" } }
-    : { open: { bg: "#FEF3C7", text: "#92400E" }, overdue: { bg: "#F5E6E4", text: "#A93226" }, closed: { bg: "#E6F4EE", text: "#1F6B4E" }, responded: { bg: "#E6F4EE", text: "#1F6B4E" }, draft: { bg: "#E7E3DC", text: "#44403C" } };
+  const STATUS_COLORS = {
+    open:      { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
+    overdue:   { bg: "var(--color-alert-red-bg)", text: "var(--color-alert-red)" },
+    closed:    { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
+    responded: { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
+    draft:     { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" },
+  };
 
   useEffect(() => {
     if (!projectId) return;
@@ -142,17 +144,17 @@ export default function RFIDetail() {
   const handleLogout = () => { clearAuth(); navigate("/login"); };
 
   const statusPill = (status: string) => {
-    const c = STATUS_COLORS[status as keyof typeof STATUS_COLORS] ?? (dark ? { bg: "#2E3340", text: "#C4B49C" } : { bg: "#E7E3DC", text: "#44403C" });
+    const c = STATUS_COLORS[status as keyof typeof STATUS_COLORS] ?? { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" };
     return <span style={{ background: c.bg, color: c.text, fontSize: 10, fontWeight: 500, padding: "2px 8px", textTransform: "uppercase" as const, letterSpacing: "0.05em", whiteSpace: "nowrap" as const }}>{status.replace("_", " ")}</span>;
   };
 
   const typeBadge = (rfiType: string) => {
     const label = RFI_TYPE_LABELS[rfiType]?.[lang as "en" | "tr"] ?? rfiType;
     const colors = rfiType === "original"
-      ? { bg: dark ? "#2E3340" : "#E7E3DC", text: textSecond }
+      ? { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" }
       : rfiType === "response"
-      ? { bg: dark ? "#0F2D1A" : "#E6F4EE", text: dark ? "#4DB88A" : "#1F6B4E" }
-      : { bg: dark ? "#1F2A3A" : "#E8F0FE", text: dark ? "#7BA7D4" : "#1A56A4" };
+      ? { bg: "var(--color-success-bg)", text: "var(--color-success)" }
+      : { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" };
     return <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.05em", padding: "2px 8px", backgroundColor: colors.bg, color: colors.text }}>{label}</span>;
   };
 
@@ -183,16 +185,16 @@ export default function RFIDetail() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
           <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${"var(--color-accent)"} 20%, ${"var(--color-accent)"} 80%, transparent)` }} />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=rfis`)}>{t("module.rfis")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "JetBrains Mono, monospace", fontSize: 11 }}>{rfi.rfi_number}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>{lang === "en" ? "TR" : "EN"}</button>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>{lang === "en" ? "TR" : "EN"}</button>
           <ThemeToggle />
           <button onClick={handleLogout} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: textSecond }}>{t("nav.signout")}</button>
         </div>
@@ -227,7 +229,7 @@ export default function RFIDetail() {
           </div>
           <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 8, flexShrink: 0, marginLeft: 24 }}>
             {rfi.rfi_type === "response"
-              ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: dark ? "#0F2D1A" : "#E6F4EE", color: dark ? "#4DB88A" : "#1F6B4E", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+              ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
               : statusPill(rfi.status)}
             {deadline && deadline.days_remaining !== null && (
               <div style={{ fontSize: 11, color: deadline.urgency === "CRITICAL" || deadline.urgency === "WARNING" ? alertRed : textSecond, fontFamily: "Inter, sans-serif", fontWeight: deadline.urgency !== "NORMAL" ? 500 : 400 }}>
@@ -236,13 +238,13 @@ export default function RFIDetail() {
             )}
             <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
               <button onClick={() => navigate(`/projects/${projectId}/workspace/rfis/new?mode=response&parent_id=${rfi.id}&parent_number=${rfi.rfi_number}`)}
-                style={{ backgroundColor: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}>
+                style={{ backgroundColor: "var(--color-accent)", color: "#F5F2ED", border: "none", padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}>
                 {lang === "tr" ? "↩ Yanıt Ekle" : "↩ Add Response"}
               </button>
               {rfi.rfi_type === "response" && (
                 <button
                   onClick={() => setFlagOpen(true)}
-                  style={{ backgroundColor: "transparent", color: dark ? "#D4956A" : "#92400E", border: `1px solid ${dark ? "#D4956A" : "#92400E"}`, padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}>
+                  style={{ backgroundColor: "transparent", color: "var(--color-warning)", border: "1px solid var(--color-warning)", padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}>
                   ⚠ {lang === "tr" ? "Potansiyel Etki" : "Potential Impact"}
                 </button>
               )}
@@ -256,7 +258,7 @@ export default function RFIDetail() {
 
         {/* Deadline banner */}
         {deadline && deadline.deadline && deadline.days_remaining !== null && deadline.days_remaining <= 3 && (
-          <div style={{ backgroundColor: dark ? "#3D1A1A" : "#F5E6E4", border: `0.5px solid ${alertRed}`, padding: "10px 16px", marginBottom: 24, display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ backgroundColor: "var(--color-alert-red-bg)", border: `0.5px solid ${alertRed}`, padding: "10px 16px", marginBottom: 24, display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 12, color: alertRed, fontWeight: 500, fontFamily: "Inter, sans-serif" }}>
               {deadline.days_remaining < 0 ? "OVERDUE" : (lang === "tr" ? "SON TARİH YAKLAŞIYOR" : "DEADLINE APPROACHING")}
             </span>
@@ -305,7 +307,7 @@ export default function RFIDetail() {
                 </div>
                 {chain.children.map((child) => (
                   <div key={child.id} onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${child.id}`)}
-                    style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer", background: dark ? "#1F2228" : "#F5F2ED", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer", background: "var(--color-bg-primary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                         <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--color-accent)" }}>{child.rfi_number}</span>
@@ -326,7 +328,7 @@ export default function RFIDetail() {
                 </div>
                 {rfi.linked_correspondences.map((c) => (
                   <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${c.id}`)}
-                    style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer", background: dark ? "#1F2228" : "#F5F2ED" }}>
+                    style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer", background: "var(--color-bg-primary)" }}>
                     <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecond }}>{c.corr_number}</div>
                     <div style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{c.subject}</div>
                     <div style={{ fontSize: 10, color: textSecond, marginTop: 2 }}>{c.correspondence_date?.slice(0, 10)}</div>
@@ -371,7 +373,7 @@ export default function RFIDetail() {
                   onChange={(e) => setFlagForm({ ...flagForm, narrative: e.target.value })}
                   rows={4}
                   placeholder={lang === "tr" ? "Potansiyel etkiyi açıklayın..." : "Describe the potential impact..."}
-                  style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: dark ? "#1F2228" : "#F5F2ED", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif", resize: "vertical" as const, boxSizing: "border-box" as const }}
+                  style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif", resize: "vertical" as const, boxSizing: "border-box" as const }}
                 />
               </div>
 
@@ -383,7 +385,7 @@ export default function RFIDetail() {
                   <select
                     value={flagForm.notice_config_id}
                     onChange={(e) => setFlagForm({ ...flagForm, notice_config_id: e.target.value })}
-                    style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: dark ? "#1F2228" : "#F5F2ED", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
+                    style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
                   >
                     <option value="">{lang === "tr" ? "— Seçiniz —" : "— Select —"}</option>
                     {noticeConfigs.map((c) => (
@@ -398,7 +400,7 @@ export default function RFIDetail() {
                   <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                     {lang === "tr" ? "İlgili Belgeler (Opsiyonel)" : "Related Documents (Optional)"}
                   </label>
-                  <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: dark ? "#1F2228" : "#F5F2ED" }}>
+                  <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: "var(--color-bg-primary)" }}>
                     {docs.map((d) => (
                       <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
                         <input
@@ -438,7 +440,7 @@ export default function RFIDetail() {
                 <select
                   value={flagForm.assigned_to_user}
                   onChange={(e) => setFlagForm({ ...flagForm, assigned_to_user: e.target.value })}
-                  style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: dark ? "#1F2228" : "#F5F2ED", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
+                  style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
                 >
                   <option value="">{lang === "tr" ? "— Tüm Ekip —" : "— Entire Team —"}</option>
                   {members.map((m) => (
@@ -487,7 +489,7 @@ export default function RFIDetail() {
                       setFlagSubmitting(false);
                     }
                   }}
-                  style={{ backgroundColor: flagForm.narrative.trim() ? "var(--color-accent)" : (dark ? "#3D4456" : "#D4CFC8"), color: flagForm.narrative.trim() ? (dark ? "#E8E6E0" : "#F5F2ED") : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "Inter, sans-serif", opacity: flagSubmitting ? 0.6 : 1 }}
+                  style={{ backgroundColor: flagForm.narrative.trim() ? "var(--color-accent)" : "var(--color-border-medium)", color: flagForm.narrative.trim() ? "#F5F2ED" : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "Inter, sans-serif", opacity: flagSubmitting ? 0.6 : 1 }}
                 >
                   {flagSubmitting
                     ? (lang === "tr" ? "Gönderiliyor…" : "Submitting…")

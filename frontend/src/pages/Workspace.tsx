@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useDarkMode } from "../hooks/useDarkMode";
 import { api } from "../services/api";
 import ThemeToggle from "../components/ThemeToggle";
 import { getAuth, clearAuth } from "../store/auth";
@@ -24,20 +23,17 @@ const MODULE_LABELS: Record<Module, string> = {
 };
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  open: { bg: "#FEF3C7", text: "#92400E" }, draft: { bg: "#E7E3DC", text: "#44403C" },
-  overdue: { bg: "#F5E6E4", text: "#A93226" }, closed: { bg: "#E6F4EE", text: "#1F6B4E" },
-  approved: { bg: "#E6F4EE", text: "#1F6B4E" }, rejected: { bg: "#F5E6E4", text: "#A93226" },
-  published: { bg: "#E6F4EE", text: "#1F6B4E" }, under_review: { bg: "#FEF3C7", text: "#92400E" },
-  pending: { bg: "#FEF3C7", text: "#92400E" }, in_progress: { bg: "#E6F4EE", text: "#1F6B4E" },
-  responded: { bg: "#E6F4EE", text: "#1F6B4E" },
-};
-const STATUS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
-  open: { bg: "#3D2E0A", text: "#D4956A" }, draft: { bg: "#2E3340", text: "#C4B49C" },
-  overdue: { bg: "#3D1A1A", text: "#E07060" }, closed: { bg: "#0F2D1A", text: "#4DB88A" },
-  approved: { bg: "#0F2D1A", text: "#4DB88A" }, rejected: { bg: "#3D1A1A", text: "#E07060" },
-  published: { bg: "#0F2D1A", text: "#4DB88A" }, under_review: { bg: "#3D2E0A", text: "#D4956A" },
-  pending: { bg: "#3D2E0A", text: "#D4956A" }, in_progress: { bg: "#0F2D1A", text: "#4DB88A" },
-  responded: { bg: "#0F2D1A", text: "#4DB88A" },
+  open:         { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
+  draft:        { bg: "var(--color-bg-secondary)",  text: "var(--color-text-secondary)" },
+  overdue:      { bg: "var(--color-alert-red-bg)",  text: "var(--color-alert-red)" },
+  closed:       { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
+  approved:     { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
+  rejected:     { bg: "var(--color-alert-red-bg)",  text: "var(--color-alert-red)" },
+  published:    { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
+  under_review: { bg: "var(--color-warning-bg)",    text: "var(--color-warning)" },
+  pending:      { bg: "var(--color-warning-bg)",    text: "var(--color-warning)" },
+  in_progress:  { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
+  responded:    { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
 };
 
 const dateInRange = (dateStr: string | null | undefined, from: string, to: string): boolean => {
@@ -51,7 +47,6 @@ const dateInRange = (dateStr: string | null | undefined, from: string, to: strin
 export default function Workspace() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const dark = useDarkMode();
   const auth = getAuth();
   const { lang, toggle: toggleLang, t } = useLanguage();
   const location = useLocation();
@@ -121,11 +116,11 @@ export default function Workspace() {
   const [delivDateFrom, setDelivDateFrom] = useState("");
   const [delivDateTo, setDelivDateTo] = useState("");
 
-  const bg = dark ? "#1F2228" : "#F5F2ED";
-  const cardBg = dark ? "#2E3340" : "#E7E3DC";
-  const border = dark ? "#3D4456" : "#E7E3DC";
-  const textPrimary = dark ? "#E8E6E0" : "#1C1917";
-  const textSecondary = dark ? "#C4B49C" : "#44403C";
+  const bg          = "var(--color-bg-primary)";
+  const cardBg      = "var(--color-bg-secondary)";
+  const border      = "var(--color-border-light)";
+  const textPrimary = "var(--color-text-primary)";
+  const textSecondary = "var(--color-text-secondary)";
 
   const inputStyle: React.CSSProperties = {
     background: cardBg, border: `0.5px solid ${border}`, color: textPrimary,
@@ -203,13 +198,12 @@ export default function Workspace() {
   const handleLogout = () => { clearAuth(); navigate("/login"); };
 
   const statusPill = (status: string) => {
-    const colors = dark ? STATUS_COLORS_DARK : STATUS_COLORS;
-    const c = colors[status] ?? (dark ? { bg: "#2E3340", text: "#C4B49C" } : { bg: "#E7E3DC", text: "#44403C" });
+    const c = STATUS_COLORS[status] ?? { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" };
     return <span style={{ background: c.bg, color: c.text, fontSize: 10, fontWeight: 500, padding: "2px 6px", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{status}</span>;
   };
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
-    <button key={label} onClick={onClick} style={{ padding: "4px 10px", border: `0.5px solid ${active ? "var(--color-accent)" : border}`, fontSize: 11, color: active ? (dark ? "#E8E6E0" : "#F5F2ED") : textSecondary, background: active ? "var(--color-accent)" : cardBg, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+    <button key={label} onClick={onClick} style={{ padding: "4px 10px", border: `0.5px solid ${active ? "var(--color-accent)" : border}`, fontSize: 11, color: active ? "#F5F2ED" : textSecondary, background: active ? "var(--color-accent)" : cardBg, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
       {label}
     </button>
   );
@@ -239,7 +233,7 @@ export default function Workspace() {
   const moduleHeader = (title: string, onNew?: () => void, newLabel?: string) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
       <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>{title}</div>
-      {onNew && <button onClick={onNew} style={{ background: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>{newLabel}</button>}
+      {onNew && <button onClick={onNew} style={{ background: "var(--color-accent)", color: "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>{newLabel}</button>}
     </div>
   );
 
@@ -292,11 +286,11 @@ export default function Workspace() {
     <div style={{ minHeight: "100vh", backgroundColor: bg, display: "flex", flexDirection: "column" }}>
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
-          <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, transparent, #6B5D3F 20%, #6B5D3F 80%, transparent)" }} />
+          <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, transparent, var(--color-accent) 20%, var(--color-accent) 80%, transparent)" }} />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{projectName || t("nav.overview")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ color: textPrimary, fontWeight: 500 }}>{t("nav.workspace")}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecondary }}>
@@ -339,7 +333,7 @@ export default function Workspace() {
               {mod === "alerts" && alertCount > 0 && (
                 <span style={{
                   fontSize: 11, fontWeight: 500,
-                  backgroundColor: dark ? "#E07060" : "#A93226",
+                  backgroundColor: "var(--color-alert-red)",
                   color: "#F5F2ED",
                   borderRadius: 10,
                   padding: "1px 6px",
@@ -366,7 +360,7 @@ export default function Workspace() {
           {activeModule === "general" && (
             <div>
               {moduleHeader(t("general.title"))}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: cardBg, border: `1px solid ${dark ? "#3D4456" : "#C4AD87"}`, padding: "10px 14px", maxWidth: 560, marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: cardBg, border: "1px solid var(--color-border-light)", padding: "10px 14px", maxWidth: 560, marginBottom: 16 }}>
                 <span style={{ color: textSecondary, fontSize: 16 }}>⌕</span>
                 <input value={searchQuery} onChange={(e) => handleSearchDebounced(e.target.value)} placeholder={t("general.placeholder")} style={{ background: "none", border: "none", outline: "none", fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", width: "100%" }} />
                 {searching && <span style={{ fontSize: 11, color: textSecondary }}>{t("general.searching")}</span>}
@@ -407,9 +401,9 @@ export default function Workspace() {
                           display: "flex", alignItems: "center",
                           justifyContent: "space-between",
                           padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
-                          background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
+                          background: isChild ? "var(--color-bg-primary)" : cardBg,
                           marginBottom: 2, cursor: "pointer",
-                          borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "var(--color-accent)"}`,
+                          borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "var(--color-accent)"}`,
                         }}
                       >
                         <div>
@@ -453,9 +447,9 @@ export default function Workspace() {
                           display: "flex", alignItems: "center",
                           justifyContent: "space-between",
                           padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
-                          background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
+                          background: isChild ? "var(--color-bg-primary)" : cardBg,
                           marginBottom: 2, cursor: "pointer",
-                          borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "var(--color-accent)"}`,
+                          borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "var(--color-accent)"}`,
                         }}
                       >
                         <div>
@@ -463,7 +457,7 @@ export default function Workspace() {
                             {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
                             {r.ref}
                             {r.rfi_type && r.rfi_type !== "original" && (
-                              <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#1F2A3A" : "#E8F0FE"), color: r.rfi_type === "response" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#7BA7D4" : "#1A56A4"), textTransform: "uppercase" as const }}>
+                              <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? "var(--color-success-bg)" : "var(--color-bg-secondary)", color: r.rfi_type === "response" ? "var(--color-success)" : "var(--color-text-secondary)", textTransform: "uppercase" as const }}>
                                 {r.rfi_type === "response" ? (lang === "tr" ? "YNT" : "RES") : (lang === "tr" ? "REV" : "REV")}
                               </span>
                             )}
@@ -472,7 +466,7 @@ export default function Workspace() {
                           <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{r.date}</p>
                         </div>
                         {r.rfi_type === "response"
-                          ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: dark ? "#0F2D1A" : "#E6F4EE", color: dark ? "#4DB88A" : "#1F6B4E", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                          ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
                           : statusPill(r.status)}
                       </div>
                       {(rfiSChildMap.get(r.id) ?? []).map(child => renderRfiRow(child, true))}
@@ -513,11 +507,11 @@ export default function Workspace() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
                 <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>Correspondence</div>
                 <div style={{ position: "relative" as const }}>
-                  <button onClick={() => setCorrDropdown(!corrDropdown)} style={{ background: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                  <button onClick={() => setCorrDropdown(!corrDropdown)} style={{ background: "var(--color-accent)", color: "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
                     {t("action.newcorrespondence")} ▾
                   </button>
                   {corrDropdown && (
-                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: 100, backgroundColor: dark ? "#2E3340" : "#F5F2ED", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
+                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: 100, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
                       <button onClick={() => { setCorrDropdown(false); navigate(`/projects/${projectId}/workspace/correspondence/new?mode=new`); }}
                         style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
                         {lang === "tr" ? "Yeni Yazışma" : "New Correspondence"}
@@ -567,12 +561,12 @@ export default function Workspace() {
                         gridTemplateColumns: "90px 1fr 90px 90px 90px 90px",
                         gap: 8,
                         padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
-                        background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
+                        background: isChild ? "var(--color-bg-primary)" : cardBg,
                         marginBottom: 2,
                         cursor: "pointer",
                         borderLeft: isChild
                           ? `2px solid ${"var(--color-accent)"}`
-                          : `2px solid ${c.status === "overdue" ? (dark ? "#E07060" : "#A93226") : c.status === "open" ? "var(--color-accent)" : c.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "transparent"}`,
+                          : `2px solid ${c.status === "overdue" ? "var(--color-alert-red)" : c.status === "open" ? "var(--color-accent)" : c.status === "responded" ? ("var(--color-success)") : "transparent"}`,
                       }}
                     >
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
@@ -586,7 +580,7 @@ export default function Workspace() {
                       </div>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const }}>{c.direction}</span>
                       <span style={{ fontSize: 11, color: textSecondary }}>{c.correspondence_date?.slice(0, 10)}</span>
-                      <span style={{ fontSize: 11, color: c.response_due_date && c.response_due_date < today ? (dark ? "#E07060" : "#A93226") : textSecondary }}>{c.response_due_date?.slice(0, 10) ?? "—"}</span>
+                      <span style={{ fontSize: 11, color: c.response_due_date && c.response_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{c.response_due_date?.slice(0, 10) ?? "—"}</span>
                       {statusPill(c.status)}
                     </div>
                     {/* Children */}
@@ -610,11 +604,11 @@ export default function Workspace() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
                 <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>RFIs</div>
                 <div style={{ position: "relative" as const }}>
-                  <button onClick={() => setRfiDropdown(!rfiDropdown)} style={{ background: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                  <button onClick={() => setRfiDropdown(!rfiDropdown)} style={{ background: "var(--color-accent)", color: "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
                     {t("action.newrfi")} ▾
                   </button>
                   {rfiDropdown && (
-                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: 100, backgroundColor: dark ? "#2E3340" : "#F5F2ED", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
+                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: 100, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
                       <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=new`); }}
                         style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
                         {lang === "tr" ? "Yeni RFI" : "New RFI"}
@@ -667,19 +661,19 @@ export default function Workspace() {
                         gridTemplateColumns: "90px 1fr 100px 90px 90px 80px",
                         gap: 8,
                         padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
-                        background: isChild ? (dark ? "#1F2228" : "#F5F2ED") : cardBg,
+                        background: isChild ? "var(--color-bg-primary)" : cardBg,
                         marginBottom: 2,
                         cursor: "pointer",
                         borderLeft: isChild
                           ? `2px solid ${"var(--color-accent)"}`
-                          : `2px solid ${r.status === "overdue" ? (dark ? "#E07060" : "#A93226") : r.status === "open" ? "var(--color-accent)" : r.status === "responded" ? (dark ? "#4DB88A" : "#1F6B4E") : "transparent"}`,
+                          : `2px solid ${r.status === "overdue" ? "var(--color-alert-red)" : r.status === "open" ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "transparent"}`,
                       }}
                     >
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
                         {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
                         {r.rfi_number}
                         {r.rfi_type && r.rfi_type !== "original" && (
-                          <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#1F2A3A" : "#E8F0FE"), color: r.rfi_type === "response" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#7BA7D4" : "#1A56A4"), textTransform: "uppercase" as const }}>
+                          <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? "var(--color-success-bg)" : "var(--color-bg-secondary)", color: r.rfi_type === "response" ? "var(--color-success)" : "var(--color-text-secondary)", textTransform: "uppercase" as const }}>
                             {r.rfi_type === "response" ? (lang === "tr" ? "YNT" : "RES") : (lang === "tr" ? "REV" : "REV")}
                           </span>
                         )}
@@ -687,9 +681,9 @@ export default function Workspace() {
                       <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500 }}>{r.subject}</p>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const }}>{r.discipline ?? "—"}</span>
                       <span style={{ fontSize: 11, color: textSecondary }}>{r.submitted_date?.slice(0, 10)}</span>
-                      <span style={{ fontSize: 11, color: r.response_due_date && r.response_due_date < today ? (dark ? "#E07060" : "#A93226") : textSecondary }}>{r.response_due_date?.slice(0, 10) ?? "—"}</span>
+                      <span style={{ fontSize: 11, color: r.response_due_date && r.response_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{r.response_due_date?.slice(0, 10) ?? "—"}</span>
                       {r.rfi_type === "response"
-                        ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: dark ? "#0F2D1A" : "#E6F4EE", color: dark ? "#4DB88A" : "#1F6B4E", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                        ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
                         : statusPill(r.status)}
                     </div>
                     {(rfiChildMap.get(r.id) ?? []).map(child => rfiRow(child, true))}
@@ -755,7 +749,7 @@ export default function Workspace() {
                     <div key={d.id} onClick={() => navigate(`/projects/${projectId}/workspace/deliverables/${d.id}`)} style={{ display: "grid", gridTemplateColumns: "1fr 100px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${d.status === "in_progress" ? "var(--color-accent)" : "transparent"}` }}>
                       <div><p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{d.title}</p>{d.is_pre_completion && <span style={{ fontSize: 11, color: "var(--color-accent)" }}>{t("state.precompletion")}</span>}</div>
                       <span style={{ fontSize: 11, color: textSecondary }}>{d.category ?? "—"}</span>
-                      <span style={{ fontSize: 11, color: d.due_date && d.due_date < today ? (dark ? "#E07060" : "#A93226") : textSecondary }}>{d.due_date ?? "—"}</span>
+                      <span style={{ fontSize: 11, color: d.due_date && d.due_date < today ? "var(--color-alert-red)" : textSecondary }}>{d.due_date ?? "—"}</span>
                       {statusPill(d.status)}
                     </div>
                   ))}

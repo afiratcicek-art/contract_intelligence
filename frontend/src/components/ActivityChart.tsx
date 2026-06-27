@@ -76,8 +76,8 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
           <YAxis hide />
           <Tooltip
             contentStyle={{
-              backgroundColor: dark ? "#2E3340" : "#F5F2ED",
-              border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`,
+              backgroundColor: "var(--color-bg-primary)",
+              border: "1px solid var(--color-border-light)",
               borderRadius: 0,
               fontSize: 11,
               fontFamily: "Inter, sans-serif",
@@ -99,7 +99,7 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
           )}
           <ReferenceLine
             x={today}
-            stroke="#A93226"
+            stroke={dark ? "#E07060" : "#A93226"}
             strokeWidth={1.5}
           />
           <Bar dataKey="correspondence" name="Correspondence" stackId="a" fill={c.correspondence} radius={[0,0,0,0]} />
@@ -112,14 +112,14 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
         {Object.entries(c).map(([key, color]) => (
           <div key={key} className="flex items-center gap-2">
             <div className="w-3 h-3" style={{ backgroundColor: color }} />
-            <span className="text-xs" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
+            <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
               {key.charAt(0).toUpperCase() + key.slice(1)}
             </span>
           </div>
         ))}
         <div className="flex items-center gap-2">
           <div style={{ width: 2, height: 12, backgroundColor: "#A93226" }} />
-          <span className="text-xs" style={{ color: dark ? "#C4B49C" : "#44403C" }}>Bugün</span>
+          <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Bugün</span>
         </div>
         {hasPrePeriod && (
           <div className="flex items-center gap-2">

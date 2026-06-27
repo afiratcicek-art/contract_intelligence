@@ -15,26 +15,26 @@ interface AlertsModuleProps {
   projectId: string;
 }
 
-const ACCENT = "#A0714A";
+const ACCENT = "var(--color-accent)";
 
 const PRIORITY_BORDER: Record<string, string> = {
-  critical: "#C0392B",
-  high: "#E07060",
-  normal: "#A0714A",
+  critical: "var(--color-priority-critical)",
+  high:     "var(--color-priority-high)",
+  normal:   "var(--color-priority-normal)",
 };
 
 const PRIORITY_BADGE: Record<string, { bg: string; color: string }> = {
   critical: {
     bg: "var(--color-background-danger)",
-    color: "#C0392B",
+    color: "var(--color-priority-critical)",
   },
   high: {
     bg: "var(--color-background-warning)",
-    color: "#92400E",
+    color: "var(--color-warning)",
   },
   normal: {
     bg: "var(--color-background-tertiary)",
-    color: "#6B5D3F",
+    color: "var(--color-accent)",
   },
 };
 
@@ -641,7 +641,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                     style={{
                       marginTop: 8,
                       background: ACCENT,
-                      color: "#FFFFFF",
+                      color: "#F5F2ED",
                       padding: "6px 12px",
                       border: "none",
                       borderRadius: 0,
@@ -666,7 +666,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                                 ? "var(--color-accent)"
                                 : "var(--color-bg-secondary)",
                               color: actionType === type
-                                ? "#FFFFFF"
+                                ? "#F5F2ED"
                                 : "var(--color-text-primary)",
                               border: actionType === type
                                 ? "0.5px solid var(--color-accent)"
@@ -753,7 +753,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                           disabled={submitting}
                           style={{
                             background: ACCENT,
-                            color: "#FFFFFF",
+                            color: "#F5F2ED",
                             padding: "6px 14px",
                             border: "none",
                             borderRadius: 0,

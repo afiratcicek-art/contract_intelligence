@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { login } from "../services/api";
 import { saveAuth } from "../store/auth";
 import Button from "../components/Button";
-import { useDarkMode } from "../hooks/useDarkMode";
 import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
 
@@ -14,7 +13,6 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const dark = useDarkMode();
   const { lang, toggle: toggleLang, t } = useLanguage();
 
   useEffect(() => {
@@ -51,12 +49,12 @@ export default function Login() {
   return (
     <div
       className="min-h-screen flex"
-      style={{ backgroundColor: dark ? "#1F2228" : "#F5F2ED" }}
+      style={{ backgroundColor: "var(--color-bg-primary)" }}
     >
       {/* Sol panel — marka */}
       <div
         className="hidden lg:flex flex-col justify-between w-2/5 p-12"
-        style={{ backgroundColor: dark ? "#2E3340" : "#E7E3DC" }}
+        style={{ backgroundColor: "var(--color-bg-secondary)" }}
       >
         {/* Üst — logo ve imza çizgisi */}
         <div className="flex items-start gap-6">
@@ -66,19 +64,19 @@ export default function Login() {
               width: "2px",
               height: "72px",
               background:
-                "linear-gradient(to bottom, transparent 0%, #6B5D3F 20%, #6B5D3F 80%, transparent 100%)",
+                "linear-gradient(to bottom, transparent 0%, var(--color-accent) 20%, var(--color-accent) 80%, transparent 100%)",
             }}
           />
           <div>
             <h1
-              className="text-3xl font-semibold tracking-tight"
-              style={{ fontFamily: "Playfair Display, Georgia, serif", color: dark ? "#E8E6E0" : "#1C1917" }}
+              className="text-3xl tracking-tight"
+              style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}
             >
               ClauseIQ
             </h1>
             <p
               className="mt-1 text-sm"
-              style={{ color: dark ? "#C4B49C" : "#44403C", fontFamily: "Inter, sans-serif" }}
+              style={{ color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}
             >
               Contract & Operational Intelligence
             </p>
@@ -89,13 +87,13 @@ export default function Login() {
         <div>
           <p
             className="text-xs uppercase tracking-widest mb-3"
-            style={{ color: dark ? "#C4B49C" : "#44403C", fontFamily: "Inter, sans-serif" }}
+            style={{ color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}
           >
             Precision. Compliance. Control.
           </p>
           <p
             className="text-sm leading-relaxed"
-            style={{ color: dark ? "#C4B49C" : "#44403C", fontFamily: "Inter, sans-serif" }}
+            style={{ color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}
           >
             Every notice, every deadline, every correspondence —
             managed with contractual precision.
@@ -106,7 +104,7 @@ export default function Login() {
       {/* Sağ panel — form */}
       <div className="relative flex flex-1 items-center justify-center px-8">
         <div className="absolute top-4 right-4 flex items-center gap-2">
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: dark ? "#C4B49C" : "#44403C", padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -119,24 +117,24 @@ export default function Login() {
                 width: "2px",
                 height: "48px",
                 background:
-                  "linear-gradient(to bottom, transparent 0%, #6B5D3F 20%, #6B5D3F 80%, transparent 100%)",
+                  "linear-gradient(to bottom, transparent 0%, var(--color-accent) 20%, var(--color-accent) 80%, transparent 100%)",
               }}
             />
             <h1
-              className="text-2xl font-semibold"
-              style={{ fontFamily: "Playfair Display, Georgia, serif", color: dark ? "#E8E6E0" : "#1C1917" }}
+              className="text-2xl"
+              style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}
             >
               ClauseIQ
             </h1>
           </div>
 
           <h2
-            className="text-xl font-semibold mb-1"
-            style={{ fontFamily: "Playfair Display, Georgia, serif", color: dark ? "#E8E6E0" : "#1C1917" }}
+            className="text-xl mb-1"
+            style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}
           >
             {t("login.title")}
           </h2>
-          <p className="text-sm mb-8" style={{ color: dark ? "#C4B49C" : "#44403C" }}>
+          <p className="text-sm mb-8" style={{ color: "var(--color-text-secondary)" }}>
             {t("login.subtitle")}
           </p>
 
@@ -146,7 +144,7 @@ export default function Login() {
               <label
                 htmlFor="email"
                 className="block text-xs font-medium mb-1 uppercase tracking-wide"
-                style={{ color: dark ? "#C4B49C" : "#44403C" }}
+                style={{ color: "var(--color-text-secondary)" }}
               >
                 {t("login.email")}
               </label>
@@ -159,13 +157,13 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-4 text-sm outline-none transition-colors"
                 style={{
-                  backgroundColor: dark ? "#2E3340" : "#E7E3DC",
-                  border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`,
-                  color: dark ? "#E8E6E0" : "#1C1917",
+                  backgroundColor: "var(--color-bg-secondary)",
+                  border: "1px solid var(--color-border-light)",
+                  color: "var(--color-text-primary)",
                   fontFamily: "Inter, sans-serif",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = "#6B5D3F")}
-                onBlur={(e) => (e.target.style.borderColor = dark ? "#3D4456" : "#E7E3DC")}
+                onFocus={(e) => (e.target.style.borderColor = "var(--color-accent)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--color-border-light)")}
               />
             </div>
 
@@ -174,7 +172,7 @@ export default function Login() {
               <label
                 htmlFor="password"
                 className="block text-xs font-medium mb-1 uppercase tracking-wide"
-                style={{ color: dark ? "#C4B49C" : "#44403C" }}
+                style={{ color: "var(--color-text-secondary)" }}
               >
                 {t("login.password")}
               </label>
@@ -187,13 +185,13 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-4 text-sm outline-none transition-colors"
                 style={{
-                  backgroundColor: dark ? "#2E3340" : "#E7E3DC",
-                  border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`,
-                  color: dark ? "#E8E6E0" : "#1C1917",
+                  backgroundColor: "var(--color-bg-secondary)",
+                  border: "1px solid var(--color-border-light)",
+                  color: "var(--color-text-primary)",
                   fontFamily: "Inter, sans-serif",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = "#6B5D3F")}
-                onBlur={(e) => (e.target.style.borderColor = dark ? "#3D4456" : "#E7E3DC")}
+                onFocus={(e) => (e.target.style.borderColor = "var(--color-accent)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--color-border-light)")}
               />
             </div>
 
@@ -206,19 +204,19 @@ export default function Login() {
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 cursor-pointer accent-gold"
-                style={{ accentColor: "#6B5D3F" }}
+                style={{ accentColor: "var(--color-accent)" }}
               />
               <label
                 htmlFor="rememberMe"
                 className="text-xs cursor-pointer select-none"
-                style={{ color: dark ? "#C4B49C" : "#44403C" }}
+                style={{ color: "var(--color-text-secondary)" }}
               >
                 {t("login.remember")}
               </label>
             </div>
 
             {error && (
-              <p className="text-sm" style={{ color: dark ? "#E07060" : "#A93226" }}>
+              <p className="text-sm" style={{ color: "var(--color-alert-red)" }}>
                 {error}
               </p>
             )}

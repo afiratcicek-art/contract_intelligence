@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDarkMode } from "../hooks/useDarkMode";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
@@ -56,7 +55,6 @@ interface Document {
 export default function CorrespondenceDetail() {
   const { projectId, corrId } = useParams<{ projectId: string; corrId: string }>();
   const navigate = useNavigate();
-  const dark = useDarkMode();
   const auth = getAuth();
   const { lang, toggle: toggleLang, t } = useLanguage();
 
@@ -114,14 +112,14 @@ export default function CorrespondenceDetail() {
     return () => clearInterval(interval);
   }, [docs, projectId, corrId]);
 
-  const bg          = dark ? "#1F2228" : "#F5F2ED";
-  const cardBg      = dark ? "#2E3340" : "#E7E3DC";
-  const border      = dark ? "#3D4456" : "#E7E3DC";
-  const textPrimary = dark ? "#E8E6E0" : "#1C1917";
-  const textSecond  = dark ? "#C4B49C" : "#44403C";
-  const alertRed    = dark ? "#E07060" : "#A93226";
-  const warnBg      = dark ? "#3D2E0A" : "#FEF9E7";
-  const warnBorder  = dark ? "#D4956A" : "#92400E";
+  const bg          = "var(--color-bg-primary)";
+  const cardBg      = "var(--color-bg-secondary)";
+  const border      = "var(--color-border-light)";
+  const textPrimary = "var(--color-text-primary)";
+  const textSecond  = "var(--color-text-secondary)";
+  const alertRed    = "var(--color-alert-red)";
+  const warnBg      = "var(--color-warning-bg)";
+  const warnBorder  = "var(--color-warning)";
 
   useEffect(() => {
     if (!projectId || !corrId) return;
@@ -154,17 +152,17 @@ export default function CorrespondenceDetail() {
   };
 
   const parseStatusColor = (status: string) => {
-    if (status === "completed") return dark ? "#4DB88A" : "#1F6B4E";
-    if (status === "failed") return dark ? "#E07060" : "#A93226";
-    return textSecond;
+    if (status === "completed") return "var(--color-success)";
+    if (status === "failed") return "var(--color-alert-red)";
+    return "var(--color-text-secondary)";
   };
 
   const directionPill = (direction: string) => (
     <span style={{
       fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const,
       letterSpacing: "0.04em", padding: "2px 8px",
-      backgroundColor: direction === "incoming" ? (dark ? "#0F2D1A" : "#E6F4EE") : (dark ? "#3D2E0A" : "#FEF3C7"),
-      color: direction === "incoming" ? (dark ? "#4DB88A" : "#1F6B4E") : (dark ? "#D4956A" : "#92400E"),
+      backgroundColor: direction === "incoming" ? "var(--color-success-bg)" : "var(--color-warning-bg)",
+      color: direction === "incoming" ? "var(--color-success)" : "var(--color-warning)",
     }}>
       {direction === "incoming" ? "← Incoming" : "Outgoing →"}
     </span>
@@ -199,18 +197,18 @@ export default function CorrespondenceDetail() {
       {/* Nav */}
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
-          <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, transparent, #6B5D3F 20%, #6B5D3F 80%, transparent)" }} />
+          <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, transparent, var(--color-accent) 20%, var(--color-accent) 80%, transparent)" }} />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}>{t("module.correspondence")}</span>
-          <span style={{ color: "#C4AD87" }}>/</span>
+          <span style={{ color: "var(--color-text-secondary)" }}>/</span>
             <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "JetBrains Mono, monospace", fontSize: 11 }}>{corr.corr_number}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -270,7 +268,7 @@ export default function CorrespondenceDetail() {
               <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.type}</span>
               <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.status}</span>
               {corr.parent_id && (
-                <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: dark ? "#1F2A3A" : "#E8F0FE", color: dark ? "#7BA7D4" : "#1A56A4" }}>
+                <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" }}>
                   🔗 {lang === "tr" ? "Zincirde" : "In Chain"}
                 </span>
               )}
@@ -281,13 +279,13 @@ export default function CorrespondenceDetail() {
           <div style={{ display: "flex", flexDirection: "column" as const, gap: 6, flexShrink: 0, marginLeft: 24 }}>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/new?mode=response&parent_id=${corr.id}&parent_number=${corr.corr_number}`)}
-              style={{ backgroundColor: "var(--color-accent)", color: dark ? "#E8E6E0" : "#F5F2ED", border: "none", padding: "6px 12px", fontSize: 11, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
+              style={{ backgroundColor: "var(--color-accent)", color: "#F5F2ED", border: "none", padding: "6px 12px", fontSize: 11, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
             >
               {lang === "tr" ? "↩ Yanıt Yaz" : "↩ Write Response"}
             </button>
             <button
               onClick={() => setFlagOpen(true)}
-              style={{ backgroundColor: "transparent", color: dark ? "#D4956A" : "#92400E", border: `1px solid ${dark ? "#D4956A" : "#92400E"}`, padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+              style={{ backgroundColor: "transparent", color: "var(--color-warning)", border: "1px solid var(--color-warning)", padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
               ⚠ {lang === "tr" ? "Potansiyel Etki" : "Potential Impact"}
             </button>
             <button
@@ -362,7 +360,7 @@ export default function CorrespondenceDetail() {
                   <p style={{ fontSize: 10, color: textSecond, marginTop: 2 }}>
                     {(doc.file_size_bytes / 1024).toFixed(0)} KB
                     {parseStatusLabel(doc.parse_status, lang) && (
-                      <span style={{ color: "var(--color-alert-red, #A93226)", fontSize: 11, fontFamily: "Inter, sans-serif" }}>
+                      <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif" }}>
                         · {parseStatusLabel(doc.parse_status, lang)}
                       </span>
                     )}
@@ -425,7 +423,7 @@ export default function CorrespondenceDetail() {
                 onChange={(e) => setFlagForm({ ...flagForm, narrative: e.target.value })}
                 rows={4}
                 placeholder={lang === "tr" ? "Potansiyel etkiyi açıklayın..." : "Describe the potential impact..."}
-                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: dark ? "#1F2228" : "#F5F2ED", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif", resize: "vertical" as const, boxSizing: "border-box" as const }}
+                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif", resize: "vertical" as const, boxSizing: "border-box" as const }}
               />
             </div>
 
@@ -437,7 +435,7 @@ export default function CorrespondenceDetail() {
                 <select
                   value={flagForm.notice_config_id}
                   onChange={(e) => setFlagForm({ ...flagForm, notice_config_id: e.target.value })}
-                  style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: dark ? "#1F2228" : "#F5F2ED", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
+                  style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
                 >
                   <option value="">{lang === "tr" ? "— Seçiniz —" : "— Select —"}</option>
                   {noticeConfigs.map((c) => (
@@ -452,7 +450,7 @@ export default function CorrespondenceDetail() {
                 <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                   {lang === "tr" ? "İlgili Belgeler (Opsiyonel)" : "Related Documents (Optional)"}
                 </label>
-                <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: dark ? "#1F2228" : "#F5F2ED" }}>
+                <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: "var(--color-bg-primary)" }}>
                   {docs.map((d) => (
                     <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
                       <input
@@ -467,7 +465,7 @@ export default function CorrespondenceDetail() {
                       />
                       <span style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}>{d.original_filename}</span>
                       {parseStatusLabel(d.parse_status, lang) && (
-                        <span style={{ color: "var(--color-alert-red, #A93226)", fontSize: 11, fontFamily: "Inter, sans-serif", marginLeft: "auto" }}>
+                        <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif", marginLeft: "auto" }}>
                           {parseStatusLabel(d.parse_status, lang)}
                         </span>
                       )}
@@ -496,7 +494,7 @@ export default function CorrespondenceDetail() {
               <select
                 value={flagForm.assigned_to_user}
                 onChange={(e) => setFlagForm({ ...flagForm, assigned_to_user: e.target.value })}
-                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: dark ? "#1F2228" : "#F5F2ED", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
+                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
               >
                 <option value="">{lang === "tr" ? "— Tüm Ekip —" : "— Entire Team —"}</option>
                 {members.map((m) => (
@@ -545,7 +543,7 @@ export default function CorrespondenceDetail() {
                     setFlagSubmitting(false);
                   }
                 }}
-                style={{ backgroundColor: flagForm.narrative.trim() ? "var(--color-accent)" : (dark ? "#3D4456" : "#D4CFC8"), color: flagForm.narrative.trim() ? (dark ? "#E8E6E0" : "#F5F2ED") : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "Inter, sans-serif", opacity: flagSubmitting ? 0.6 : 1 }}
+                style={{ backgroundColor: flagForm.narrative.trim() ? "var(--color-accent)" : "var(--color-border-medium)", color: flagForm.narrative.trim() ? "#F5F2ED" : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "Inter, sans-serif", opacity: flagSubmitting ? 0.6 : 1 }}
               >
                 {flagSubmitting
                   ? (lang === "tr" ? "Gönderiliyor…" : "Submitting…")

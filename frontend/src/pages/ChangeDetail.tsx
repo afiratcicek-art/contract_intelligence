@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDarkMode } from "../hooks/useDarkMode";
 import { api } from "../services/api";
 import { getAuth, clearAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
@@ -77,21 +76,12 @@ interface Chronology {
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  open:         { bg: "#FEF3C7", text: "#92400E" },
-  draft:        { bg: "#E7E3DC", text: "#44403C" },
-  disputed:     { bg: "#F5E6E4", text: "#A93226" },
-  closed:       { bg: "#E6F4EE", text: "#1F6B4E" },
-  agreed:       { bg: "#E6F4EE", text: "#1F6B4E" },
-  under_review: { bg: "#FEF3C7", text: "#92400E" },
-};
-
-const STATUS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
-  open:         { bg: "#3D2E0A", text: "#D4956A" },
-  draft:        { bg: "#2E3340", text: "#C4B49C" },
-  disputed:     { bg: "#3D1A1A", text: "#E07060" },
-  closed:       { bg: "#0F2D1A", text: "#4DB88A" },
-  agreed:       { bg: "#0F2D1A", text: "#4DB88A" },
-  under_review: { bg: "#3D2E0A", text: "#D4956A" },
+  open:         { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
+  draft:        { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" },
+  disputed:     { bg: "var(--color-alert-red-bg)", text: "var(--color-alert-red)" },
+  closed:       { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
+  agreed:       { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
+  under_review: { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
 };
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -118,7 +108,6 @@ const ORIGIN_LABELS: Record<string, string> = {
 export default function ChangeDetail() {
   const { projectId, changeId } = useParams<{ projectId: string; changeId: string }>();
   const navigate = useNavigate();
-  const dark = useDarkMode();
   const auth = getAuth();
   const { lang, toggle: toggleLang, t } = useLanguage();
 
@@ -127,13 +116,13 @@ export default function ChangeDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const bg          = dark ? "#1F2228" : "#F5F2ED";
-  const cardBg      = dark ? "#2E3340" : "#E7E3DC";
-  const border      = dark ? "#3D4456" : "#E7E3DC";
-  const textPrimary = dark ? "#E8E6E0" : "#1C1917";
-  const textSecond  = dark ? "#C4B49C" : "#44403C";
-  const alertRed    = dark ? "#E07060" : "#A93226";
-  const successGrn  = dark ? "#4DB88A" : "#1F6B4E";
+  const bg          = "var(--color-bg-primary)";
+  const cardBg      = "var(--color-bg-secondary)";
+  const border      = "var(--color-border-light)";
+  const textPrimary = "var(--color-text-primary)";
+  const textSecond  = "var(--color-text-secondary)";
+  const alertRed    = "var(--color-alert-red)";
+  const successGrn  = "var(--color-success)";
 
   useEffect(() => {
     if (!projectId || !changeId) return;
@@ -153,8 +142,7 @@ export default function ChangeDetail() {
   const handleLogout = () => { clearAuth(); navigate("/login"); };
 
   const statusPill = (status: string) => {
-    const colors = dark ? STATUS_COLORS_DARK : STATUS_COLORS;
-    const c = colors[status] ?? (dark ? { bg: "#2E3340", text: "#C4B49C" } : { bg: "#E7E3DC", text: "#44403C" });
+    const c = STATUS_COLORS[status] ?? { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" };
     return (
       <span style={{ background: c.bg, color: c.text, fontSize: 10, fontWeight: 500, padding: "3px 8px", textTransform: "uppercase" as const, letterSpacing: "0.06em", whiteSpace: "nowrap" as const }}>
         {status.replace("_", " ")}
@@ -202,7 +190,7 @@ export default function ChangeDetail() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${dark ? "#3D4456" : "#E7E3DC"}`, cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />

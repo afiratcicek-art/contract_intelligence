@@ -14,7 +14,7 @@ interface ChronologiesModuleProps {
   projectId: string;
 }
 
-const ACCENT = "#A0714A";
+const ACCENT = "var(--color-accent)";
 
 // Section label style — reused across panels
 const SECTION_LABEL: CSSProperties = {
@@ -303,7 +303,7 @@ export default function ChronologiesModule(
                 style={{
                   fontSize: 11,
                   background: ACCENT,
-                  color: "#FFFFFF",
+                  color: "#F5F2ED",
                   border: "none",
                   borderRadius: 0,
                   padding: "4px 10px",
@@ -512,7 +512,7 @@ export default function ChronologiesModule(
                 style={{
                   fontSize: 12,
                   background: ACCENT,
-                  color: "#FFFFFF",
+                  color: "#F5F2ED",
                   border: "none",
                   borderRadius: 0,
                   padding: "8px 16px",
@@ -635,7 +635,7 @@ export default function ChronologiesModule(
                     style={{
                       fontSize: 11,
                       background: ACCENT,
-                      color: "#FFFFFF",
+                      color: "#F5F2ED",
                       border: "none",
                       borderRadius: 0,
                       padding: "5px 10px",

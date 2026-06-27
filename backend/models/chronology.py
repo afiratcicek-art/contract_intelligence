@@ -54,6 +54,7 @@ class ChronologyEventCreate(BaseModel):
     is_key_event: bool = False
     activity_id: Optional[str] = None
     boq_ref: Optional[str] = None
+    manual_narrative: Optional[str] = None
 
     @field_validator("event_type", mode="before")
     @classmethod
@@ -69,6 +70,13 @@ class ChronologyEventCreate(BaseModel):
                 f"{sorted(all_valid)}"
             )
         return cleaned
+
+    @field_validator("manual_narrative", mode="before")
+    @classmethod
+    def clean_manual_narrative(cls, v):
+        if v is None:
+            return v
+        return sanitize_content(str(v))
 
 
 class NarrativeApprove(BaseModel):

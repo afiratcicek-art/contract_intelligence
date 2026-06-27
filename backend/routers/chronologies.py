@@ -12,6 +12,8 @@ from backend.repositories.chronology_repository import ChronologyRepository
 from backend.services.chronology_service import ChronologyService
 from backend.services.audit_service import AuditService
 from backend.services.claude_service import get_ai_service
+from backend.repositories.rfi_repository import RFIRepository
+from backend.repositories.correspondence_repository import CorrespondenceRepository
 
 router = APIRouter(prefix="/projects/{project_id}/chronologies", tags=["chronologies"])
 
@@ -45,6 +47,58 @@ def create_chronology(
         new_value={"title": data.get("title")},
     )
     return result.data[0]
+
+
+@router.get("/linkable-documents")
+def list_linkable_documents(
+    project_id: UUID,
+    access: dict = Depends(verify_project_access),
+):
+    """Return RFIs and Correspondences available to link
+    as chronology events, ordered by document date ascending.
+
+    Each item shape:
+      id, type, ref_number, subject, date, status, parent_id
+    """
+    db = access["db"]
+
+    rfi_repo = RFIRepository(db)
+    corr_repo = CorrespondenceRepository(db)
+
+    rfis = rfi_repo.list_by_project(str(project_id), limit=500)
+    corrs = corr_repo.list_by_project(str(project_id), limit=500)
+
+    documents: list[dict] = []
+
+    for r in rfis:
+        documents.append({
+            "id": r["id"],
+            "type": "rfi",
+            "ref_number": r.get("rfi_number", ""),
+            "subject": r.get("subject", ""),
+            "date": r.get("submitted_date", ""),
+            "status": r.get("status", ""),
+            "parent_id": r.get("parent_id"),
+        })
+
+    for c in corrs:
+        documents.append({
+            "id": c["id"],
+            "type": "correspondence",
+            "ref_number": c.get("corr_number", ""),
+            "subject": c.get("subject", ""),
+            "date": c.get("correspondence_date", ""),
+            "status": c.get("status", ""),
+            "parent_id": c.get("parent_id"),
+        })
+
+    # Sort by date ascending — chronological order
+    documents.sort(
+        key=lambda d: d["date"] or "",
+        reverse=False,
+    )
+
+    return documents
 
 
 @router.get("/{chronology_id}", response_model=ChronologyResponse)
@@ -85,6 +139,10 @@ def add_event(
         user_id=str(access["user"]["id"]),
     )
 
+    auto_generate = (
+        body.manual_narrative is None
+        and body.document_ref_id is not None
+    )
     return service.record_event(
         chronology_id=str(chronology_id),
         event_type=body.event_type,
@@ -92,10 +150,11 @@ def add_event(
         document_ref_id=str(body.document_ref_id) if body.document_ref_id else None,
         document_ref_type=body.document_ref_type,
         created_by=access["user"]["id"],
-        auto_generate_narrative=True,
+        auto_generate_narrative=auto_generate,
         is_key_event=body.is_key_event,
         activity_id=body.activity_id,
         boq_ref=body.boq_ref,
+        note=body.manual_narrative,
     )
 
 

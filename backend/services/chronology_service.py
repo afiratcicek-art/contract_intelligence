@@ -80,6 +80,7 @@ class ChronologyService:
         note: Optional[str] = None,
         activity_id: Optional[str] = None,
         boq_ref: Optional[str] = None,
+        subject: Optional[str] = None,
         change_context: Optional[dict] = None,
     ) -> dict:
         """Chronology'ye event kaydeder, opsiyonel AI narrative üretir."""
@@ -108,7 +109,7 @@ class ChronologyService:
             except Exception as exc:
                 logger.warning("Narrative üretme hatası: %s", exc)
 
-        event = self.db.table("chronology_events").insert({
+        insert_data = {
             "chronology_id": chronology_id,
             "event_date": str(event_date),
             "event_type": event_type,
@@ -119,7 +120,12 @@ class ChronologyService:
             "activity_id": activity_id,
             "boq_ref": boq_ref,
             "created_by": created_by,
-        }).execute()
+        }
+        if subject is not None:
+            insert_data["subject"] = subject
+        event = self.db.table("chronology_events").insert(
+            insert_data
+        ).execute()
 
         event_record = event.data[0]
 

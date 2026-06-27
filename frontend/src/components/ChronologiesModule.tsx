@@ -8,6 +8,7 @@ import {
   createChronology,
   updateChronology,
   addChronologyEvent,
+  updateChronologyEvent,
   approveNarrative,
   inactivateChronologyEvent,
   fetchLinkableDocuments,
@@ -49,6 +50,14 @@ interface PendingEvent {
   // Edit mode only
   _isExisting?: boolean;       // true = loaded from saved chronology
   _originalNarrative?: string; // original approved_narrative for diff
+  _originalEventType?: string;
+  _originalIsKey?: boolean;
+  _originalDate?: string;
+  _originalSubject?: string;
+  editEventType?: string;
+  editIsKey?: boolean;
+  editDate?: string;
+  editSubject?: string;
 }
 
 
@@ -419,6 +428,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
           document_ref_id: isManual ? undefined : pe.doc.id,
           document_ref_type: isManual ? undefined : pe.doc.type,
           manual_narrative: manualNarrative,
+          subject: isManual ? pe.doc.subject : undefined,
         });
       }
       const updated = await fetchChronologies(projectId);
@@ -477,6 +487,14 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         approvedText: ev.approved_narrative ?? "",
         _isExisting: true,
         _originalNarrative: ev.approved_narrative ?? "",
+        _originalEventType: ev.event_type,
+        _originalIsKey: ev.is_key_event,
+        _originalDate: ev.event_date,
+        _originalSubject: ev.subject ?? "",
+        editEventType: ev.event_type,
+        editIsKey: ev.is_key_event,
+        editDate: ev.event_date,
+        editSubject: ev.subject ?? "",
       }));
     setPendingEvents(existing);
     setEditMode(true);
@@ -506,9 +524,42 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         await updateChronology(projectId, selectedId, editTitle.trim());
       }
 
-      // 2. Handle existing events — approve modified narratives
+      // 2. Handle existing events — update metadata + narrative
       const existingPending = pendingEvents.filter((pe) => pe._isExisting);
       for (const pe of existingPending) {
+        // 2a. Update event metadata if changed
+        const metaUpdate: {
+          event_type?: string;
+          is_key_event?: boolean;
+          event_date?: string;
+          subject?: string;
+        } = {};
+        if (pe.editEventType && pe.editEventType !== pe._originalEventType) {
+          metaUpdate.event_type = pe.editEventType;
+        }
+        if (pe.editIsKey !== undefined && pe.editIsKey !== pe._originalIsKey) {
+          metaUpdate.is_key_event = pe.editIsKey;
+        }
+        // event_date only for manual entries
+        const isManualEntry = !pe.doc.type ||
+          pe.doc.type === ("other" as string);
+        if (isManualEntry) {
+          if (pe.editDate && pe.editDate !== pe._originalDate) {
+            metaUpdate.event_date = pe.editDate;
+          }
+          if (
+            pe.editSubject !== undefined &&
+            pe.editSubject !== (pe._originalSubject ?? "")
+          ) {
+            metaUpdate.subject = pe.editSubject;
+          }
+        }
+        if (Object.keys(metaUpdate).length > 0) {
+          await updateChronologyEvent(
+            projectId, selectedId, pe.doc.id, metaUpdate
+          );
+        }
+        // 2b. Approve modified narrative
         const narrativeChanged =
           pe.approved &&
           pe.approvedText.trim() !== (pe._originalNarrative ?? "").trim();
@@ -542,6 +593,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
           document_ref_id: isManual ? undefined : pe.doc.id,
           document_ref_type: isManual ? undefined : pe.doc.type,
           manual_narrative: manualNarrative,
+          subject: isManual ? pe.doc.subject : undefined,
         });
       }
 
@@ -1161,6 +1213,96 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               }}>
                                 {formatDate(pe.doc.date)}
                               </p>
+                            </div>
+                            {/* Metadata edit controls */}
+                            <div style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                              marginRight: 8,
+                              minWidth: 200,
+                            }}>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <select
+                                  value={pe.editEventType ?? pe.doc.type}
+                                  onChange={(e) => updatePending(pe.doc.id, {
+                                    editEventType: e.target.value,
+                                  })}
+                                  style={{
+                                    fontSize: 11,
+                                    padding: "3px 6px",
+                                    border: "1px solid var(--color-border-medium)",
+                                    borderRadius: 0,
+                                    background: "var(--color-bg-primary)",
+                                    color: "var(--color-text-primary)",
+                                    fontFamily: "Inter, sans-serif",
+                                  }}
+                                >
+                                  {Object.entries(MANUAL_EVENT_TYPE_LABELS).map(([k, v]) => (
+                                    <option key={k} value={k}>{v}</option>
+                                  ))}
+                                </select>
+                                <label style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  fontSize: 11,
+                                  color: "var(--color-text-secondary)",
+                                  fontFamily: "Inter, sans-serif",
+                                  cursor: "pointer",
+                                  whiteSpace: "nowrap",
+                                }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={pe.editIsKey ?? pe._isExisting ?? false}
+                                    onChange={(e) => updatePending(pe.doc.id, {
+                                      editIsKey: e.target.checked,
+                                    })}
+                                  />
+                                  Key event
+                                </label>
+                              </div>
+                              {/* Date + Subject — only for manual entries */}
+                              {(!pe.doc.type || pe.doc.type === "other") && (
+                                <>
+                                  <input
+                                    type="date"
+                                    value={pe.editDate ?? pe.doc.date}
+                                    onChange={(e) => updatePending(pe.doc.id, {
+                                      editDate: e.target.value,
+                                    })}
+                                    style={{
+                                      fontSize: 11,
+                                      padding: "3px 6px",
+                                      border: "1px solid var(--color-border-medium)",
+                                      borderRadius: 0,
+                                      background: "var(--color-bg-primary)",
+                                      color: "var(--color-text-primary)",
+                                      fontFamily: "Inter, sans-serif",
+                                      width: "100%",
+                                    }}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={pe.editSubject ?? pe.doc.subject}
+                                    onChange={(e) => updatePending(pe.doc.id, {
+                                      editSubject: e.target.value,
+                                    })}
+                                    placeholder="Description..."
+                                    style={{
+                                      fontSize: 11,
+                                      padding: "3px 6px",
+                                      border: "1px solid var(--color-border-medium)",
+                                      borderRadius: 0,
+                                      background: "var(--color-bg-primary)",
+                                      color: "var(--color-text-primary)",
+                                      fontFamily: "Inter, sans-serif",
+                                      width: "100%",
+                                      boxSizing: "border-box",
+                                    }}
+                                  />
+                                </>
+                              )}
                             </div>
                             {/* × button — inactivate for existing, remove for new */}
                             <button
@@ -2362,6 +2504,19 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               {approvingId === ev.id ? "Approving..." : "✓ Approve"}
                             </button>
                           </div>
+                        )}
+
+                        {/* Subject — manual entry only */}
+                        {ev.subject && (
+                          <p style={{
+                            fontSize: 12,
+                            color: "var(--color-text-secondary)",
+                            fontFamily: "Inter, sans-serif",
+                            fontStyle: "italic",
+                            margin: "0 0 6px",
+                          }}>
+                            {ev.subject}
+                          </p>
                         )}
 
                         {/* No narrative yet */}

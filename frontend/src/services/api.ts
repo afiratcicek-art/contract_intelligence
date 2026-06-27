@@ -246,6 +246,23 @@ export async function createChronology(
   );
 }
 
+export async function updateChronologyEvent(
+  projectId: string,
+  chronologyId: string,
+  eventId: string,
+  body: {
+    event_type?: string;
+    is_key_event?: boolean;
+    event_date?: string;
+    subject?: string;
+  }
+): Promise<ChronologyEvent> {
+  return api.patch(
+    `/projects/${projectId}/chronologies/${chronologyId}/events/${eventId}`,
+    body
+  );
+}
+
 export async function addChronologyEvent(
   projectId: string,
   chronologyId: string,
@@ -258,6 +275,7 @@ export async function addChronologyEvent(
     activity_id?: string;
     boq_ref?: string;
     manual_narrative?: string;
+    subject?: string;
   }
 ): Promise<ChronologyEvent> {
   return api.post(

@@ -5,7 +5,7 @@ from backend.core.exceptions import NotFoundError
 from backend.core.limiter import limiter
 from backend.models.chronology import (
     ChronologyCreate, ChronologyUpdate,
-    ChronologyEventCreate,
+    ChronologyEventCreate, ChronologyEventUpdate,
     NarrativeApprove, EventInactivate,
     ChronologyListResponse, ChronologyResponse,
     ChronologyEventResponse,
@@ -246,7 +246,103 @@ def add_event(
         activity_id=body.activity_id,
         boq_ref=body.boq_ref,
         note=body.manual_narrative,
+        subject=body.subject,
     )
+
+
+@router.patch("/{chronology_id}/events/{event_id}", response_model=ChronologyEventResponse)
+def update_event(
+    project_id: UUID,
+    chronology_id: UUID,
+    event_id: UUID,
+    body: ChronologyEventUpdate,
+    access: dict = Depends(verify_project_access),
+):
+    """Update event metadata: event_type, is_key_event, event_date.
+    event_date is only updated for manual entries (no document_ref_type).
+    Narrative changes go through approve-narrative endpoint.
+    Allowed for: CM role OR chronology creator.
+    """
+    from fastapi import HTTPException
+    db = access["db"]
+
+    # Fetch event and verify it belongs to this project/chronology
+    event_result = (
+        db.table("chronology_events")
+        .select("*")
+        .eq("id", str(event_id))
+        .eq("chronology_id", str(chronology_id))
+        .execute()
+    )
+    if not event_result.data:
+        raise NotFoundError()
+    event = event_result.data[0]
+
+    # Verify chronology belongs to project
+    chrono_result = (
+        db.table("chronologies")
+        .select("project_id, created_by")
+        .eq("id", str(chronology_id))
+        .execute()
+    )
+    if not chrono_result.data:
+        raise NotFoundError()
+    chrono = chrono_result.data[0]
+    if chrono.get("project_id") != str(project_id):
+        raise NotFoundError()
+
+    # Permission: CM role or chronology creator
+    current_user_id = str(access["user"]["id"])
+    role = access["member"]["project_role"]
+    is_cm = role == "cm"
+    is_creator = str(chrono.get("created_by", "")) == current_user_id
+    if not is_cm and not is_creator:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorised to edit this event."
+        )
+
+    # Build update payload
+    data = body.model_dump(mode="json", exclude_none=True)
+
+    # event_date and subject are immutable for document-linked events
+    if event.get("document_ref_type"):
+        if "event_date" in data:
+            raise HTTPException(
+                status_code=400,
+                detail="event_date cannot be changed for document-linked events."
+            )
+        if "subject" in data:
+            raise HTTPException(
+                status_code=400,
+                detail="subject cannot be set for document-linked events."
+            )
+
+    if not data:
+        # Nothing to update — return current event
+        return event
+
+    result = (
+        db.table("chronology_events")
+        .update(data)
+        .eq("id", str(event_id))
+        .execute()
+    )
+    if not result.data:
+        raise NotFoundError()
+
+    audit = AuditService()
+    audit.log(
+        action="update",
+        entity_type="chronology_event",
+        entity_id=str(event_id),
+        user_id=current_user_id,
+        project_id=str(project_id),
+        old_value={k: event.get(k) for k in data},
+        new_value=data,
+    )
+
+    return result.data[0]
 
 
 @router.post("/{chronology_id}/events/{event_id}/approve-narrative", response_model=ChronologyEventResponse)

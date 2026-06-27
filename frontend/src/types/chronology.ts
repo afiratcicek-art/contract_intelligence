@@ -14,6 +14,7 @@ export interface ChronologyEvent {
   narrative_approved_at: string | null;
   activity_id: string | null;
   boq_ref: string | null;
+  subject: string | null;
   created_by: string | null;
   created_at: string;
 }

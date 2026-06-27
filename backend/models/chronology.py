@@ -55,6 +55,14 @@ class ChronologyEventCreate(BaseModel):
     activity_id: Optional[str] = None
     boq_ref: Optional[str] = None
     manual_narrative: Optional[str] = None
+    subject: Optional[str] = None
+
+    @field_validator("subject", mode="before")
+    @classmethod
+    def clean_subject(cls, v):
+        if v is None:
+            return v
+        return sanitize_medium(str(v))
 
     @field_validator("event_type", mode="before")
     @classmethod
@@ -95,6 +103,40 @@ class EventInactivate(BaseModel):
     def clean_reason(cls, v): return sanitize_medium(v)
 
 
+class ChronologyEventUpdate(BaseModel):
+    """Partial update for chronology event metadata.
+    Narrative changes go through approve-narrative endpoint.
+    document_ref_id and document_ref_type are immutable.
+    event_date and subject are only editable for manual
+    entries (enforced in router).
+    """
+    event_type: Optional[str] = None
+    is_key_event: Optional[bool] = None
+    event_date: Optional[date] = None
+    subject: Optional[str] = None
+
+    @field_validator("subject", mode="before")
+    @classmethod
+    def clean_subject_update(cls, v):
+        if v is None:
+            return v
+        return sanitize_medium(str(v))
+
+    @field_validator("event_type", mode="before")
+    @classmethod
+    def clean_event_type(cls, v):
+        if v is None:
+            return v
+        from backend.models.chronology import MANUAL_EVENT_TYPES
+        cleaned = sanitize_short(str(v))
+        all_valid = MANUAL_EVENT_TYPES | {"dispute_step"}
+        if cleaned not in all_valid:
+            raise ValueError(
+                f"event_type must be one of: {sorted(all_valid)}"
+            )
+        return cleaned
+
+
 class ChronologyEventResponse(BaseModel):
     id: UUID
     chronology_id: UUID
@@ -104,6 +146,7 @@ class ChronologyEventResponse(BaseModel):
     document_ref_type: Optional[str] = None
     is_key_event: bool
     is_active: bool
+    subject: Optional[str] = None
     inactivation_reason: Optional[str] = None
     auto_narrative: Optional[str] = None
     approved_narrative: Optional[str] = None

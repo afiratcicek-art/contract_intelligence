@@ -196,6 +196,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
 
   // Normal mode — inactivating
   const [inactivatingId, setInactivatingId] = useState<string | null>(null);
+  const [expandedNarrativeId, setExpandedNarrativeId] = useState<string | null>(null);
 
   // ── CREATE MODE ─────────────────────────────────────────────
   const [createMode, setCreateMode] = useState(false);
@@ -620,6 +621,26 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         behavior: "smooth",
       });
     }
+  };
+
+  const enterEditModeForEvent = (eventId: string) => {
+    enterEditMode();
+    // After edit mode mounts, scroll to event and
+    // open narrative editor for that specific event
+    setTimeout(() => {
+      scrollToEvent(eventId);
+      setPendingEvents((prev) =>
+        prev.map((pe) =>
+          pe.doc.id === eventId
+            ? {
+                ...pe,
+                narrativeMode: "manual" as const,
+                manualText: pe.approvedText || pe.manualText || "",
+              }
+            : pe
+        )
+      );
+    }, 150);
   };
 
   // Add doc-linked event to existing chronology
@@ -2375,6 +2396,24 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                             </button>
                           )}
                           <button
+                            onClick={() => setExpandedNarrativeId(
+                              expandedNarrativeId === ev.id ? null : ev.id
+                            )}
+                            title={expandedNarrativeId === ev.id ? "Hide narrative" : "Show narrative"}
+                            style={{
+                              fontSize: 11,
+                              color: "var(--color-accent)",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              fontFamily: "Inter, sans-serif",
+                              padding: "0 4px",
+                              marginLeft: "auto",
+                            }}
+                          >
+                            {expandedNarrativeId === ev.id ? "▼ Narrative" : "▶ Narrative"}
+                          </button>
+                          <button
                             onClick={() => handleInactivate(ev.id)}
                             disabled={inactivatingId === ev.id}
                             title="Remove event"
@@ -2383,130 +2422,13 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               background: "none", border: "none",
                               cursor: inactivatingId === ev.id ? "wait" : "pointer",
                               fontFamily: "Inter, sans-serif", padding: "0 4px",
-                              marginLeft: "auto",
                             }}
                           >
                             ×
                           </button>
                         </div>
 
-                        {/* Approved narrative */}
-                        {ev.approved_narrative && editingApprovedId !== ev.id && (
-                          <div style={{ marginBottom: 8 }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                              <p style={SECTION_LABEL}>Approved Narrative</p>
-                              <button
-                                onClick={() => {
-                                  setEditingApprovedId(ev.id);
-                                  setEditingApprovedText((prev) => ({ ...prev, [ev.id]: ev.approved_narrative ?? "" }));
-                                }}
-                                style={{
-                                  fontSize: 10, color: "var(--color-text-secondary)",
-                                  background: "none", border: "none",
-                                  cursor: "pointer", fontFamily: "Inter, sans-serif",
-                                  textDecoration: "underline",
-                                }}
-                              >
-                                Edit
-                              </button>
-                            </div>
-                            <p style={{ fontSize: 13, color: "var(--color-text-primary)", lineHeight: 1.6, fontFamily: "Inter, sans-serif", margin: 0 }}>
-                              {ev.approved_narrative}
-                            </p>
-                          </div>
-                        )}
-
-                        {ev.approved_narrative && editingApprovedId === ev.id && (
-                          <div style={{ marginBottom: 8 }}>
-                            <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>Edit Narrative</p>
-                            <textarea
-                              value={editingApprovedText[ev.id] ?? ev.approved_narrative}
-                              onChange={(e) => setEditingApprovedText((prev) => ({ ...prev, [ev.id]: e.target.value }))}
-                              rows={4}
-                              style={{
-                                width: "100%", fontSize: 12, padding: "7px 10px",
-                                border: "1px solid var(--color-border-medium)",
-                                borderRadius: 0, background: "var(--color-bg-primary)",
-                                color: "var(--color-text-primary)",
-                                fontFamily: "Inter, sans-serif", resize: "vertical",
-                                boxSizing: "border-box",
-                              }}
-                            />
-                            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                              <button
-                                onClick={() => handleApproveModified(ev)}
-                                disabled={approvingId === ev.id}
-                                style={{
-                                  fontSize: 11, padding: "5px 14px",
-                                  background: ACCENT, color: "#F5F2ED",
-                                  border: "none", borderRadius: 0,
-                                  cursor: approvingId === ev.id ? "wait" : "pointer",
-                                  fontFamily: "Inter, sans-serif",
-                                }}
-                              >
-                                {approvingId === ev.id ? "Saving..." : "✓ Save Changes"}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingApprovedId(null);
-                                  setEditingApprovedText((prev) => { const n = { ...prev }; delete n[ev.id]; return n; });
-                                }}
-                                style={{
-                                  fontSize: 11, padding: "5px 12px",
-                                  background: "none", color: "var(--color-text-secondary)",
-                                  border: "1px solid var(--color-border-light)",
-                                  borderRadius: 0, cursor: "pointer",
-                                  fontFamily: "Inter, sans-serif",
-                                }}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Auto narrative — CM approval needed */}
-                        {!ev.approved_narrative && ev.auto_narrative && (
-                          <div style={{ marginBottom: 8 }}>
-                            <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>LLM Draft — Pending Approval</p>
-                            <textarea
-                              value={editingNarrative[ev.id] ?? ev.auto_narrative}
-                              onChange={(e) => setEditingNarrative((prev) => ({ ...prev, [ev.id]: e.target.value }))}
-                              rows={3}
-                              style={{
-                                width: "100%",
-                                fontSize: 12,
-                                padding: "7px 10px",
-                                border: "1px solid var(--color-border-medium)",
-                                borderRadius: 0,
-                                background: "var(--color-bg-primary)",
-                                color: "var(--color-text-primary)",
-                                fontFamily: "Inter, sans-serif",
-                                resize: "vertical",
-                                boxSizing: "border-box",
-                              }}
-                            />
-                            <button
-                              onClick={() => handleApprove(ev)}
-                              disabled={approvingId === ev.id}
-                              style={{
-                                marginTop: 6,
-                                fontSize: 11,
-                                padding: "5px 14px",
-                                background: ACCENT,
-                                color: "#F5F2ED",
-                                border: "none",
-                                borderRadius: 0,
-                                cursor: approvingId === ev.id ? "wait" : "pointer",
-                                fontFamily: "Inter, sans-serif",
-                              }}
-                            >
-                              {approvingId === ev.id ? "Approving..." : "✓ Approve"}
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Subject — manual entry only */}
+                        {/* Subject — manual entry only, always visible */}
                         {ev.subject && (
                           <p style={{
                             fontSize: 12,
@@ -2519,79 +2441,180 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                           </p>
                         )}
 
-                        {/* No narrative yet */}
-                        {!ev.approved_narrative && !ev.auto_narrative && (
-                          editingApprovedId === ev.id ? (
-                            <div>
-                              <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>Write Narrative</p>
-                              <textarea
-                                value={editingApprovedText[ev.id] ?? ""}
-                                onChange={(e) => setEditingApprovedText((prev) => ({ ...prev, [ev.id]: e.target.value }))}
-                                rows={4}
-                                placeholder="Write the narrative for this event..."
-                                style={{
-                                  width: "100%", fontSize: 12, padding: "7px 10px",
-                                  border: "1px solid var(--color-border-medium)",
-                                  borderRadius: 0, background: "var(--color-bg-primary)",
+                        {/* Expandable narrative panel */}
+                        {expandedNarrativeId === ev.id && (
+                          <div style={{
+                            marginTop: 8,
+                            resize: "vertical",
+                            overflow: "auto",
+                            minHeight: 80,
+                            maxHeight: 400,
+                            border: "1px solid var(--color-border-medium)",
+                            background: "var(--color-bg-primary)",
+                            padding: "10px 12px",
+                          }}>
+                            {ev.approved_narrative && editingApprovedId !== ev.id && (
+                              <div>
+                                <div style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  marginBottom: 6,
+                                }}>
+                                  <p style={SECTION_LABEL}>Approved Narrative</p>
+                                  <button
+                                    onClick={() => {
+                                      setEditingApprovedId(ev.id);
+                                      setEditingApprovedText((prev) => ({
+                                        ...prev,
+                                        [ev.id]: ev.approved_narrative ?? "",
+                                      }));
+                                    }}
+                                    style={{
+                                      fontSize: 10,
+                                      color: "var(--color-text-secondary)",
+                                      background: "none", border: "none",
+                                      cursor: "pointer",
+                                      fontFamily: "Inter, sans-serif",
+                                      textDecoration: "underline",
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                </div>
+                                <p style={{
+                                  fontSize: 13,
                                   color: "var(--color-text-primary)",
-                                  fontFamily: "Inter, sans-serif", resize: "vertical",
-                                  boxSizing: "border-box",
-                                }}
-                              />
-                              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                                <button
-                                  onClick={() => handleApproveModified(ev)}
-                                  disabled={approvingId === ev.id || !(editingApprovedText[ev.id] ?? "").trim()}
+                                  lineHeight: 1.6,
+                                  fontFamily: "Inter, sans-serif",
+                                  margin: 0,
+                                }}>
+                                  {ev.approved_narrative}
+                                </p>
+                              </div>
+                            )}
+
+                            {ev.approved_narrative && editingApprovedId === ev.id && (
+                              <div>
+                                <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>Edit Narrative</p>
+                                <textarea
+                                  value={editingApprovedText[ev.id] ?? ev.approved_narrative}
+                                  onChange={(e) => setEditingApprovedText((prev) => ({
+                                    ...prev, [ev.id]: e.target.value,
+                                  }))}
+                                  rows={4}
                                   style={{
-                                    fontSize: 11, padding: "5px 14px",
-                                    background: (editingApprovedText[ev.id] ?? "").trim()
-                                      ? "var(--color-success)" : "var(--color-border-medium)",
-                                    color: "#F5F2ED", border: "none", borderRadius: 0,
-                                    cursor: (editingApprovedText[ev.id] ?? "").trim()
-                                      ? "pointer" : "not-allowed",
+                                    width: "100%", fontSize: 12, padding: "7px 10px",
+                                    border: "1px solid var(--color-border-medium)",
+                                    borderRadius: 0, background: "var(--color-bg-primary)",
+                                    color: "var(--color-text-primary)",
+                                    fontFamily: "Inter, sans-serif", resize: "vertical",
+                                    boxSizing: "border-box",
+                                  }}
+                                />
+                                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                                  <button
+                                    onClick={() => handleApproveModified(ev)}
+                                    disabled={approvingId === ev.id}
+                                    style={{
+                                      fontSize: 11, padding: "5px 14px",
+                                      background: ACCENT, color: "#F5F2ED",
+                                      border: "none", borderRadius: 0,
+                                      cursor: approvingId === ev.id ? "wait" : "pointer",
+                                      fontFamily: "Inter, sans-serif",
+                                    }}
+                                  >
+                                    {approvingId === ev.id ? "Saving..." : "✓ Save Changes"}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingApprovedId(null);
+                                      setEditingApprovedText((prev) => {
+                                        const n = { ...prev };
+                                        delete n[ev.id];
+                                        return n;
+                                      });
+                                    }}
+                                    style={{
+                                      fontSize: 11, padding: "5px 12px",
+                                      background: "none",
+                                      color: "var(--color-text-secondary)",
+                                      border: "1px solid var(--color-border-light)",
+                                      borderRadius: 0, cursor: "pointer",
+                                      fontFamily: "Inter, sans-serif",
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {!ev.approved_narrative && ev.auto_narrative && (
+                              <div>
+                                <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>
+                                  LLM Draft — Pending Approval
+                                </p>
+                                <textarea
+                                  value={editingNarrative[ev.id] ?? ev.auto_narrative}
+                                  onChange={(e) => setEditingNarrative((prev) => ({
+                                    ...prev, [ev.id]: e.target.value,
+                                  }))}
+                                  rows={3}
+                                  style={{
+                                    width: "100%", fontSize: 12, padding: "7px 10px",
+                                    border: "1px solid var(--color-border-medium)",
+                                    borderRadius: 0, background: "var(--color-bg-primary)",
+                                    color: "var(--color-text-primary)",
+                                    fontFamily: "Inter, sans-serif", resize: "vertical",
+                                    boxSizing: "border-box",
+                                  }}
+                                />
+                                <button
+                                  onClick={() => handleApprove(ev)}
+                                  disabled={approvingId === ev.id}
+                                  style={{
+                                    marginTop: 6, fontSize: 11, padding: "5px 14px",
+                                    background: ACCENT, color: "#F5F2ED",
+                                    border: "none", borderRadius: 0,
+                                    cursor: approvingId === ev.id ? "wait" : "pointer",
                                     fontFamily: "Inter, sans-serif",
                                   }}
                                 >
-                                  {approvingId === ev.id ? "Saving..." : "✓ Approve Narrative"}
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setEditingApprovedId(null);
-                                    setEditingApprovedText((prev) => { const n = { ...prev }; delete n[ev.id]; return n; });
-                                  }}
-                                  style={{
-                                    fontSize: 11, padding: "5px 12px",
-                                    background: "none", color: "var(--color-text-secondary)",
-                                    border: "1px solid var(--color-border-light)",
-                                    borderRadius: 0, cursor: "pointer",
-                                    fontFamily: "Inter, sans-serif",
-                                  }}
-                                >
-                                  Cancel
+                                  {approvingId === ev.id ? "Approving..." : "✓ Approve"}
                                 </button>
                               </div>
-                            </div>
-                          ) : (
-                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "Inter, sans-serif", margin: 0 }}>
-                                No narrative yet.
-                              </p>
-                              <button
-                                onClick={() => {
-                                  setEditingApprovedId(ev.id);
-                                  setEditingApprovedText((prev) => ({ ...prev, [ev.id]: "" }));
-                                }}
-                                style={{
-                                  fontSize: 10, color: ACCENT,
-                                  background: "none", border: "none",
-                                  cursor: "pointer", fontFamily: "Inter, sans-serif",
-                                  textDecoration: "underline",
-                                }}
-                              >
-                                Write
-                              </button>
-                            </div>
-                          )
+                            )}
+
+                            {!ev.approved_narrative && !ev.auto_narrative && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <p style={{
+                                  fontSize: 12,
+                                  color: "var(--color-text-secondary)",
+                                  fontStyle: "italic",
+                                  fontFamily: "Inter, sans-serif",
+                                  margin: 0,
+                                }}>
+                                  No narrative yet.
+                                </p>
+                                <button
+                                  onClick={() => enterEditModeForEvent(ev.id)}
+                                  style={{
+                                    fontSize: 11,
+                                    color: ACCENT,
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontFamily: "Inter, sans-serif",
+                                    textDecoration: "underline",
+                                    padding: 0,
+                                  }}
+                                >
+                                  Write narrative →
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

@@ -8,6 +8,7 @@ import {
   createChronology,
   addChronologyEvent,
   approveNarrative,
+  inactivateChronologyEvent,
   fetchLinkableDocuments,
   type LinkableDoc,
 } from "../services/api";
@@ -165,6 +166,24 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
   const [editingNarrative, setEditingNarrative] = useState<Record<string, string>>({});
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
+  // Normal mode — add event with doc picker
+  const [normalShowDocPicker, setNormalShowDocPicker] = useState(false);
+  const [normalDocSearch, setNormalDocSearch] = useState("");
+  const [normalShowDocDropdown, setNormalShowDocDropdown] = useState(false);
+  const [normalShowManualEntry, setNormalShowManualEntry] = useState(false);
+  const [normalManualDate, setNormalManualDate] = useState("");
+  const [normalManualType, setNormalManualType] = useState("other");
+  const [normalManualSubject, setNormalManualSubject] = useState("");
+  const [normalManualNarrative, setNormalManualNarrative] = useState("");
+  const normalDocPickerRef = useRef<HTMLDivElement>(null);
+
+  // Normal mode — narrative editing
+  const [editingApprovedId, setEditingApprovedId] = useState<string | null>(null);
+  const [editingApprovedText, setEditingApprovedText] = useState<Record<string, string>>({});
+
+  // Normal mode — inactivating
+  const [inactivatingId, setInactivatingId] = useState<string | null>(null);
+
   // ── CREATE MODE ─────────────────────────────────────────────
   const [createMode, setCreateMode] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
@@ -217,6 +236,32 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
       .catch(() => setLinkableDocs([]))
       .finally(() => setLoadingDocs(false));
   }, [createMode, projectId]);
+
+  // Load linkable docs when normal mode doc picker opens
+  useEffect(() => {
+    if (!normalShowDocPicker) return;
+    if (linkableDocs.length > 0) return; // already loaded
+    setLoadingDocs(true);
+    fetchLinkableDocuments(projectId)
+      .then(setLinkableDocs)
+      .catch(() => setLinkableDocs([]))
+      .finally(() => setLoadingDocs(false));
+  }, [normalShowDocPicker, projectId, linkableDocs.length]);
+
+  // Close normal mode dropdown on outside click
+  useEffect(() => {
+    if (!normalShowDocDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        normalDocPickerRef.current &&
+        !normalDocPickerRef.current.contains(e.target as Node)
+      ) {
+        setNormalShowDocDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [normalShowDocDropdown]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -401,6 +446,93 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
       });
     }
   };
+
+  // Add doc-linked event to existing chronology
+  const handleAddDocEvent = async (doc: LinkableDoc) => {
+    if (!selectedId) return;
+    setNormalDocSearch("");
+    setNormalShowDocDropdown(false);
+    setNormalShowDocPicker(false);
+    try {
+      await addChronologyEvent(projectId, selectedId, {
+        event_date: doc.date,
+        event_type: doc.type === "rfi" ? "rfi" : "correspondence",
+        document_ref_id: doc.id,
+        document_ref_type: doc.type,
+      });
+      await fetchChronology(projectId, selectedId).then(setSelected);
+    } catch (err: unknown) {
+      window.alert(err instanceof Error ? err.message : "Failed to add event.");
+    }
+  };
+
+  // Add manual event to existing chronology
+  const handleAddNormalManualEvent = async () => {
+    if (!selectedId || !normalManualDate || !normalManualSubject.trim()) return;
+    try {
+      await addChronologyEvent(projectId, selectedId, {
+        event_date: normalManualDate,
+        event_type: normalManualType,
+        manual_narrative: normalManualNarrative.trim() || undefined,
+      });
+      await fetchChronology(projectId, selectedId).then(setSelected);
+      setNormalManualDate("");
+      setNormalManualType("other");
+      setNormalManualSubject("");
+      setNormalManualNarrative("");
+      setNormalShowManualEntry(false);
+      setNormalShowDocPicker(false);
+    } catch (err: unknown) {
+      window.alert(err instanceof Error ? err.message : "Failed to add event.");
+    }
+  };
+
+  // Inactivate event (soft delete with audit)
+  const handleInactivate = async (eventId: string) => {
+    if (!selectedId) return;
+    if (!window.confirm("Remove this event from the chronology? This action is logged.")) return;
+    setInactivatingId(eventId);
+    try {
+      await inactivateChronologyEvent(
+        projectId, selectedId, eventId,
+        "Removed by user via chronology editor"
+      );
+      await fetchChronology(projectId, selectedId).then(setSelected);
+    } catch (err: unknown) {
+      window.alert(err instanceof Error ? err.message : "Failed to remove event.");
+    } finally {
+      setInactivatingId(null);
+    }
+  };
+
+  // Approve modified narrative (edit existing approved narrative)
+  const handleApproveModified = async (ev: ChronologyEvent) => {
+    if (!selectedId) return;
+    const text = editingApprovedText[ev.id] ?? ev.approved_narrative ?? "";
+    if (!text.trim()) return;
+    setApprovingId(ev.id);
+    try {
+      await approveNarrative(projectId, selectedId, ev.id, text);
+      await fetchChronology(projectId, selectedId).then(setSelected);
+      setEditingApprovedId(null);
+      setEditingApprovedText((prev) => {
+        const n = { ...prev }; delete n[ev.id]; return n;
+      });
+    } catch (err: unknown) {
+      window.alert(err instanceof Error ? err.message : "Failed to update narrative.");
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  // Normal mode filtered docs
+  const normalFilteredDocs = linkableDocs.filter((d) => {
+    const q = normalDocSearch.toLowerCase();
+    return (
+      d.ref_number.toLowerCase().includes(q) ||
+      d.subject.toLowerCase().includes(q)
+    );
+  });
 
   // ── Filtered doc list for dropdown ──────────────────────────
   const filteredDocs = linkableDocs.filter((d) => {
@@ -1144,7 +1276,10 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                     </p>
                   </div>
                   <button
-                    onClick={() => setShowAddEvent(true)}
+                    onClick={() => {
+                      setNormalShowDocPicker((v) => !v);
+                      setShowAddEvent(false);
+                    }}
                     style={{
                       fontSize: 12,
                       background: ACCENT,
@@ -1180,90 +1315,181 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                   onClickEvent={scrollToEvent}
                 />
 
-                {/* Add event inline form */}
-                {showAddEvent && (
+                {/* Add event doc picker */}
+                {normalShowDocPicker && (
                   <div style={{
-                    padding: "12px 20px",
+                    padding: "14px 20px",
                     borderBottom: "0.5px solid var(--color-border-medium)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
                     background: "var(--color-bg-secondary)",
                   }}>
-                    <div>
-                      <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>Date</p>
+                    {/* Doc search */}
+                    <div ref={normalDocPickerRef} style={{ position: "relative", marginBottom: 8 }}>
                       <input
-                        type="date"
-                        value={eventDate}
-                        onChange={(e) => setEventDate(e.target.value)}
+                        type="text"
+                        placeholder={loadingDocs ? "Loading..." : "Search RFI or Correspondence..."}
+                        value={normalDocSearch}
+                        disabled={loadingDocs}
+                        onChange={(e) => { setNormalDocSearch(e.target.value); setNormalShowDocDropdown(true); }}
+                        onFocus={() => setNormalShowDocDropdown(true)}
                         style={{
+                          width: "100%",
                           fontSize: 12,
-                          padding: "5px 8px",
-                          border: "0.5px solid var(--color-border-medium)",
+                          padding: "7px 10px",
+                          border: "1px solid var(--color-border-medium)",
                           borderRadius: 0,
                           background: "var(--color-bg-primary)",
                           color: "var(--color-text-primary)",
                           fontFamily: "Inter, sans-serif",
+                          boxSizing: "border-box",
                         }}
                       />
-                    </div>
-                    <div>
-                      <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>Type</p>
-                      <select
-                        value={eventType}
-                        onChange={(e) => setEventType(e.target.value)}
-                        style={{
-                          fontSize: 12,
-                          padding: "5px 8px",
-                          border: "0.5px solid var(--color-border-medium)",
-                          borderRadius: 0,
+                      {normalShowDocDropdown && normalFilteredDocs.length > 0 && (
+                        <div style={{
+                          position: "absolute",
+                          top: "100%", left: 0, right: 0,
+                          zIndex: 200,
                           background: "var(--color-bg-primary)",
-                          color: "var(--color-text-primary)",
+                          border: "1px solid var(--color-border-medium)",
+                          maxHeight: 200,
+                          overflowY: "auto",
+                        }}>
+                          {normalFilteredDocs.map((doc) => (
+                            <div
+                              key={doc.id}
+                              onClick={() => handleAddDocEvent(doc)}
+                              style={{
+                                padding: "8px 12px",
+                                borderBottom: "0.5px solid var(--color-border-light)",
+                                cursor: "pointer",
+                                display: "flex",
+                                gap: 8,
+                              }}
+                            >
+                              <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)", minWidth: 70 }}>
+                                {doc.ref_number}
+                              </span>
+                              <div>
+                                <p style={{ fontSize: 12, color: "var(--color-text-primary)", margin: 0, fontFamily: "Inter, sans-serif" }}>{doc.subject}</p>
+                                <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: "1px 0 0", fontFamily: "Inter, sans-serif" }}>
+                                  {doc.date} · {doc.type.toUpperCase()}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Manual entry toggle */}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <button
+                        onClick={() => setNormalShowManualEntry((v) => !v)}
+                        style={{
+                          fontSize: 11, color: "var(--color-text-secondary)",
+                          background: "none", border: "1px solid var(--color-border-light)",
+                          borderRadius: 0, padding: "3px 10px", cursor: "pointer",
                           fontFamily: "Inter, sans-serif",
                         }}
                       >
-                        {Object.entries(MANUAL_EVENT_TYPE_LABELS).map(([k, v]) => (
-                          <option key={k} value={k}>{v}</option>
-                        ))}
-                      </select>
+                        {normalShowManualEntry ? "Cancel manual" : "+ Manual entry"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setNormalShowDocPicker(false);
+                          setNormalShowManualEntry(false);
+                          setNormalDocSearch("");
+                        }}
+                        style={{
+                          fontSize: 11, color: "var(--color-text-secondary)",
+                          background: "none", border: "none",
+                          cursor: "pointer", fontFamily: "Inter, sans-serif",
+                        }}
+                      >
+                        Close
+                      </button>
                     </div>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif", cursor: "pointer", marginTop: 14 }}>
-                      <input type="checkbox" checked={eventIsKey} onChange={(e) => setEventIsKey(e.target.checked)} />
-                      Key event
-                    </label>
-                    <button
-                      onClick={handleAddEvent}
-                      disabled={submittingEvent || !eventDate}
-                      style={{
-                        fontSize: 12,
-                        background: eventDate ? ACCENT : "var(--color-border-medium)",
-                        color: "#F5F2ED",
-                        border: "none",
-                        borderRadius: 0,
-                        padding: "5px 10px",
-                        cursor: submittingEvent || !eventDate ? "not-allowed" : "pointer",
-                        fontFamily: "Inter, sans-serif",
-                        marginTop: 14,
-                      }}
-                    >
-                      {submittingEvent ? "Saving..." : "Save"}
-                    </button>
-                    <button
-                      onClick={() => { setShowAddEvent(false); setEventDate(""); setEventType("other"); setEventIsKey(false); }}
-                      style={{
-                        fontSize: 12,
-                        background: "none",
-                        border: "1px solid var(--color-border-light)",
-                        color: "var(--color-text-secondary)",
-                        borderRadius: 0,
-                        padding: "5px 10px",
-                        cursor: "pointer",
-                        fontFamily: "Inter, sans-serif",
-                        marginTop: 14,
-                      }}
-                    >
-                      Cancel
-                    </button>
+                    {/* Manual entry form */}
+                    {normalShowManualEntry && (
+                      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <div>
+                            <label style={{ ...SECTION_LABEL, marginBottom: 3 }}>Date *</label>
+                            <input
+                              type="date"
+                              value={normalManualDate}
+                              onChange={(e) => setNormalManualDate(e.target.value)}
+                              style={{
+                                width: "100%", fontSize: 12, padding: "5px 8px",
+                                border: "1px solid var(--color-border-medium)",
+                                borderRadius: 0, background: "var(--color-bg-primary)",
+                                color: "var(--color-text-primary)",
+                                fontFamily: "Inter, sans-serif", boxSizing: "border-box",
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ ...SECTION_LABEL, marginBottom: 3 }}>Type</label>
+                            <select
+                              value={normalManualType}
+                              onChange={(e) => setNormalManualType(e.target.value)}
+                              style={{
+                                width: "100%", fontSize: 12, padding: "5px 8px",
+                                border: "1px solid var(--color-border-medium)",
+                                borderRadius: 0, background: "var(--color-bg-primary)",
+                                color: "var(--color-text-primary)",
+                                fontFamily: "Inter, sans-serif", boxSizing: "border-box",
+                              }}
+                            >
+                              {Object.entries(MANUAL_EVENT_TYPE_LABELS).map(([k, v]) => (
+                                <option key={k} value={k}>{v}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <input
+                          type="text"
+                          value={normalManualSubject}
+                          onChange={(e) => setNormalManualSubject(e.target.value)}
+                          placeholder="Description *"
+                          style={{
+                            fontSize: 12, padding: "5px 8px",
+                            border: "1px solid var(--color-border-medium)",
+                            borderRadius: 0, background: "var(--color-bg-primary)",
+                            color: "var(--color-text-primary)",
+                            fontFamily: "Inter, sans-serif", boxSizing: "border-box",
+                            width: "100%",
+                          }}
+                        />
+                        <textarea
+                          value={normalManualNarrative}
+                          onChange={(e) => setNormalManualNarrative(e.target.value)}
+                          rows={2}
+                          placeholder="Narrative (optional)"
+                          style={{
+                            fontSize: 12, padding: "5px 8px",
+                            border: "1px solid var(--color-border-medium)",
+                            borderRadius: 0, background: "var(--color-bg-primary)",
+                            color: "var(--color-text-primary)",
+                            fontFamily: "Inter, sans-serif",
+                            resize: "vertical", boxSizing: "border-box", width: "100%",
+                          }}
+                        />
+                        <button
+                          onClick={handleAddNormalManualEvent}
+                          disabled={!normalManualDate || !normalManualSubject.trim()}
+                          style={{
+                            alignSelf: "flex-start", fontSize: 11, padding: "5px 14px",
+                            background: normalManualDate && normalManualSubject.trim()
+                              ? ACCENT : "var(--color-border-medium)",
+                            color: "#F5F2ED", border: "none", borderRadius: 0,
+                            cursor: normalManualDate && normalManualSubject.trim()
+                              ? "pointer" : "not-allowed",
+                            fontFamily: "Inter, sans-serif",
+                          }}
+                        >
+                          Add to Timeline
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1284,6 +1510,8 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                         marginBottom: 24,
                         paddingBottom: 24,
                         borderBottom: "0.5px solid var(--color-border-light)",
+                        opacity: inactivatingId === ev.id ? 0.4 : 1,
+                        transition: "opacity 150ms",
                       }}
                     >
                       {/* Date column */}
@@ -1325,15 +1553,94 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               → View
                             </button>
                           )}
+                          <button
+                            onClick={() => handleInactivate(ev.id)}
+                            disabled={inactivatingId === ev.id}
+                            title="Remove event"
+                            style={{
+                              fontSize: 12, color: "var(--color-text-secondary)",
+                              background: "none", border: "none",
+                              cursor: inactivatingId === ev.id ? "wait" : "pointer",
+                              fontFamily: "Inter, sans-serif", padding: "0 4px",
+                              marginLeft: "auto",
+                            }}
+                          >
+                            ×
+                          </button>
                         </div>
 
                         {/* Approved narrative */}
-                        {ev.approved_narrative && (
+                        {ev.approved_narrative && editingApprovedId !== ev.id && (
                           <div style={{ marginBottom: 8 }}>
-                            <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>Approved Narrative</p>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                              <p style={SECTION_LABEL}>Approved Narrative</p>
+                              <button
+                                onClick={() => {
+                                  setEditingApprovedId(ev.id);
+                                  setEditingApprovedText((prev) => ({ ...prev, [ev.id]: ev.approved_narrative ?? "" }));
+                                }}
+                                style={{
+                                  fontSize: 10, color: "var(--color-text-secondary)",
+                                  background: "none", border: "none",
+                                  cursor: "pointer", fontFamily: "Inter, sans-serif",
+                                  textDecoration: "underline",
+                                }}
+                              >
+                                Edit
+                              </button>
+                            </div>
                             <p style={{ fontSize: 13, color: "var(--color-text-primary)", lineHeight: 1.6, fontFamily: "Inter, sans-serif", margin: 0 }}>
                               {ev.approved_narrative}
                             </p>
+                          </div>
+                        )}
+
+                        {ev.approved_narrative && editingApprovedId === ev.id && (
+                          <div style={{ marginBottom: 8 }}>
+                            <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>Edit Narrative</p>
+                            <textarea
+                              value={editingApprovedText[ev.id] ?? ev.approved_narrative}
+                              onChange={(e) => setEditingApprovedText((prev) => ({ ...prev, [ev.id]: e.target.value }))}
+                              rows={4}
+                              style={{
+                                width: "100%", fontSize: 12, padding: "7px 10px",
+                                border: "1px solid var(--color-border-medium)",
+                                borderRadius: 0, background: "var(--color-bg-primary)",
+                                color: "var(--color-text-primary)",
+                                fontFamily: "Inter, sans-serif", resize: "vertical",
+                                boxSizing: "border-box",
+                              }}
+                            />
+                            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                              <button
+                                onClick={() => handleApproveModified(ev)}
+                                disabled={approvingId === ev.id}
+                                style={{
+                                  fontSize: 11, padding: "5px 14px",
+                                  background: ACCENT, color: "#F5F2ED",
+                                  border: "none", borderRadius: 0,
+                                  cursor: approvingId === ev.id ? "wait" : "pointer",
+                                  fontFamily: "Inter, sans-serif",
+                                }}
+                              >
+                                {approvingId === ev.id ? "Saving..." : "✓ Save Changes"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingApprovedId(null);
+                                  setEditingApprovedText((prev) => { const n = { ...prev }; delete n[ev.id]; return n; });
+                                }}
+                                style={{
+                                  fontSize: 11, padding: "5px 12px",
+                                  background: "none", color: "var(--color-text-secondary)",
+                                  border: "1px solid var(--color-border-light)",
+                                  borderRadius: 0, cursor: "pointer",
+                                  fontFamily: "Inter, sans-serif",
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
                         )}
 
@@ -1380,9 +1687,77 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
 
                         {/* No narrative yet */}
                         {!ev.approved_narrative && !ev.auto_narrative && (
-                          <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "Inter, sans-serif", margin: 0 }}>
-                            No narrative yet.
-                          </p>
+                          editingApprovedId === ev.id ? (
+                            <div>
+                              <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>Write Narrative</p>
+                              <textarea
+                                value={editingApprovedText[ev.id] ?? ""}
+                                onChange={(e) => setEditingApprovedText((prev) => ({ ...prev, [ev.id]: e.target.value }))}
+                                rows={4}
+                                placeholder="Write the narrative for this event..."
+                                style={{
+                                  width: "100%", fontSize: 12, padding: "7px 10px",
+                                  border: "1px solid var(--color-border-medium)",
+                                  borderRadius: 0, background: "var(--color-bg-primary)",
+                                  color: "var(--color-text-primary)",
+                                  fontFamily: "Inter, sans-serif", resize: "vertical",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                                <button
+                                  onClick={() => handleApproveModified(ev)}
+                                  disabled={approvingId === ev.id || !(editingApprovedText[ev.id] ?? "").trim()}
+                                  style={{
+                                    fontSize: 11, padding: "5px 14px",
+                                    background: (editingApprovedText[ev.id] ?? "").trim()
+                                      ? "var(--color-success)" : "var(--color-border-medium)",
+                                    color: "#F5F2ED", border: "none", borderRadius: 0,
+                                    cursor: (editingApprovedText[ev.id] ?? "").trim()
+                                      ? "pointer" : "not-allowed",
+                                    fontFamily: "Inter, sans-serif",
+                                  }}
+                                >
+                                  {approvingId === ev.id ? "Saving..." : "✓ Approve Narrative"}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingApprovedId(null);
+                                    setEditingApprovedText((prev) => { const n = { ...prev }; delete n[ev.id]; return n; });
+                                  }}
+                                  style={{
+                                    fontSize: 11, padding: "5px 12px",
+                                    background: "none", color: "var(--color-text-secondary)",
+                                    border: "1px solid var(--color-border-light)",
+                                    borderRadius: 0, cursor: "pointer",
+                                    fontFamily: "Inter, sans-serif",
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "Inter, sans-serif", margin: 0 }}>
+                                No narrative yet.
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setEditingApprovedId(ev.id);
+                                  setEditingApprovedText((prev) => ({ ...prev, [ev.id]: "" }));
+                                }}
+                                style={{
+                                  fontSize: 10, color: ACCENT,
+                                  background: "none", border: "none",
+                                  cursor: "pointer", fontFamily: "Inter, sans-serif",
+                                  textDecoration: "underline",
+                                }}
+                              >
+                                Write
+                              </button>
+                            </div>
+                          )
                         )}
                       </div>
                     </div>

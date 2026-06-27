@@ -115,6 +115,16 @@ class ChronologyEventResponse(BaseModel):
     created_at: datetime
 
 
+class ChronologyUpdate(BaseModel):
+    """Partial update for chronology — title only."""
+    title: str
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def clean_title(cls, v):
+        return sanitize_medium(v)
+
+
 class ChronologyListResponse(BaseModel):
     """Lightweight response for chronology list view.
     Returns event_count instead of full event objects.

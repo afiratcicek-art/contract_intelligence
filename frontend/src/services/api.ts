@@ -98,6 +98,7 @@ export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body: unknown) => request<T>("POST", path, body),
   put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
+  patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
   delete: <T>(path: string) => request<T>("DELETE", path),
   postForm: async <T>(path: string, formData: FormData): Promise<T> => {
     const res = await fetch(`${BASE_URL}${path}`, {
@@ -208,6 +209,17 @@ export async function fetchLinkableDocuments(
 ): Promise<LinkableDoc[]> {
   return api.get(
     `/projects/${projectId}/chronologies/linkable-documents`
+  );
+}
+
+export async function updateChronology(
+  projectId: string,
+  chronologyId: string,
+  title: string
+): Promise<Chronology> {
+  return api.patch(
+    `/projects/${projectId}/chronologies/${chronologyId}`,
+    { title }
   );
 }
 

@@ -4,7 +4,8 @@ from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import NotFoundError
 from backend.core.limiter import limiter
 from backend.models.chronology import (
-    ChronologyCreate, ChronologyEventCreate,
+    ChronologyCreate, ChronologyUpdate,
+    ChronologyEventCreate,
     NarrativeApprove, EventInactivate,
     ChronologyListResponse, ChronologyResponse,
     ChronologyEventResponse,
@@ -82,6 +83,48 @@ def create_chronology(
         new_value={"title": data.get("title")},
     )
     return result.data[0]
+
+
+@router.patch("/{chronology_id}", response_model=ChronologyResponse)
+def update_chronology(
+    project_id: UUID,
+    chronology_id: UUID,
+    body: ChronologyUpdate,
+    access: dict = Depends(require_permission("chronology", "update")),
+):
+    """Update chronology title.
+    Logs old and new value to audit trail.
+    """
+    db = access["db"]
+    repo = ChronologyRepository(db)
+
+    existing = repo.get(str(chronology_id))
+    if not existing or existing.get("project_id") != str(project_id):
+        raise NotFoundError()
+
+    data = body.model_dump(mode="json", exclude_none=True)
+    result = db.table("chronologies") \
+        .update(data) \
+        .eq("id", str(chronology_id)) \
+        .execute()
+
+    if not result.data:
+        raise NotFoundError()
+
+    audit = AuditService()
+    audit.log(
+        action="update",
+        entity_type="chronology",
+        entity_id=str(chronology_id),
+        user_id=access["user"]["id"],
+        project_id=str(project_id),
+        old_value={"title": existing.get("title")},
+        new_value={"title": data.get("title", existing.get("title"))},
+    )
+
+    updated = result.data[0]
+    updated["events"] = repo.get_events(str(chronology_id))
+    return updated
 
 
 @router.get("/linkable-documents")

@@ -984,6 +984,117 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                 </div>
               </div>
 
+              {/* Manual entry toggle */}
+              <div style={{ marginTop: 8, marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  onClick={() => setShowManualEntry((v) => !v)}
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-text-secondary)",
+                    background: "none",
+                    border: "1px solid var(--color-border-light)",
+                    borderRadius: 0,
+                    padding: "4px 12px",
+                    cursor: "pointer",
+                    fontFamily: "Inter, sans-serif",
+                  }}
+                >
+                  {showManualEntry ? "Cancel manual entry" : "+ Add entry not in system"}
+                </button>
+              </div>
+
+              {showManualEntry && (
+                <div style={{
+                  marginBottom: 16,
+                  padding: 14,
+                  background: "var(--color-bg-secondary)",
+                  border: "1px solid var(--color-border-light)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}>
+                  <p style={{ ...SECTION_LABEL, marginBottom: 0 }}>Manual Entry</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div>
+                      <label style={{ ...SECTION_LABEL, marginBottom: 4 }}>Date *</label>
+                      <input
+                        type="date"
+                        value={manualDate}
+                        onChange={(e) => setManualDate(e.target.value)}
+                        style={{
+                          width: "100%", fontSize: 12, padding: "6px 8px",
+                          border: "1px solid var(--color-border-medium)",
+                          borderRadius: 0, background: "var(--color-bg-primary)",
+                          color: "var(--color-text-primary)",
+                          fontFamily: "Inter, sans-serif", boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ ...SECTION_LABEL, marginBottom: 4 }}>Type</label>
+                      <select
+                        value={manualType}
+                        onChange={(e) => setManualType(e.target.value)}
+                        style={{
+                          width: "100%", fontSize: 12, padding: "6px 8px",
+                          border: "1px solid var(--color-border-medium)",
+                          borderRadius: 0, background: "var(--color-bg-primary)",
+                          color: "var(--color-text-primary)",
+                          fontFamily: "Inter, sans-serif", boxSizing: "border-box",
+                        }}
+                      >
+                        {Object.entries(MANUAL_EVENT_TYPE_LABELS).map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={manualSubject}
+                    onChange={(e) => setManualSubject(e.target.value)}
+                    placeholder="Description *"
+                    style={{
+                      fontSize: 12, padding: "6px 8px",
+                      border: "1px solid var(--color-border-medium)",
+                      borderRadius: 0, background: "var(--color-bg-primary)",
+                      color: "var(--color-text-primary)",
+                      fontFamily: "Inter, sans-serif",
+                      boxSizing: "border-box", width: "100%",
+                    }}
+                  />
+                  <textarea
+                    value={manualNarrative}
+                    onChange={(e) => setManualNarrative(e.target.value)}
+                    rows={3}
+                    placeholder="Narrative (optional)"
+                    style={{
+                      fontSize: 12, padding: "6px 8px",
+                      border: "1px solid var(--color-border-medium)",
+                      borderRadius: 0, background: "var(--color-bg-primary)",
+                      color: "var(--color-text-primary)",
+                      fontFamily: "Inter, sans-serif",
+                      resize: "vertical", boxSizing: "border-box", width: "100%",
+                    }}
+                  />
+                  <button
+                    onClick={addManualEvent}
+                    disabled={!manualDate || !manualSubject.trim()}
+                    style={{
+                      alignSelf: "flex-start", fontSize: 11, padding: "6px 16px",
+                      background: manualDate && manualSubject.trim()
+                        ? ACCENT : "var(--color-border-medium)",
+                      color: "#F5F2ED", border: "none", borderRadius: 0,
+                      cursor: manualDate && manualSubject.trim()
+                        ? "pointer" : "not-allowed",
+                      fontFamily: "Inter, sans-serif",
+                    }}
+                  >
+                    Add to Timeline
+                  </button>
+                </div>
+              )}
+
               {/* Timeline */}
               {pendingEvents.length === 0 && (
                 <div style={{

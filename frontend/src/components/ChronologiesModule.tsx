@@ -187,9 +187,6 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
 
   // Normal mode — inactivating
   const [inactivatingId, setInactivatingId] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
-  const [savingTitle, setSavingTitle] = useState(false);
 
   // ── CREATE MODE ─────────────────────────────────────────────
   const [createMode, setCreateMode] = useState(false);
@@ -648,31 +645,6 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
       window.alert(err instanceof Error ? err.message : "Failed to update narrative.");
     } finally {
       setApprovingId(null);
-    }
-  };
-
-  const handleSaveTitle = async () => {
-    if (!selectedId || !titleDraft.trim()) return;
-    setSavingTitle(true);
-    try {
-      const updated = await updateChronology(
-        projectId, selectedId, titleDraft.trim()
-      );
-      setSelected(updated);
-      setChronologies((prev) =>
-        prev.map((c) =>
-          c.id === selectedId
-            ? { ...c, title: updated.title }
-            : c
-        )
-      );
-      setEditingTitle(false);
-    } catch (err: unknown) {
-      window.alert(
-        err instanceof Error ? err.message : "Failed to update title."
-      );
-    } finally {
-      setSavingTitle(false);
     }
   };
 
@@ -1965,93 +1937,25 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                   gap: 12,
                 }}>
                   <div>
-                    {editingTitle ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input
-                          type="text"
-                          value={titleDraft}
-                          onChange={(e) => setTitleDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSaveTitle();
-                            if (e.key === "Escape") setEditingTitle(false);
-                          }}
-                          autoFocus
-                          style={{
-                            fontFamily: "Playfair Display, Georgia, serif",
-                            fontSize: 16,
-                            fontWeight: 500,
-                            color: "var(--color-text-primary)",
-                            background: "var(--color-bg-secondary)",
-                            border: "1px solid var(--color-accent)",
-                            borderRadius: 0,
-                            padding: "3px 8px",
-                            outline: "none",
-                            minWidth: 200,
-                          }}
-                        />
-                        <button
-                          onClick={handleSaveTitle}
-                          disabled={savingTitle || !titleDraft.trim()}
-                          style={{
-                            fontSize: 11, padding: "4px 12px",
-                            background: titleDraft.trim() ? "var(--color-accent)" : "var(--color-border-medium)",
-                            color: "#F5F2ED", border: "none", borderRadius: 0,
-                            cursor: savingTitle || !titleDraft.trim() ? "not-allowed" : "pointer",
-                            fontFamily: "Inter, sans-serif",
-                          }}
-                        >
-                          {savingTitle ? "..." : "Save"}
-                        </button>
-                        <button
-                          onClick={() => setEditingTitle(false)}
-                          style={{
-                            fontSize: 11, padding: "4px 10px",
-                            background: "none",
-                            color: "var(--color-text-secondary)",
-                            border: "1px solid var(--color-border-light)",
-                            borderRadius: 0, cursor: "pointer",
-                            fontFamily: "Inter, sans-serif",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <p style={{
-                            fontFamily: "Playfair Display, Georgia, serif",
-                            fontSize: 16,
-                            fontWeight: 500,
-                            color: "var(--color-text-primary)",
-                            margin: 0,
-                          }}>
-                            {selected.title}
-                          </p>
-                          <button
-                            onClick={() => {
-                              setTitleDraft(selected.title);
-                              setEditingTitle(true);
-                            }}
-                            title="Edit title"
-                            style={{
-                              fontSize: 10,
-                              color: "var(--color-text-secondary)",
-                              background: "none", border: "none",
-                              cursor: "pointer",
-                              fontFamily: "Inter, sans-serif",
-                              textDecoration: "underline",
-                              padding: 0,
-                            }}
-                          >
-                            Edit
-                          </button>
-                        </div>
-                        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: "2px 0 0", fontFamily: "Inter, sans-serif" }}>
-                          {selected.events.length === 1 ? "1 event" : `${selected.events.length} events`}
-                        </p>
-                      </div>
-                    )}
+                    <p style={{
+                      fontFamily: "Playfair Display, Georgia, serif",
+                      fontSize: 16,
+                      fontWeight: 500,
+                      color: "var(--color-text-primary)",
+                      margin: 0,
+                    }}>
+                      {selected.title}
+                    </p>
+                    <p style={{
+                      fontSize: 11,
+                      color: "var(--color-text-secondary)",
+                      margin: "2px 0 0",
+                      fontFamily: "Inter, sans-serif",
+                    }}>
+                      {selected.events.length === 1
+                        ? "1 event"
+                        : `${selected.events.length} events`}
+                    </p>
                   </div>
                   <button
                     onClick={enterEditMode}
@@ -2067,7 +1971,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       flexShrink: 0,
                     }}
                   >
-                    + Edit Chronology
+                    Edit Chronology
                   </button>
                 </div>
 

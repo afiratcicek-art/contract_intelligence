@@ -121,7 +121,27 @@ class ChronologyService:
             "created_by": created_by,
         }).execute()
 
-        return event.data[0]
+        event_record = event.data[0]
+
+        if self.audit:
+            self.audit.log(
+                action="create",
+                entity_type="chronology_event",
+                entity_id=event_record["id"],
+                user_id=str(created_by) if created_by else self.user_id,
+                project_id=self.project_id,
+                new_value={
+                    "chronology_id": chronology_id,
+                    "event_type": event_type,
+                    "event_date": str(event_date),
+                    "document_ref_id": document_ref_id,
+                    "document_ref_type": document_ref_type,
+                    "is_key_event": is_key_event,
+                    "auto_narrative_generated": auto_narrative is not None,
+                },
+            )
+
+        return event_record
 
     def approve_narrative(
         self,
@@ -132,6 +152,15 @@ class ChronologyService:
     ) -> dict:
         """CM narrative'i onaylar."""
         from datetime import datetime
+        # Check if narrative already existed (modification vs first approval)
+        existing = self.db.table("chronology_events") \
+            .select("approved_narrative") \
+            .eq("id", event_id) \
+            .execute()
+        is_modification = bool(
+            existing.data and existing.data[0].get("approved_narrative")
+        )
+
         result = self.db.table("chronology_events").update({
             "approved_narrative": approved_narrative,
             "narrative_approved_by": approved_by,
@@ -143,11 +172,16 @@ class ChronologyService:
 
         if self.audit:
             self.audit.log(
-                action="approve",
+                action="modify" if is_modification else "approve",
                 entity_type="chronology_event",
                 entity_id=event_id,
                 user_id=approved_by,
                 project_id=project_id,
+                new_value={
+                    "approved_narrative": approved_narrative,
+                    "approved_at": datetime.utcnow().isoformat(),
+                    "is_modification": is_modification,
+                },
             )
 
         return result.data[0]

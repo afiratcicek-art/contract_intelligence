@@ -2057,25 +2057,6 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                     onClick={enterEditMode}
                     style={{
                       fontSize: 12,
-                      background: "none",
-                      border: `1px solid ${ACCENT}`,
-                      color: ACCENT,
-                      borderRadius: 0,
-                      padding: "8px 16px",
-                      cursor: "pointer",
-                      fontFamily: "Inter, sans-serif",
-                      flexShrink: 0,
-                    }}
-                  >
-                    Edit Chronology
-                  </button>
-                  <button
-                    onClick={() => {
-                      setNormalShowDocPicker((v) => !v);
-                      setShowAddEvent(false);
-                    }}
-                    style={{
-                      fontSize: 12,
                       background: ACCENT,
                       color: "#F5F2ED",
                       border: "none",
@@ -2086,7 +2067,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       flexShrink: 0,
                     }}
                   >
-                    + Add Event
+                    + Edit Chronology
                   </button>
                 </div>
 

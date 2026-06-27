@@ -637,7 +637,10 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                   </p>
                   <div style={{ display: "flex", gap: 8, fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
                     <span>
-                      {(c.events ?? []).length === 1 ? "1 event" : `${(c.events ?? []).length} events`}
+                      {(() => {
+                        const count = c.event_count ?? (c.events ?? []).length;
+                        return count === 1 ? "1 event" : `${count} events`;
+                      })()}
                     </span>
                   </div>
                 </div>

@@ -115,6 +115,22 @@ class ChronologyEventResponse(BaseModel):
     created_at: datetime
 
 
+class ChronologyListResponse(BaseModel):
+    """Lightweight response for chronology list view.
+    Returns event_count instead of full event objects.
+    Avoids N+1 queries and response model validation issues.
+    """
+    id: UUID
+    project_id: UUID
+    title: str
+    entity_type: str
+    entity_id: Optional[UUID] = None
+    is_active: bool
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    event_count: int = 0
+
+
 class ChronologyResponse(BaseModel):
     id: UUID
     project_id: UUID

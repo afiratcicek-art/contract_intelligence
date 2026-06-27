@@ -6,7 +6,8 @@ from backend.core.limiter import limiter
 from backend.models.chronology import (
     ChronologyCreate, ChronologyEventCreate,
     NarrativeApprove, EventInactivate,
-    ChronologyResponse, ChronologyEventResponse,
+    ChronologyListResponse, ChronologyResponse,
+    ChronologyEventResponse,
 )
 from backend.repositories.chronology_repository import ChronologyRepository
 from backend.services.chronology_service import ChronologyService
@@ -18,14 +19,48 @@ from backend.repositories.correspondence_repository import CorrespondenceReposit
 router = APIRouter(prefix="/projects/{project_id}/chronologies", tags=["chronologies"])
 
 
-@router.get("", response_model=list[ChronologyResponse])
+@router.get("", response_model=list[ChronologyListResponse])
 def list_chronologies(
     project_id: UUID,
     access: dict = Depends(verify_project_access),
 ):
+    """List chronologies with event count.
+    Uses a single query with nested select for counts.
+    No N+1 — event_count computed from nested id list.
+    """
     db = access["db"]
-    repo = ChronologyRepository(db)
-    return repo.list_by_project(str(project_id))
+    # Single query: chronologies + nested active event ids
+    result = db.table("chronologies") \
+        .select("*, chronology_events!inner(id)") \
+        .eq("project_id", str(project_id)) \
+        .eq("chronology_events.is_active", True) \
+        .order("created_at", desc=True) \
+        .execute()
+
+    # Also fetch chronologies with ZERO events
+    # (inner join would exclude them)
+    all_result = db.table("chronologies") \
+        .select("*") \
+        .eq("project_id", str(project_id)) \
+        .order("created_at", desc=True) \
+        .execute()
+
+    # Build event count map from inner join result
+    event_counts: dict[str, int] = {}
+    for row in (result.data or []):
+        cid = row["id"]
+        events = row.get("chronology_events", []) or []
+        event_counts[cid] = len(events)
+
+    # Merge: all chronologies + their counts (0 if no events)
+    rows = all_result.data or []
+    output = []
+    for row in rows:
+        output.append({
+            **row,
+            "event_count": event_counts.get(row["id"], 0),
+        })
+    return output
 
 
 @router.post("", status_code=201, response_model=ChronologyResponse)

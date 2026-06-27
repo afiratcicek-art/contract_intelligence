@@ -28,6 +28,7 @@ export interface Chronology {
   created_by: string | null;
   created_at: string;
   events: ChronologyEvent[];
+  event_count?: number;
 }
 
 // Labels for manual event entry dropdown.

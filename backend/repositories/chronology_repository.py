@@ -33,17 +33,14 @@ class ChronologyRepository(BaseRepository):
         return result.data or []
 
     def list_by_project(self, project_id: str) -> list[dict]:
+        """Simple chronology list — no events included.
+        Use list_chronologies endpoint for event counts.
+        """
         result = (
             self.db.table("chronologies")
-            .select("*, chronology_events(id)")
+            .select("*")
             .eq("project_id", project_id)
             .order("created_at", desc=True)
             .execute()
         )
-        rows = result.data or []
-        # Normalize: rename nested array to events
-        # so frontend (c.events ?? []).length works
-        for row in rows:
-            nested = row.pop("chronology_events", []) or []
-            row["events"] = nested
-        return rows
+        return result.data or []

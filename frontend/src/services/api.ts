@@ -185,11 +185,29 @@ export async function fetchReadAlertIds(
   return res.read_ids;
 }
 
+export interface LinkableDoc {
+  id: string;
+  type: "rfi" | "correspondence";
+  ref_number: string;
+  subject: string;
+  date: string;
+  status: string;
+  parent_id: string | null;
+}
+
 export async function fetchChronologies(
   projectId: string
 ): Promise<Chronology[]> {
   return api.get(
     `/projects/${projectId}/chronologies`
+  );
+}
+
+export async function fetchLinkableDocuments(
+  projectId: string
+): Promise<LinkableDoc[]> {
+  return api.get(
+    `/projects/${projectId}/chronologies/linkable-documents`
   );
 }
 
@@ -227,6 +245,7 @@ export async function addChronologyEvent(
     is_key_event?: boolean;
     activity_id?: string;
     boq_ref?: string;
+    manual_narrative?: string;
   }
 ): Promise<ChronologyEvent> {
   return api.post(

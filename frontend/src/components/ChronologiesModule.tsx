@@ -299,7 +299,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
       const next = [...prev, {
         doc: {
           id: fakeId,
-          type: "other" as "rfi" | "correspondence",
+          type: manualType as "rfi" | "correspondence",
           ref_number: "MANUAL",
           subject: manualSubject.trim(),
           date: manualDate,
@@ -354,11 +354,15 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         const manualNarrative = pe.approved
           ? pe.approvedText || pe.autoNarrative || pe.manualText || undefined
           : undefined;
+        const isManual = pe.doc.id.startsWith("manual-");
+        const eventType = isManual
+          ? (pe.doc.type || "other")
+          : (pe.doc.type === "rfi" ? "rfi" : "correspondence");
         await addChronologyEvent(projectId, created.id, {
           event_date: pe.doc.date,
-          event_type: pe.doc.type,
-          document_ref_id: pe.doc.id,
-          document_ref_type: pe.doc.type,
+          event_type: eventType,
+          document_ref_id: isManual ? undefined : pe.doc.id,
+          document_ref_type: isManual ? undefined : pe.doc.type,
           manual_narrative: manualNarrative,
         });
       }
@@ -369,7 +373,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
       setCreateTitle("");
       setPendingEvents([]);
     } catch (err: unknown) {
-      window.alert(err instanceof Error ? err.message : "Save failed.");
+      const msg = err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "detail" in err
+        ? String((err as Record<string, unknown>).detail)
+        : "Save failed. Please try again.";
+      window.alert(msg);
     } finally {
       setSavingChronology(false);
     }

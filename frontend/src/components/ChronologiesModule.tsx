@@ -46,6 +46,9 @@ interface PendingEvent {
   loadingLlm: boolean;
   approved: boolean;
   approvedText: string;
+  // Edit mode only
+  _isExisting?: boolean;       // true = loaded from saved chronology
+  _originalNarrative?: string; // original approved_narrative for diff
 }
 
 
@@ -198,6 +201,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
   const [docSearch, setDocSearch] = useState("");
   const [showDocDropdown, setShowDocDropdown] = useState(false);
   const docPickerRef = useRef<HTMLDivElement>(null);
+
+  // ── EDIT MODE ───────────────────────────────────────────────
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const eventRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const [showManualEntry, setShowManualEntry] = useState(false);
@@ -441,6 +450,119 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
     setShowDocDropdown(false);
   };
 
+  const enterEditMode = () => {
+    if (!selected) return;
+    setEditTitle(selected.title);
+    // Load existing active events into pendingEvents
+    // preserving their narrative state and marking as existing
+    const existing: PendingEvent[] = selected.events
+      .filter((ev) => ev.is_active)
+      .sort((a, b) => (a.event_date > b.event_date ? 1 : -1))
+      .map((ev) => ({
+        doc: {
+          id: ev.id,
+          type: (ev.document_ref_type ?? "other") as "rfi" | "correspondence",
+          ref_number: ev.document_ref_type
+            ? ev.event_type.toUpperCase()
+            : "MANUAL",
+          subject: ev.document_ref_type
+            ? `${ev.event_type.toUpperCase()} — ${ev.event_date}`
+            : `${ev.event_type} — ${ev.event_date}`,
+          date: ev.event_date,
+          status: "existing",
+          parent_id: null,
+        },
+        narrativeMode: ev.approved_narrative ? ("manual" as const) : null,
+        manualText: ev.approved_narrative ?? "",
+        autoNarrative: ev.auto_narrative,
+        loadingLlm: false,
+        approved: !!ev.approved_narrative,
+        approvedText: ev.approved_narrative ?? "",
+        _isExisting: true,
+        _originalNarrative: ev.approved_narrative ?? "",
+      }));
+    setPendingEvents(existing);
+    setEditMode(true);
+    if (linkableDocs.length === 0) {
+      setLoadingDocs(true);
+      fetchLinkableDocuments(projectId)
+        .then(setLinkableDocs)
+        .catch(() => setLinkableDocs([]))
+        .finally(() => setLoadingDocs(false));
+    }
+  };
+
+  const exitEditMode = () => {
+    setEditMode(false);
+    setEditTitle("");
+    setPendingEvents([]);
+    setDocSearch("");
+    setShowDocDropdown(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedId || !selected) return;
+    setSavingEdit(true);
+    try {
+      // 1. Update title if changed
+      if (editTitle.trim() && editTitle.trim() !== selected.title) {
+        await updateChronology(projectId, selectedId, editTitle.trim());
+      }
+
+      // 2. Handle existing events — approve modified narratives
+      const existingPending = pendingEvents.filter((pe) => pe._isExisting);
+      for (const pe of existingPending) {
+        const narrativeChanged =
+          pe.approved &&
+          pe.approvedText.trim() !== (pe._originalNarrative ?? "").trim();
+        if (narrativeChanged) {
+          await approveNarrative(
+            projectId, selectedId, pe.doc.id, pe.approvedText.trim()
+          );
+        }
+      }
+
+      // 3. Add new events (not existing)
+      const existingIds = new Set(
+        selected.events.map((ev) => ev.id)
+      );
+      const newPending = pendingEvents.filter(
+        (pe) => !pe._isExisting && !existingIds.has(pe.doc.id)
+      );
+      for (const pe of newPending) {
+        const isManual = pe.doc.id.startsWith("manual-");
+        const manualNarrative =
+          pe.approved
+            ? pe.approvedText || pe.manualText || undefined
+            : undefined;
+        await addChronologyEvent(projectId, selectedId, {
+          event_date: pe.doc.date,
+          event_type: isManual
+            ? pe.doc.type || "other"
+            : pe.doc.type === "rfi"
+            ? "rfi"
+            : "correspondence",
+          document_ref_id: isManual ? undefined : pe.doc.id,
+          document_ref_type: isManual ? undefined : pe.doc.type,
+          manual_narrative: manualNarrative,
+        });
+      }
+
+      // 4. Refresh
+      const refreshed = await fetchChronology(projectId, selectedId);
+      setSelected(refreshed);
+      const updatedList = await fetchChronologies(projectId);
+      setChronologies(updatedList);
+      exitEditMode();
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Save failed.";
+      window.alert(msg);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const scrollToEvent = (id: string) => {
     const el = eventRefs.current[id];
     if (el && timelineScrollRef.current) {
@@ -576,7 +698,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: createMode ? "1fr" : "260px 1fr",
+      gridTemplateColumns: (createMode || editMode) ? "1fr" : "260px 1fr",
       height: "100%",
       flex: 1,
       minHeight: 0,
@@ -584,7 +706,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
     }}>
 
       {/* ── LEFT PANEL ── */}
-      {!createMode && (
+      {!createMode && !editMode && (
         <div style={{
           borderRight: "0.5px solid var(--color-border-medium)",
           display: "flex",
@@ -681,6 +803,444 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
 
       {/* ── RIGHT PANEL ── */}
       <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0, height: "100%" }}>
+
+        {/* ════════════════════════════════════════
+            EDIT MODE
+            ════════════════════════════════════════ */}
+        {editMode && selected && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <HorizontalStrip
+              events={pendingEvents.map((pe) => ({
+                id: pe.doc.id,
+                date: pe.doc.date
+                  ? new Date(pe.doc.date).toLocaleDateString("en-GB", {
+                      day: "2-digit", month: "short",
+                    })
+                  : "",
+                label: pe.doc.ref_number !== "MANUAL"
+                  ? pe.doc.ref_number
+                  : pe.doc.subject.slice(0, 12),
+                approved: pe.approved,
+                isKey: false,
+              }))}
+              onClickEvent={scrollToEvent}
+            />
+            <div
+              ref={timelineScrollRef}
+              style={{ flex: 1, overflowY: "auto", padding: 24, minHeight: 0 }}
+            >
+              {/* Header */}
+              <div style={{
+                display: "flex", alignItems: "center",
+                justifyContent: "space-between", marginBottom: 24,
+              }}>
+                <p style={{
+                  fontFamily: "Playfair Display, Georgia, serif",
+                  fontSize: 20, fontWeight: 500,
+                  color: "var(--color-text-primary)", margin: 0,
+                }}>
+                  Edit Chronology
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={savingEdit}
+                    style={{
+                      background: ACCENT, color: "#F5F2ED",
+                      border: "none", padding: "8px 20px",
+                      fontSize: 12, fontWeight: 500,
+                      cursor: savingEdit ? "not-allowed" : "pointer",
+                      borderRadius: 0, fontFamily: "Inter, sans-serif",
+                      opacity: savingEdit ? 0.6 : 1,
+                    }}
+                  >
+                    {savingEdit ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    onClick={exitEditMode}
+                    disabled={savingEdit}
+                    style={{
+                      background: "none",
+                      border: "1px solid var(--color-border-light)",
+                      color: "var(--color-text-secondary)",
+                      padding: "8px 16px", fontSize: 12,
+                      cursor: "pointer", borderRadius: 0,
+                      fontFamily: "Inter, sans-serif",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              {/* Title input */}
+              <div style={{ marginBottom: 24 }}>
+                <label style={SECTION_LABEL}>Chronology Title</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  style={{
+                    width: "100%", fontSize: 14, padding: "10px 12px",
+                    border: "1px solid var(--color-border-medium)",
+                    borderRadius: 0,
+                    background: "var(--color-bg-secondary)",
+                    color: "var(--color-text-primary)",
+                    fontFamily: "Inter, sans-serif",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              {/* Document picker */}
+              <div style={{ marginBottom: 24 }}>
+                <label style={SECTION_LABEL}>Add Documents to Timeline</label>
+                <div ref={docPickerRef} style={{ position: "relative" }}>
+                  <input
+                    type="text"
+                    placeholder={loadingDocs
+                      ? "Loading documents..."
+                      : "Search RFI or Correspondence..."}
+                    value={docSearch}
+                    disabled={loadingDocs}
+                    onChange={(e) => {
+                      setDocSearch(e.target.value);
+                      setShowDocDropdown(true);
+                    }}
+                    onFocus={() => setShowDocDropdown(true)}
+                    style={{
+                      width: "100%", fontSize: 13, padding: "9px 12px",
+                      border: "1px solid var(--color-border-medium)",
+                      borderRadius: 0,
+                      background: "var(--color-bg-secondary)",
+                      color: "var(--color-text-primary)",
+                      fontFamily: "Inter, sans-serif",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                  {showDocDropdown && filteredDocs.length > 0 && (
+                    <div style={{
+                      position: "absolute", top: "100%", left: 0, right: 0,
+                      zIndex: 200, background: "var(--color-bg-primary)",
+                      border: "1px solid var(--color-border-medium)",
+                      maxHeight: 260, overflowY: "auto",
+                    }}>
+                      {filteredDocs.map((doc) => {
+                        const already = pendingEvents.some(
+                          (e) => e.doc.id === doc.id
+                        );
+                        return (
+                          <div
+                            key={doc.id}
+                            onClick={() => !already && addDocToTimeline(doc)}
+                            style={{
+                              padding: "10px 14px",
+                              borderBottom: "0.5px solid var(--color-border-light)",
+                              cursor: already ? "default" : "pointer",
+                              opacity: already ? 0.4 : 1,
+                              display: "flex", gap: 10,
+                            }}
+                          >
+                            <span style={{
+                              fontSize: 10, fontWeight: 500,
+                              textTransform: "uppercase",
+                              color: "var(--color-text-secondary)",
+                              fontFamily: "JetBrains Mono, monospace",
+                              minWidth: 80, paddingTop: 1,
+                            }}>
+                              {doc.ref_number}
+                            </span>
+                            <div style={{ flex: 1 }}>
+                              <p style={{
+                                fontSize: 12,
+                                color: "var(--color-text-primary)",
+                                margin: 0, fontFamily: "Inter, sans-serif",
+                              }}>
+                                {doc.subject}
+                              </p>
+                              <p style={{
+                                fontSize: 11,
+                                color: "var(--color-text-secondary)",
+                                margin: "2px 0 0",
+                                fontFamily: "Inter, sans-serif",
+                              }}>
+                                {formatDate(doc.date)} · {doc.type.toUpperCase()}
+                              </p>
+                            </div>
+                            {already && (
+                              <span style={{
+                                fontSize: 10,
+                                color: "var(--color-success)",
+                                fontFamily: "Inter, sans-serif",
+                              }}>
+                                Added
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Timeline */}
+              {pendingEvents.length === 0 && (
+                <div style={{
+                  padding: "32px 0", textAlign: "center",
+                  color: "var(--color-text-secondary)",
+                  fontSize: 13, fontFamily: "Inter, sans-serif",
+                  fontStyle: "italic",
+                }}>
+                  No events yet.
+                </div>
+              )}
+              {pendingEvents.length > 0 && (
+                <div>
+                  <p style={SECTION_LABEL}>
+                    Timeline — {pendingEvents.length} event
+                    {pendingEvents.length !== 1 ? "s" : ""}
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    {pendingEvents.map((pe, idx) => (
+                      <div
+                        key={pe.doc.id}
+                        ref={(el) => { eventRefs.current[pe.doc.id] = el; }}
+                        style={{ display: "flex", gap: 0 }}
+                      >
+                        {/* Spine */}
+                        <div style={{
+                          display: "flex", flexDirection: "column",
+                          alignItems: "center", width: 32,
+                          flexShrink: 0, paddingTop: 18,
+                        }}>
+                          <div style={{
+                            width: 10, height: 10, borderRadius: "50%",
+                            background: pe.approved
+                              ? "var(--color-success)" : ACCENT,
+                            flexShrink: 0, zIndex: 1,
+                          }} />
+                          {idx < pendingEvents.length - 1 && (
+                            <div style={{
+                              width: 1, flex: 1, minHeight: 24,
+                              background: "var(--color-border-medium)",
+                              marginTop: 4,
+                            }} />
+                          )}
+                        </div>
+                        {/* Card */}
+                        <div style={{
+                          flex: 1,
+                          border: `1px solid ${pe.approved
+                            ? "var(--color-success)"
+                            : "var(--color-border-medium)"}`,
+                          padding: 16,
+                          background: "var(--color-bg-secondary)",
+                          position: "relative",
+                          marginBottom: idx < pendingEvents.length - 1 ? 0 : 16,
+                        }}>
+                          {/* Card header */}
+                          <div style={{
+                            display: "flex", alignItems: "flex-start",
+                            justifyContent: "space-between", marginBottom: 12,
+                          }}>
+                            <div>
+                              <span style={{
+                                fontSize: 10,
+                                fontFamily: "JetBrains Mono, monospace",
+                                color: "var(--color-text-secondary)",
+                                marginRight: 8,
+                              }}>
+                                {pe.doc.ref_number}
+                              </span>
+                              {pe._isExisting && (
+                                <span style={{
+                                  fontSize: 9, color: "var(--color-text-secondary)",
+                                  fontFamily: "Inter, sans-serif",
+                                  background: "var(--color-bg-primary)",
+                                  padding: "1px 5px",
+                                }}>
+                                  existing
+                                </span>
+                              )}
+                              <p style={{
+                                fontSize: 13, fontWeight: 500,
+                                color: "var(--color-text-primary)",
+                                margin: "4px 0 2px",
+                                fontFamily: "Inter, sans-serif",
+                              }}>
+                                {pe.doc.subject}
+                              </p>
+                              <p style={{
+                                fontSize: 11,
+                                color: "var(--color-text-secondary)",
+                                margin: 0, fontFamily: "Inter, sans-serif",
+                              }}>
+                                {formatDate(pe.doc.date)}
+                              </p>
+                            </div>
+                            {/* × button — inactivate for existing, remove for new */}
+                            <button
+                              onClick={() => {
+                                if (pe._isExisting) {
+                                  if (window.confirm(
+                                    "Remove this event? This action is logged."
+                                  )) {
+                                    inactivateChronologyEvent(
+                                      projectId,
+                                      selectedId!,
+                                      pe.doc.id,
+                                      "Removed via chronology editor"
+                                    )
+                                      .then(() => removeFromTimeline(pe.doc.id))
+                                      .catch((err: unknown) => {
+                                        window.alert(
+                                          err instanceof Error
+                                            ? err.message
+                                            : "Failed."
+                                        );
+                                      });
+                                  }
+                                } else {
+                                  removeFromTimeline(pe.doc.id);
+                                }
+                              }}
+                              style={{
+                                background: "none", border: "none",
+                                cursor: "pointer", fontSize: 16,
+                                color: "var(--color-text-secondary)",
+                                padding: 0, lineHeight: 1,
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+
+                          {/* Narrative section */}
+                          {!pe.narrativeMode && !pe.approved && (
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <button
+                                onClick={() => requestLlmNarrative(pe)}
+                                style={{
+                                  fontSize: 11, padding: "5px 12px",
+                                  background: ACCENT, color: "#F5F2ED",
+                                  border: "none", borderRadius: 0,
+                                  cursor: "pointer",
+                                  fontFamily: "Inter, sans-serif",
+                                }}
+                              >
+                                ✦ Request LLM Narrative
+                              </button>
+                              <button
+                                onClick={() => updatePending(pe.doc.id, {
+                                  narrativeMode: "manual",
+                                })}
+                                style={{
+                                  fontSize: 11, padding: "5px 12px",
+                                  background: "none",
+                                  color: "var(--color-text-secondary)",
+                                  border: "1px solid var(--color-border-light)",
+                                  borderRadius: 0, cursor: "pointer",
+                                  fontFamily: "Inter, sans-serif",
+                                }}
+                              >
+                                Write Manually
+                              </button>
+                            </div>
+                          )}
+
+                          {pe.narrativeMode === "manual" && !pe.approved && (
+                            <div>
+                              <p style={{ ...SECTION_LABEL, marginBottom: 6 }}>
+                                Narrative
+                              </p>
+                              <textarea
+                                value={pe.manualText}
+                                onChange={(e) => updatePending(pe.doc.id, {
+                                  manualText: e.target.value,
+                                })}
+                                rows={4}
+                                placeholder="Write the narrative for this event..."
+                                style={{
+                                  width: "100%", fontSize: 12,
+                                  padding: "8px 10px",
+                                  border: "1px solid var(--color-border-medium)",
+                                  borderRadius: 0,
+                                  background: "var(--color-bg-primary)",
+                                  color: "var(--color-text-primary)",
+                                  fontFamily: "Inter, sans-serif",
+                                  resize: "vertical",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                              <button
+                                onClick={() => updatePending(pe.doc.id, {
+                                  approved: true,
+                                  approvedText: pe.manualText,
+                                })}
+                                disabled={!pe.manualText.trim()}
+                                style={{
+                                  marginTop: 6, fontSize: 11,
+                                  padding: "5px 14px",
+                                  background: pe.manualText.trim()
+                                    ? "var(--color-success)"
+                                    : "var(--color-border-medium)",
+                                  color: "#F5F2ED", border: "none",
+                                  borderRadius: 0,
+                                  cursor: pe.manualText.trim()
+                                    ? "pointer" : "not-allowed",
+                                  fontFamily: "Inter, sans-serif",
+                                }}
+                              >
+                                ✓ Approve Narrative
+                              </button>
+                            </div>
+                          )}
+
+                          {pe.approved && (
+                            <div style={{
+                              padding: "8px 12px",
+                              background: "var(--color-success-bg)",
+                              border: "1px solid var(--color-success)",
+                              display: "flex", alignItems: "center",
+                              justifyContent: "space-between", gap: 12,
+                            }}>
+                              <p style={{
+                                fontSize: 12, color: "var(--color-success)",
+                                margin: 0, fontFamily: "Inter, sans-serif",
+                                flex: 1,
+                              }}>
+                                ✓ {pe.approvedText || "(No narrative)"}
+                              </p>
+                              <button
+                                onClick={() => updatePending(pe.doc.id, {
+                                  approved: false,
+                                  approvedText: "",
+                                  narrativeMode: "manual",
+                                  manualText: pe.approvedText,
+                                })}
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--color-text-secondary)",
+                                  background: "none", border: "none",
+                                  cursor: "pointer",
+                                  fontFamily: "Inter, sans-serif",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ════════════════════════════════════════
             CREATE MODE
@@ -1264,7 +1824,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         {/* ════════════════════════════════════════
             NORMAL MODE — right panel
             ════════════════════════════════════════ */}
-        {!createMode && (
+        {!createMode && !editMode && (
           <>
             {/* Empty state */}
             {!selectedId && (
@@ -1382,6 +1942,22 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       </div>
                     )}
                   </div>
+                  <button
+                    onClick={enterEditMode}
+                    style={{
+                      fontSize: 12,
+                      background: "none",
+                      border: `1px solid ${ACCENT}`,
+                      color: ACCENT,
+                      borderRadius: 0,
+                      padding: "8px 16px",
+                      cursor: "pointer",
+                      fontFamily: "Inter, sans-serif",
+                      flexShrink: 0,
+                    }}
+                  >
+                    Edit Chronology
+                  </button>
                   <button
                     onClick={() => {
                       setNormalShowDocPicker((v) => !v);

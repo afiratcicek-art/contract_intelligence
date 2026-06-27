@@ -90,9 +90,10 @@ def update_chronology(
     project_id: UUID,
     chronology_id: UUID,
     body: ChronologyUpdate,
-    access: dict = Depends(require_permission("chronology", "update")),
+    access: dict = Depends(verify_project_access),
 ):
     """Update chronology title.
+    Allowed for: CM role OR the user who created the chronology.
     Logs old and new value to audit trail.
     """
     db = access["db"]
@@ -101,6 +102,18 @@ def update_chronology(
     existing = repo.get(str(chronology_id))
     if not existing or existing.get("project_id") != str(project_id):
         raise NotFoundError()
+
+    # Permission: CM role or creator
+    from fastapi import HTTPException
+    current_user_id = str(access["user"]["id"])
+    role = access["member"]["project_role"]
+    is_cm = role == "cm"
+    is_creator = str(existing.get("created_by", "")) == current_user_id
+    if not is_cm and not is_creator:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorised to edit this chronology."
+        )
 
     data = body.model_dump(mode="json", exclude_none=True)
     result = db.table("chronologies") \

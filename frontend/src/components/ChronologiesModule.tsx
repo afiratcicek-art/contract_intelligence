@@ -79,6 +79,7 @@ function HorizontalStrip({
   onClickEvent: (id: string) => void;
 }) {
   const [popupId, setPopupId] = useState<string | null>(null);
+  const [popupLeft, setPopupLeft] = useState<number>(20);
   const popupRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -108,8 +109,8 @@ function HorizontalStrip({
           ref={popupRef}
           style={{
             position: "absolute",
-            top: 80,
-            left: 20,
+            top: 76,
+            left: popupLeft,
             zIndex: 100,
             background: "var(--color-bg-primary)",
             border: "1px solid var(--color-border-medium)",
@@ -212,10 +213,24 @@ function HorizontalStrip({
         >
           {/* Node */}
           <div
-            onClick={() => {
+            onClick={(e) => {
               if (popupId === ev.id) {
                 setPopupId(null);
               } else {
+                const rect = (e.currentTarget as HTMLElement)
+                  .getBoundingClientRect();
+                const containerRect = containerRef.current
+                  ?.getBoundingClientRect();
+                const relativeLeft = containerRect
+                  ? rect.left - containerRect.left
+                  : 20;
+                const containerWidth = containerRect?.width ?? 600;
+                const popupWidth = 280;
+                const clampedLeft = Math.min(
+                  Math.max(0, relativeLeft - popupWidth / 2),
+                  containerWidth - popupWidth - 8
+                );
+                setPopupLeft(clampedLeft);
                 setPopupId(ev.id);
                 onClickEvent(ev.id);
               }
@@ -292,29 +307,9 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
   const [selected, setSelected] = useState<Chronology | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // ── Add-event form (existing chronology) ────────────────────
-  const [showAddEvent, setShowAddEvent] = useState(false);
-  const [eventDate, setEventDate] = useState("");
-  const [eventType, setEventType] = useState("other");
-  const [eventIsKey, setEventIsKey] = useState(false);
-  const [submittingEvent, setSubmittingEvent] = useState(false);
-
   // ── Narrative editing (existing chronology) ─────────────────
   const [editingNarrative, setEditingNarrative] = useState<Record<string, string>>({});
   const [approvingId, setApprovingId] = useState<string | null>(null);
-
-  // Normal mode — add event with doc picker
-  const [normalShowDocPicker, setNormalShowDocPicker] = useState(false);
-  const [normalDocSearch, setNormalDocSearch] = useState("");
-  const [normalShowDocDropdown, setNormalShowDocDropdown] = useState(false);
-  const [normalShowManualEntry, setNormalShowManualEntry] = useState(false);
-  const [normalManualDate, setNormalManualDate] = useState("");
-  const [normalManualType, setNormalManualType] = useState("other");
-  const [normalManualSubject, setNormalManualSubject] = useState("");
-  const [normalManualNarrative, setNormalManualNarrative] = useState("");
-  const normalDocPickerRef = useRef<HTMLDivElement>(null);
-
-  // Normal mode — narrative editing
   const [editingApprovedId, setEditingApprovedId] = useState<string | null>(null);
   const [editingApprovedText, setEditingApprovedText] = useState<Record<string, string>>({});
 
@@ -381,32 +376,6 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
       .finally(() => setLoadingDocs(false));
   }, [createMode, projectId]);
 
-  // Load linkable docs when normal mode doc picker opens
-  useEffect(() => {
-    if (!normalShowDocPicker) return;
-    if (linkableDocs.length > 0) return; // already loaded
-    setLoadingDocs(true);
-    fetchLinkableDocuments(projectId)
-      .then(setLinkableDocs)
-      .catch(() => setLinkableDocs([]))
-      .finally(() => setLoadingDocs(false));
-  }, [normalShowDocPicker, projectId, linkableDocs.length]);
-
-  // Close normal mode dropdown on outside click
-  useEffect(() => {
-    if (!normalShowDocDropdown) return;
-    const handleClick = (e: MouseEvent) => {
-      if (
-        normalDocPickerRef.current &&
-        !normalDocPickerRef.current.contains(e.target as Node)
-      ) {
-        setNormalShowDocDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [normalShowDocDropdown]);
-
   // Close dropdown on outside click
   useEffect(() => {
     if (!showDocDropdown) return;
@@ -423,25 +392,6 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
   }, [showDocDropdown]);
 
   // ── Handlers: existing chronology ───────────────────────────
-  const handleAddEvent = () => {
-    if (!selectedId || !eventDate) return;
-    setSubmittingEvent(true);
-    addChronologyEvent(projectId, selectedId, {
-      event_date: eventDate,
-      event_type: eventType,
-      is_key_event: eventIsKey,
-    })
-      .then(() => {
-        fetchChronology(projectId, selectedId).then(setSelected).catch(() => {});
-        setShowAddEvent(false);
-        setEventDate("");
-        setEventType("other");
-        setEventIsKey(false);
-      })
-      .catch((err) => window.alert(err.message))
-      .finally(() => setSubmittingEvent(false));
-  };
-
   const handleApprove = (event: ChronologyEvent) => {
     if (!selectedId) return;
     const narrative = editingNarrative[event.id] ?? event.auto_narrative ?? "";
@@ -767,46 +717,6 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
     }, 150);
   };
 
-  // Add doc-linked event to existing chronology
-  const handleAddDocEvent = async (doc: LinkableDoc) => {
-    if (!selectedId) return;
-    setNormalDocSearch("");
-    setNormalShowDocDropdown(false);
-    setNormalShowDocPicker(false);
-    try {
-      await addChronologyEvent(projectId, selectedId, {
-        event_date: doc.date,
-        event_type: doc.type === "rfi" ? "rfi" : "correspondence",
-        document_ref_id: doc.id,
-        document_ref_type: doc.type,
-      });
-      await fetchChronology(projectId, selectedId).then(setSelected);
-    } catch (err: unknown) {
-      window.alert(err instanceof Error ? err.message : "Failed to add event.");
-    }
-  };
-
-  // Add manual event to existing chronology
-  const handleAddNormalManualEvent = async () => {
-    if (!selectedId || !normalManualDate || !normalManualSubject.trim()) return;
-    try {
-      await addChronologyEvent(projectId, selectedId, {
-        event_date: normalManualDate,
-        event_type: normalManualType,
-        manual_narrative: normalManualNarrative.trim() || undefined,
-      });
-      await fetchChronology(projectId, selectedId).then(setSelected);
-      setNormalManualDate("");
-      setNormalManualType("other");
-      setNormalManualSubject("");
-      setNormalManualNarrative("");
-      setNormalShowManualEntry(false);
-      setNormalShowDocPicker(false);
-    } catch (err: unknown) {
-      window.alert(err instanceof Error ? err.message : "Failed to add event.");
-    }
-  };
-
   // Inactivate event (soft delete with audit)
   const handleInactivate = async (eventId: string) => {
     if (!selectedId) return;
@@ -844,15 +754,6 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
       setApprovingId(null);
     }
   };
-
-  // Normal mode filtered docs
-  const normalFilteredDocs = linkableDocs.filter((d) => {
-    const q = normalDocSearch.toLowerCase();
-    return (
-      d.ref_number.toLowerCase().includes(q) ||
-      d.subject.toLowerCase().includes(q)
-    );
-  });
 
   // ── Filtered doc list for dropdown ──────────────────────────
   const filteredDocs = linkableDocs.filter((d) => {
@@ -2282,184 +2183,6 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                     }))}
                   onClickEvent={scrollToEvent}
                 />
-
-                {/* Add event doc picker */}
-                {normalShowDocPicker && (
-                  <div style={{
-                    padding: "14px 20px",
-                    borderBottom: "0.5px solid var(--color-border-medium)",
-                    background: "var(--color-bg-secondary)",
-                  }}>
-                    {/* Doc search */}
-                    <div ref={normalDocPickerRef} style={{ position: "relative", marginBottom: 8 }}>
-                      <input
-                        type="text"
-                        placeholder={loadingDocs ? "Loading..." : "Search RFI or Correspondence..."}
-                        value={normalDocSearch}
-                        disabled={loadingDocs}
-                        onChange={(e) => { setNormalDocSearch(e.target.value); setNormalShowDocDropdown(true); }}
-                        onFocus={() => setNormalShowDocDropdown(true)}
-                        style={{
-                          width: "100%",
-                          fontSize: 12,
-                          padding: "7px 10px",
-                          border: "1px solid var(--color-border-medium)",
-                          borderRadius: 0,
-                          background: "var(--color-bg-primary)",
-                          color: "var(--color-text-primary)",
-                          fontFamily: "Inter, sans-serif",
-                          boxSizing: "border-box",
-                        }}
-                      />
-                      {normalShowDocDropdown && normalFilteredDocs.length > 0 && (
-                        <div style={{
-                          position: "absolute",
-                          top: "100%", left: 0, right: 0,
-                          zIndex: 200,
-                          background: "var(--color-bg-primary)",
-                          border: "1px solid var(--color-border-medium)",
-                          maxHeight: 200,
-                          overflowY: "auto",
-                        }}>
-                          {normalFilteredDocs.map((doc) => (
-                            <div
-                              key={doc.id}
-                              onClick={() => handleAddDocEvent(doc)}
-                              style={{
-                                padding: "8px 12px",
-                                borderBottom: "0.5px solid var(--color-border-light)",
-                                cursor: "pointer",
-                                display: "flex",
-                                gap: 8,
-                              }}
-                            >
-                              <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)", minWidth: 70 }}>
-                                {doc.ref_number}
-                              </span>
-                              <div>
-                                <p style={{ fontSize: 12, color: "var(--color-text-primary)", margin: 0, fontFamily: "Inter, sans-serif" }}>{doc.subject}</p>
-                                <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: "1px 0 0", fontFamily: "Inter, sans-serif" }}>
-                                  {doc.date} · {doc.type.toUpperCase()}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {/* Manual entry toggle */}
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <button
-                        onClick={() => setNormalShowManualEntry((v) => !v)}
-                        style={{
-                          fontSize: 11, color: "var(--color-text-secondary)",
-                          background: "none", border: "1px solid var(--color-border-light)",
-                          borderRadius: 0, padding: "3px 10px", cursor: "pointer",
-                          fontFamily: "Inter, sans-serif",
-                        }}
-                      >
-                        {normalShowManualEntry ? "Cancel manual" : "+ Manual entry"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setNormalShowDocPicker(false);
-                          setNormalShowManualEntry(false);
-                          setNormalDocSearch("");
-                        }}
-                        style={{
-                          fontSize: 11, color: "var(--color-text-secondary)",
-                          background: "none", border: "none",
-                          cursor: "pointer", fontFamily: "Inter, sans-serif",
-                        }}
-                      >
-                        Close
-                      </button>
-                    </div>
-                    {/* Manual entry form */}
-                    {normalShowManualEntry && (
-                      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                          <div>
-                            <label style={{ ...SECTION_LABEL, marginBottom: 3 }}>Date *</label>
-                            <input
-                              type="date"
-                              value={normalManualDate}
-                              onChange={(e) => setNormalManualDate(e.target.value)}
-                              style={{
-                                width: "100%", fontSize: 12, padding: "5px 8px",
-                                border: "1px solid var(--color-border-medium)",
-                                borderRadius: 0, background: "var(--color-bg-primary)",
-                                color: "var(--color-text-primary)",
-                                fontFamily: "Inter, sans-serif", boxSizing: "border-box",
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ ...SECTION_LABEL, marginBottom: 3 }}>Type</label>
-                            <select
-                              value={normalManualType}
-                              onChange={(e) => setNormalManualType(e.target.value)}
-                              style={{
-                                width: "100%", fontSize: 12, padding: "5px 8px",
-                                border: "1px solid var(--color-border-medium)",
-                                borderRadius: 0, background: "var(--color-bg-primary)",
-                                color: "var(--color-text-primary)",
-                                fontFamily: "Inter, sans-serif", boxSizing: "border-box",
-                              }}
-                            >
-                              {Object.entries(MANUAL_EVENT_TYPE_LABELS).map(([k, v]) => (
-                                <option key={k} value={k}>{v}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        <input
-                          type="text"
-                          value={normalManualSubject}
-                          onChange={(e) => setNormalManualSubject(e.target.value)}
-                          placeholder="Description *"
-                          style={{
-                            fontSize: 12, padding: "5px 8px",
-                            border: "1px solid var(--color-border-medium)",
-                            borderRadius: 0, background: "var(--color-bg-primary)",
-                            color: "var(--color-text-primary)",
-                            fontFamily: "Inter, sans-serif", boxSizing: "border-box",
-                            width: "100%",
-                          }}
-                        />
-                        <textarea
-                          value={normalManualNarrative}
-                          onChange={(e) => setNormalManualNarrative(e.target.value)}
-                          rows={2}
-                          placeholder="Narrative (optional)"
-                          style={{
-                            fontSize: 12, padding: "5px 8px",
-                            border: "1px solid var(--color-border-medium)",
-                            borderRadius: 0, background: "var(--color-bg-primary)",
-                            color: "var(--color-text-primary)",
-                            fontFamily: "Inter, sans-serif",
-                            resize: "vertical", boxSizing: "border-box", width: "100%",
-                          }}
-                        />
-                        <button
-                          onClick={handleAddNormalManualEvent}
-                          disabled={!normalManualDate || !normalManualSubject.trim()}
-                          style={{
-                            alignSelf: "flex-start", fontSize: 11, padding: "5px 14px",
-                            background: normalManualDate && normalManualSubject.trim()
-                              ? ACCENT : "var(--color-border-medium)",
-                            color: "#F5F2ED", border: "none", borderRadius: 0,
-                            cursor: normalManualDate && normalManualSubject.trim()
-                              ? "pointer" : "not-allowed",
-                            fontFamily: "Inter, sans-serif",
-                          }}
-                        >
-                          Add to Timeline
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Event timeline */}
                 <div ref={timelineScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>

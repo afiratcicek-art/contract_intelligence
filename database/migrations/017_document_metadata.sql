@@ -52,6 +52,7 @@ ALTER TABLE audit_log
         'llm_call',
         'pdf_upload', 'pdf_parse_start',
         'pdf_parse_complete', 'pdf_parse_failed', 'pdf_delete',
+        'alert_created', 'alert_action_created',
         'metadata_extraction_start',
         'metadata_extraction_complete',
         'metadata_extraction_failed',

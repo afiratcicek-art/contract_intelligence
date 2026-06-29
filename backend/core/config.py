@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     GATE_TIMEOUT_SECONDS: int = 5
     AI_MODEL: str = "claude-sonnet-4-20250514"  # deprecated — use ANALYSIS_MODEL
 
+    # OpenAI — embeddings only (text-embedding-3-small)
+    OPENAI_API_KEY: str = ""
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_DIMENSION: int = 1536
+
     # Güvenlik
     SECRET_KEY: str = "change-me-in-production"
 

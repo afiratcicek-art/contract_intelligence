@@ -31,6 +31,7 @@ from backend.models.document import (
     DocumentMetadataResponse,
 )
 from backend.services.extraction_service import get_extraction_service
+from backend.services.embedding_service import get_embedding_service
 from backend.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
@@ -174,6 +175,21 @@ def upload_pdf(
         text="",  # placeholder — see TB-13
         user_keywords=user_meta.keywords,
         user_location=user_meta.location,
+    )
+
+    # Schedule embedding pipeline as background task
+    # text="" placeholder until pdf_pipeline completes (TB-13)
+    embedding_service = get_embedding_service()
+    background_tasks.add_task(
+        embedding_service.embed_document,
+        doc_id=doc_id,
+        project_id=project_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        user_id=user_id,
+        text="",  # placeholder — see TB-13
+        doc_date=None,
+        doc_type=None,
     )
 
     return JSONResponse(

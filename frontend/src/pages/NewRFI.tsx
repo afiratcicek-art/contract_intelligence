@@ -42,6 +42,8 @@ export default function NewRFI() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+  const [docKeywords, setDocKeywords] = useState("");
+  const [docLocation, setDocLocation] = useState("");
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -136,7 +138,7 @@ export default function NewRFI() {
             formData.append("file", file);
             try {
               const uploadRes = await fetch(
-                `/api/v1/projects/${projectId}/documents/upload?entity_type=rfi&entity_id=${rfi.id}`,
+                `/api/v1/projects/${projectId}/documents/upload?entity_type=rfi&entity_id=${rfi.id}${docKeywords.trim() ? `&keywords=${encodeURIComponent(docKeywords.trim())}` : ""}${docLocation.trim() ? `&location=${encodeURIComponent(docLocation.trim())}` : ""}`,
                 { method: "POST", credentials: "include", body: formData }
               );
               if (!uploadRes.ok) {
@@ -337,6 +339,41 @@ export default function NewRFI() {
           {/* Dosya yükleme */}
           <div>
             <label style={labelStyle}>{lang === "tr" ? "Belgeler (opsiyonel)" : "Documents (optional)"}</label>
+            {/* Document metadata — optional, passed to extraction pipeline */}
+            <div style={{ marginBottom: 8 }}>
+              <label style={{
+                ...labelStyle,
+                marginBottom: 4,
+              }}>
+                {lang === "tr" ? "Anahtar Kelimeler (opsiyonel)" : "Keywords (optional)"}
+              </label>
+              <input
+                type="text"
+                value={docKeywords}
+                onChange={(e) => setDocKeywords(e.target.value)}
+                placeholder={lang === "tr"
+                  ? "ör. Grid Zone 4A, RFI-006, Madde 13.3"
+                  : "e.g. Grid Zone 4A, RFI-006, Sub-Clause 13.3"}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label style={{
+                ...labelStyle,
+                marginBottom: 4,
+              }}>
+                {lang === "tr" ? "Lokasyon (opsiyonel)" : "Location (optional)"}
+              </label>
+              <input
+                type="text"
+                value={docLocation}
+                onChange={(e) => setDocLocation(e.target.value)}
+                placeholder={lang === "tr"
+                  ? "ör. Grid Zone 4A, 3. Kat Podium"
+                  : "e.g. Grid Zone 4A, Level 3 Podium"}
+                style={inputStyle}
+              />
+            </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
               <label style={{ padding: "8px 16px", backgroundColor: cardBg, border: `1px solid ${border}`, color: textSecondary, fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer", borderRadius: 0, whiteSpace: "nowrap" as const }}>
                 {lang === "tr" ? "Dosya Seç" : "Select File"}

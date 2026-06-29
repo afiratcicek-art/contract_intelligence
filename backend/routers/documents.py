@@ -229,6 +229,70 @@ def list_documents(
 
 
 # ----------------------------------------------------------
+# GET /projects/{project_id}/documents/search
+# ----------------------------------------------------------
+@router.get("/search", status_code=200)
+def search_documents(
+    project_id: str,
+    q: str = Query(..., min_length=1, max_length=200,
+                   description="Keyword search query"),
+    entity_type: str = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    access=Depends(verify_project_access),
+):
+    """Search documents by keyword, location, filename, doc_type.
+
+    OR logic across:
+    - keywords array (user-entered or Haiku-extracted)
+    - location field (partial match)
+    - original_filename (partial match)
+    - doc_type (partial match)
+
+    Results ordered by doc_date DESC (newest first).
+    extracted_text not returned — large field excluded.
+    N+1: single query, no loop.
+    """
+    from backend.core.sanitizer import sanitize_short
+    db = access["db"]
+
+    q_clean = (sanitize_short(q) or "").strip().lower()
+    if not q_clean:
+        return []
+
+    try:
+        query = (
+            db.table("pdf_document")
+            .select(
+                "id, project_id, entity_type, entity_id, "
+                "original_filename, file_size_bytes, "
+                "parse_status, page_count, "
+                "keywords, location, doc_date, doc_type, "
+                "metadata_status, metadata_source, "
+                "created_by, created_at, updated_at"
+            )
+            .eq("project_id", project_id)
+            .or_(
+                f'keywords.cs.{{"{q_clean}"}},'
+                f"location.ilike.%{q_clean}%,"
+                f"original_filename.ilike.%{q_clean}%,"
+                f"doc_type.ilike.%{q_clean}%"
+            )
+            .order("doc_date", desc=True, nullsfirst=False)
+            .limit(limit)
+        )
+        if entity_type:
+            query = query.eq("entity_type", entity_type)
+        result = query.execute()
+        return result.data or []
+    except Exception as exc:
+        logger.error(
+            "Document search error: %s | project=%s q=%s",
+            exc, project_id, q_clean,
+        )
+        raise HTTPException(status_code=500, detail="Arama başarısız.")
+
+
+# ----------------------------------------------------------
 # GET /projects/{project_id}/documents/{doc_id}
 # ----------------------------------------------------------
 @router.get("/{doc_id}", status_code=200)

@@ -6,6 +6,7 @@ import { getAuth, clearAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
 import AlertsModule from "../components/AlertsModule";
 import ChronologiesModule from "../components/ChronologiesModule";
+import DocumentsModule from "../components/DocumentsModule";
 
 type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
@@ -767,9 +768,14 @@ export default function Workspace() {
               projectId={String(projectId)}
             />
           )}
+          {activeModule === "documents" && (
+            <DocumentsModule
+              projectId={String(projectId)}
+            />
+          )}
           {!["general", "alerts", "correspondence",
             "rfis", "changes", "deliverables",
-            "chronologies"].includes(activeModule) && (
+            "chronologies", "documents"].includes(activeModule) && (
             <div style={{
               display: "flex",
               alignItems: "center",

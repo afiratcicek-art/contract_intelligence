@@ -212,6 +212,53 @@ export async function fetchLinkableDocuments(
   );
 }
 
+export interface ProjectDocument {
+  id: string;
+  project_id: string;
+  entity_type: string;
+  entity_id: string;
+  original_filename: string;
+  file_size_bytes: number;
+  parse_status: string;
+  page_count: number | null;
+  keywords: string[];
+  location: string | null;
+  doc_date: string | null;
+  doc_type: string | null;
+  metadata_status: string;
+  metadata_source: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function searchDocuments(
+  projectId: string,
+  q: string,
+  entityType?: string,
+  limit = 20
+): Promise<ProjectDocument[]> {
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  if (entityType) params.set("entity_type", entityType);
+  return api.get(
+    `/projects/${projectId}/documents/search?${params}`
+  );
+}
+
+export async function listDocuments(
+  projectId: string,
+  entityType?: string,
+  entityId?: string
+): Promise<ProjectDocument[]> {
+  const params = new URLSearchParams();
+  if (entityType) params.set("entity_type", entityType);
+  if (entityId) params.set("entity_id", entityId);
+  const qs = params.toString();
+  return api.get(
+    `/projects/${projectId}/documents/${qs ? `?${qs}` : ""}`
+  );
+}
+
 export async function updateChronology(
   projectId: string,
   chronologyId: string,

@@ -20,7 +20,7 @@ Scalability note (TB-12):
 
 import json
 import logging
-import time
+# import time  # TB-5: re-enable with _run_with_retry
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -38,7 +38,8 @@ _TEXT_LIMIT = 3000
 
 # Retry config
 _MAX_RETRIES = 3
-_RETRY_BASE_DELAY = 2  # seconds, exponential
+# _RETRY_BASE_DELAY used in _run_with_retry — see TB-5
+_RETRY_BASE_DELAY = 2  # seconds, exponential backoff
 
 # Haiku model
 _HAIKU_MODEL = "claude-haiku-4-5-20251001"
@@ -188,28 +189,38 @@ class ExtractionService:
     def _run_with_retry(self, text: str) -> Optional[dict]:
         """Call Haiku with 3x retry + exponential backoff.
         Returns parsed JSON dict or None on total failure.
+
+        NOTE: Disabled until ANTHROPIC_API_KEY is configured.
+        TB-5: Re-enable when API key is available.
+        Uncomment the implementation block below to activate.
         """
-        truncated = text[:_TEXT_LIMIT]
-        for attempt in range(1, _MAX_RETRIES + 1):
-            try:
-                response = self._client.messages.create(
-                    model=_HAIKU_MODEL,
-                    max_tokens=400,
-                    system=_EXTRACTION_SYSTEM_PROMPT,
-                    messages=[{
-                        "role": "user",
-                        "content": f"Extract metadata from this document:\n\n{truncated}",
-                    }],
-                )
-                raw = response.content[0].text.strip()
-                return self._parse_response(raw)
-            except Exception as exc:
-                logger.warning(
-                    "Haiku extraction attempt %d/%d failed: %s | ",
-                    attempt, _MAX_RETRIES, exc,
-                )
-                if attempt < _MAX_RETRIES:
-                    time.sleep(_RETRY_BASE_DELAY ** attempt)
+        # TODO (TB-5): Uncomment when ANTHROPIC_API_KEY configured
+        # truncated = text[:_TEXT_LIMIT]
+        # for attempt in range(1, _MAX_RETRIES + 1):
+        #     try:
+        #         response = self._client.messages.create(
+        #             model=_HAIKU_MODEL,
+        #             max_tokens=400,
+        #             system=_EXTRACTION_SYSTEM_PROMPT,
+        #             messages=[{
+        #                 "role": "user",
+        #                 "content": f"Extract metadata from this document:\n\n{truncated}",
+        #             }],
+        #         )
+        #         raw = response.content[0].text.strip()
+        #         return self._parse_response(raw)
+        #     except Exception as exc:
+        #         logger.warning(
+        #             "Haiku extraction attempt %d/%d failed: %s | ",
+        #             attempt, _MAX_RETRIES, exc,
+        #         )
+        #         if attempt < _MAX_RETRIES:
+        #             time.sleep(_RETRY_BASE_DELAY ** attempt)
+        # return None
+        logger.info(
+            "Extraction skipped — ANTHROPIC_API_KEY not configured. "
+            "TB-5: activate when API key available.",
+        )
         return None
 
     def _parse_response(self, raw: str) -> Optional[dict]:

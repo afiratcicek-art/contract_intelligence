@@ -13,6 +13,7 @@ Async parse mimarisi:
 import logging
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Request
 from fastapi.responses import JSONResponse
@@ -23,6 +24,14 @@ from backend.database import get_admin_client
 from backend.services.permission_service import PermissionService
 from backend.utils.file_handler import upload_document, delete_document, get_signed_url
 from backend.utils.pdf_utils import validate_pdf_bytes, validate_document_bytes
+from fastapi import BackgroundTasks
+from backend.models.document import (
+    DocumentMetadataUpdate,
+    DocumentMetadataApprove,
+    DocumentMetadataResponse,
+)
+from backend.services.extraction_service import get_extraction_service
+from backend.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +58,13 @@ VALID_ENTITY_TYPES = {
 @limiter.limit("20/minute")
 def upload_pdf(
     request: Request,
+    background_tasks: BackgroundTasks,
     project_id: str,
     entity_type: str = Query(..., description="correspondence | rfi | change | deliverable | chronology | contract_document"),
-    entity_id: str = Query(..., description="Belgenin bağlı olduğu kaydın UUID'si. contract_document için project_id ile aynı olmalı."),
+    entity_id: str = Query(..., description="Belgenin bağlı olduğu kaydın UUID'si."),
     file: UploadFile = File(...),
+    keywords: Optional[str] = Query(None, description="Comma-separated keywords (optional)."),
+    location: Optional[str] = Query(None, description="Site location or zone (optional)."),
     access=Depends(verify_project_access),
 ):
     """
@@ -91,6 +103,13 @@ def upload_pdf(
         project_id=project_id,
         entity_type=entity_type,
         permission="edit",
+    )
+
+    # Parse optional user metadata
+    # keywords query param: comma-separated string → list
+    user_meta = DocumentMetadataUpdate(
+        keywords=[k.strip() for k in keywords.split(",") if k.strip()] if keywords else None,
+        location=location or None,
     )
 
     file_bytes = file.file.read()
@@ -140,11 +159,29 @@ def upload_pdf(
         logger.error("PDF pending kaydı yazılamadı: %s | id=%s", exc, doc_id)
         raise HTTPException(status_code=500, detail="Belge kaydedilemedi.")
 
+    # Schedule Haiku metadata extraction as background task
+    # Extraction needs parsed text — triggered after pdf_pipeline
+    # completes. For now schedule with empty text; pdf_pipeline
+    # worker will re-trigger extraction when text is ready.
+    # TB-13: Wire extraction trigger from pdf_pipeline_service
+    # after extracted_text is populated.
+    extraction_service = get_extraction_service()
+    background_tasks.add_task(
+        extraction_service.extract,
+        doc_id=doc_id,
+        project_id=project_id,
+        user_id=user_id,
+        text="",  # placeholder — see TB-13
+        user_keywords=user_meta.keywords,
+        user_location=user_meta.location,
+    )
+
     return JSONResponse(
         status_code=202,
         content={
             "doc_id": doc_id,
             "parse_status": "pending",
+            "metadata_status": "pending",
             "message": "Belge alındı, işleme kuyruğuna eklendi.",
             "status_url": f"/api/v1/projects/{project_id}/documents/{doc_id}",
         },
@@ -314,3 +351,80 @@ def get_document_signed_url(
         raise HTTPException(status_code=500, detail=str(exc))
 
     return {"doc_id": doc_id, "signed_url": signed_url, "expires_in": expires_in}
+
+
+@router.patch("/{doc_id}/metadata/approve", status_code=200)
+def approve_metadata(
+    project_id: str,
+    doc_id: str,
+    body: DocumentMetadataApprove,
+    access=Depends(verify_project_access),
+):
+    """HITL: CM approves or corrects Haiku-extracted metadata.
+    Approved values replace the draft extraction.
+    metadata_status remains 'done'; metadata_source set to 'mixed'
+    if user corrections differ from Haiku output.
+    """
+    db = access["db"]
+    user_id = str(access["user"]["id"])
+
+    # Verify document belongs to project
+    result = (
+        get_admin_client()
+        .table("pdf_document")
+        .select("id, metadata_status, keywords, location, doc_date")
+        .eq("id", doc_id)
+        .eq("project_id", project_id)
+        .single()
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Belge bulunamadı.")
+
+    existing = result.data
+
+    # Build update — only override fields provided by user
+    update_data: dict = {
+        "metadata_approved_by": user_id,
+        "metadata_approved_at": datetime.now(timezone.utc).isoformat(),
+        "metadata_status": "done",
+        "metadata_source": "mixed",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if body.keywords is not None:
+        update_data["keywords"] = body.keywords
+    if body.location is not None:
+        update_data["location"] = body.location
+    if body.doc_date is not None:
+        update_data["doc_date"] = body.doc_date.isoformat()
+
+    try:
+        get_admin_client() \
+            .table("pdf_document") \
+            .update(update_data) \
+            .eq("id", doc_id) \
+            .execute()
+    except Exception as exc:
+        logger.error("Metadata approve DB error: %s | doc_id=%s", exc, doc_id)
+        raise HTTPException(status_code=500, detail="Metadata güncellenemedi.")
+
+    audit = AuditService()
+    audit.log(
+        action="metadata_approved",
+        entity_type="pdf_document",
+        entity_id=doc_id,
+        user_id=user_id,
+        project_id=project_id,
+        old_value={
+            "keywords": existing.get("keywords"),
+            "location": existing.get("location"),
+            "doc_date": existing.get("doc_date"),
+        },
+        new_value={
+            "keywords": update_data.get("keywords", existing.get("keywords")),
+            "location": update_data.get("location", existing.get("location")),
+            "doc_date": update_data.get("doc_date", existing.get("doc_date")),
+        },
+    )
+
+    return {"doc_id": doc_id, "metadata_status": "done", "message": "Metadata onaylandı."}

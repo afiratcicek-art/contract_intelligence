@@ -146,6 +146,18 @@ async def recover_stalled_pdf_jobs():
     except Exception as exc:
         logger.error("Startup recovery hatası: %s", exc)
 
+    # Reset stale metadata extractions
+    # metadata_status processing → failed on restart
+    try:
+        _get_admin_for_startup() \
+            .table("pdf_document") \
+            .update({"metadata_status": "failed"}) \
+            .eq("metadata_status", "processing") \
+            .execute()
+        logger.info("Stale metadata extractions reset to failed.")
+    except Exception as exc:
+        logger.error("Metadata extraction reset failed: %s", exc)
+
 # ── Routers ────────────────────────────────────────────────────────────────
 API_V1 = "/api/v1"
 app.include_router(auth.router, prefix=API_V1)

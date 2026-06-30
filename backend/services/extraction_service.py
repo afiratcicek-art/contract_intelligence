@@ -121,7 +121,13 @@ class ExtractionService:
 
         result = self._run_with_retry(text)
 
-        if result is None:
+        # User-supplied metadata must persist regardless of Haiku
+        # outcome. Haiku failure should not discard what the user
+        # already typed in the upload form.
+        has_user_input = bool(user_keywords or user_location or user_doc_date)
+
+        if result is None and not has_user_input:
+            # Nothing to write — neither Haiku nor user gave data
             self._set_status(doc_id, "failed")
             self._audit.log(
                 action="metadata_extraction_failed",
@@ -129,14 +135,17 @@ class ExtractionService:
                 entity_id=doc_id,
                 user_id=user_id,
                 project_id=project_id,
-                note="All retries exhausted",
+                note="All retries exhausted, no user input to fall back on",
             )
             return
 
         # Merge: user input takes precedence over Haiku
-        final_keywords = user_keywords if user_keywords else result.get("keywords") or []
-        final_location = user_location if user_location else result.get("location")
-        final_doc_date = user_doc_date if user_doc_date else result.get("doc_date")
+        # If Haiku failed (result is None), fall back to user
+        # input only — empty dict has no keys, so .get() is safe.
+        haiku_data = result or {}
+        final_keywords = user_keywords if user_keywords else haiku_data.get("keywords") or []
+        final_location = user_location if user_location else haiku_data.get("location")
+        final_doc_date = user_doc_date if user_doc_date else haiku_data.get("doc_date")
 
         # Sanitize Haiku output (user input already sanitized at model level)
         final_keywords = [

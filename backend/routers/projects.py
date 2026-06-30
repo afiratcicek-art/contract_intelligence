@@ -649,58 +649,73 @@ def search_project(
     q: str = "",
     access: dict = Depends(verify_project_access),
 ):
-    """Global keyword arama — tüm modüllerde."""
+    """Global keyword arama — tüm modüllerde.
+
+    RFI and correspondence search use chain-aware RPCs
+    (migration 021): a match on subject OR an attached
+    document's keywords/location returns the FULL chain
+    (root + all responses/revisions), not just the matching
+    row — consistent with how RFI/Correspondence lists
+    already render parent-child threads.
+
+    Change and Deliverable have no chain concept, so they
+    keep simple subject/title ilike matching.
+    """
     db = access["db"]
     keyword = f"%{q.strip()}%" if q.strip() else "%"
     results = []
 
-    # Correspondence
-    corr = (
-        db.table("correspondences")
-        .select("id, corr_number, subject, type, status, correspondence_date, direction, parent_id, has_response")
-        .eq("project_id", str(project_id))
-        .eq("is_deleted", False)
-        .ilike("subject", keyword)
-        .limit(200)
-        .execute()
-    )
-    for r in (corr.data or []):
-        results.append({
-            "module": "correspondence",
-            "label": "CORR",
-            "ref": r.get("corr_number", "—"),
-            "subject": r.get("subject", ""),
-            "status": r.get("status", ""),
-            "date": r.get("correspondence_date", ""),
-            "id": r["id"],
-            "parent_id": r.get("parent_id"),
-            "has_response": r.get("has_response", False),
-        })
+    # Correspondence — chain-aware RPC (subject + document match)
+    if q.strip():
+        try:
+            corr_result = db.rpc(
+                "search_correspondence_chains",
+                {"p_project_id": str(project_id), "p_query": q.strip(), "p_limit": 200},
+            ).execute()
+            for r in (corr_result.data or []):
+                results.append({
+                    "module": "correspondence",
+                    "label": "CORR",
+                    "ref": r.get("corr_number", "—"),
+                    "subject": r.get("subject", ""),
+                    "status": r.get("status", ""),
+                    "date": r.get("correspondence_date", ""),
+                    "id": r["id"],
+                    "parent_id": r.get("parent_id"),
+                    "has_response": r.get("has_response", False),
+                })
+        except Exception as exc:
+            logger.error(
+                "Correspondence chain search failed: %s | project=%s q=%s",
+                exc, project_id, q.strip(),
+            )
 
-    # RFI
-    rfis = (
-        db.table("rfis")
-        .select("id, rfi_number, subject, status, submitted_date, discipline, parent_id, rfi_type")
-        .eq("project_id", str(project_id))
-        .eq("is_deleted", False)
-        .ilike("subject", keyword)
-        .limit(200)
-        .execute()
-    )
-    for r in (rfis.data or []):
-        results.append({
-            "module": "rfi",
-            "label": "RFI",
-            "ref": r.get("rfi_number", "—"),
-            "subject": r.get("subject", ""),
-            "status": r.get("status", ""),
-            "date": r.get("submitted_date", ""),
-            "id": r["id"],
-            "parent_id": r.get("parent_id"),
-            "rfi_type": r.get("rfi_type", "original"),
-        })
+    # RFI — chain-aware RPC (subject + document match)
+    if q.strip():
+        try:
+            rfi_result = db.rpc(
+                "search_rfi_chains",
+                {"p_project_id": str(project_id), "p_query": q.strip(), "p_limit": 200},
+            ).execute()
+            for r in (rfi_result.data or []):
+                results.append({
+                    "module": "rfi",
+                    "label": "RFI",
+                    "ref": r.get("rfi_number", "—"),
+                    "subject": r.get("subject", ""),
+                    "status": r.get("status", ""),
+                    "date": r.get("submitted_date", ""),
+                    "id": r["id"],
+                    "parent_id": r.get("parent_id"),
+                    "rfi_type": r.get("rfi_type", "original"),
+                })
+        except Exception as exc:
+            logger.error(
+                "RFI chain search failed: %s | project=%s q=%s",
+                exc, project_id, q.strip(),
+            )
 
-    # Change
+    # Change — no chain concept, simple title match
     changes = (
         db.table("changes")
         .select("id, change_number, title, status, created_at")
@@ -721,7 +736,7 @@ def search_project(
             "id": r["id"],
         })
 
-    # Deliverable
+    # Deliverable — no chain concept, simple title match
     delivs = (
         db.table("deliverables")
         .select("id, title, status, due_date")
@@ -741,47 +756,5 @@ def search_project(
             "date": r.get("due_date", ""),
             "id": r["id"],
         })
-
-    # Documents — uses search_project_documents RPC (migration 020)
-    # for morphological matching across keywords, location,
-    # filename, doc_type, and subject (RFI/correspondence join).
-    # SECURITY INVOKER — RLS enforced via anon client (db).
-    # No N+1: single RPC call, JOIN happens inside Postgres.
-    if q.strip():
-        try:
-            doc_result = db.rpc(
-                "search_project_documents",
-                {
-                    "p_project_id": str(project_id),
-                    "p_query": q.strip(),
-                    "p_filter": "general",
-                    "p_limit": 200,
-                },
-            ).execute()
-            for r in (doc_result.data or []):
-                # Prefer the linked entity's subject (RFI/correspondence)
-                # so the user sees what it's about, not just the filename.
-                # Fall back to filename when no entity subject exists
-                # (e.g. contract_document, internal_alert attachments).
-                display_subject = r.get("subject") or r.get("original_filename", "")
-                results.append({
-                    "module": "document",
-                    "label": "DOC",
-                    "ref": r.get("original_filename", "")[:40],
-                    "subject": display_subject,
-                    "status": "",
-                    "date": r.get("doc_date", ""),
-                    "id": r["id"],
-                    "entity_type": r.get("entity_type"),
-                    "entity_id": r.get("entity_id"),
-                    "keywords": r.get("keywords", []),
-                    "location": r.get("location"),
-                })
-        except Exception as exc:
-            logger.error(
-                "Document search RPC failed: %s | project=%s q=%s",
-                exc, project_id, q.strip(),
-            )
-            # Non-fatal — other modules still return results
 
     return {"query": q, "results": results}

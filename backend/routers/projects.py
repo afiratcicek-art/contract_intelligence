@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from uuid import UUID
+import logging
 from backend.database import get_authed_db, get_admin_client
 from backend.core.security import get_current_user
 from backend.core.dependencies import verify_project_access, require_cm_role
@@ -12,6 +13,8 @@ from backend.models.project import (
 )
 from backend.repositories.project_repository import ProjectRepository
 from backend.services.audit_service import AuditService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -739,38 +742,41 @@ def search_project(
             "id": r["id"],
         })
 
-    # Documents — keyword array + location match
-    # Separate query (different table, different match logic)
-    # No N+1: single query, not looped.
+    # Documents — uses search_project_documents RPC (migration 020)
+    # for morphological matching across keywords, location,
+    # filename, doc_type, and subject (RFI/correspondence join).
+    # SECURITY INVOKER — RLS enforced via anon client (db).
+    # No N+1: single RPC call, JOIN happens inside Postgres.
     if q.strip():
-        docs = (
-            db.table("pdf_document")
-            .select(
-                "id, entity_type, entity_id, original_filename, "
-                "keywords, location, doc_date, doc_type"
+        try:
+            doc_result = db.rpc(
+                "search_project_documents",
+                {
+                    "p_project_id": str(project_id),
+                    "p_query": q.strip(),
+                    "p_filter": "general",
+                    "p_limit": 200,
+                },
+            ).execute()
+            for r in (doc_result.data or []):
+                results.append({
+                    "module": "document",
+                    "label": "DOC",
+                    "ref": r.get("doc_type") or "DOC",
+                    "subject": r.get("original_filename", ""),
+                    "status": "",
+                    "date": r.get("doc_date", ""),
+                    "id": r["id"],
+                    "entity_type": r.get("entity_type"),
+                    "entity_id": r.get("entity_id"),
+                    "keywords": r.get("keywords", []),
+                    "location": r.get("location"),
+                })
+        except Exception as exc:
+            logger.error(
+                "Document search RPC failed: %s | project=%s q=%s",
+                exc, project_id, q.strip(),
             )
-            .eq("project_id", str(project_id))
-            .or_(
-                f'keywords.cs.{{"{q.strip()}"}},'
-                f"location.ilike.{keyword},"
-                f"original_filename.ilike.{keyword}"
-            )
-            .limit(200)
-            .execute()
-        )
-        for r in (docs.data or []):
-            results.append({
-                "module": "document",
-                "label": "DOC",
-                "ref": r.get("doc_type") or "DOC",
-                "subject": r.get("original_filename", ""),
-                "status": "",
-                "date": r.get("doc_date", ""),
-                "id": r["id"],
-                "entity_type": r.get("entity_type"),
-                "entity_id": r.get("entity_id"),
-                "keywords": r.get("keywords", []),
-                "location": r.get("location"),
-            })
+            # Non-fatal — other modules still return results
 
     return {"query": q, "results": results}

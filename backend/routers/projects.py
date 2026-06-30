@@ -739,4 +739,38 @@ def search_project(
             "id": r["id"],
         })
 
+    # Documents — keyword array + location match
+    # Separate query (different table, different match logic)
+    # No N+1: single query, not looped.
+    if q.strip():
+        docs = (
+            db.table("pdf_document")
+            .select(
+                "id, entity_type, entity_id, original_filename, "
+                "keywords, location, doc_date, doc_type"
+            )
+            .eq("project_id", str(project_id))
+            .or_(
+                f'keywords.cs.{{"{q.strip()}"}},'
+                f"location.ilike.{keyword},"
+                f"original_filename.ilike.{keyword}"
+            )
+            .limit(200)
+            .execute()
+        )
+        for r in (docs.data or []):
+            results.append({
+                "module": "document",
+                "label": "DOC",
+                "ref": r.get("doc_type") or "DOC",
+                "subject": r.get("original_filename", ""),
+                "status": "",
+                "date": r.get("doc_date", ""),
+                "id": r["id"],
+                "entity_type": r.get("entity_type"),
+                "entity_id": r.get("entity_id"),
+                "keywords": r.get("keywords", []),
+                "location": r.get("location"),
+            })
+
     return {"query": q, "results": results}

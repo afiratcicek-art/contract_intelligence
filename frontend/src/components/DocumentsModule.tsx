@@ -1,319 +1,424 @@
-import { useState, useCallback } from "react";
-import type { CSSProperties } from "react";
-import {
-  searchDocuments,
-  listDocuments,
-  type ProjectDocument,
-  type DocumentSearchFilter,
-} from "../services/api";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../services/api";
 
-interface DocumentsModuleProps {
+/* ── Local types ───────────────────────────────────────────
+   Mirrors Workspace.tsx SearchResult + minimal RFI/Corr
+   shapes from backend list endpoints. Keep local — these
+   are component-scoped, not application-wide types.       */
+interface RFIRow {
+  id: string;
+  rfi_number: string;
+  subject: string;
+  status: string;
+  submitted_date: string;
+  parent_id?: string | null;
+  rfi_type?: string;
+}
+
+interface CorrRow {
+  id: string;
+  corr_number: string;
+  subject: string;
+  status: string;
+  correspondence_date: string;
+  parent_id?: string | null;
+  has_response?: boolean;
+}
+
+interface DocSearchResult {
+  module: "rfi" | "correspondence";
+  ref: string;
+  subject: string;
+  status: string;
+  date: string;
+  id: string;
+  parent_id?: string | null;
+  has_response?: boolean;
+  rfi_type?: string;
+}
+
+interface Props {
   projectId: string;
 }
 
-const SECTION_LABEL: CSSProperties = {
-  fontSize: 11,
-  textTransform: "uppercase",
-  letterSpacing: "0.08em",
-  color: "var(--color-text-secondary)",
-  fontWeight: 500,
-  fontFamily: "Inter, sans-serif",
-};
+export default function DocumentsModule({ projectId }: Props) {
+  const navigate = useNavigate();
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-}
-
-const ENTITY_LABELS: Record<string, string> = {
-  rfi: "RFI",
-  correspondence: "Correspondence",
-  change: "Change",
-  deliverable: "Deliverable",
-  chronology: "Chronology",
-  contract_document: "Contract",
-  internal_alert: "Alert",
-};
-
-export default function DocumentsModule({ projectId }: DocumentsModuleProps) {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<DocumentSearchFilter>("general");
-  const [results, setResults] = useState<ProjectDocument[]>([]);
+  const [query, setQuery]     = useState("");
+  const [results, setResults] = useState<DocSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleSearch = useCallback(async () => {
-    const q = query.trim();
-    if (!q) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await searchDocuments(projectId, q, filter);
-      setResults(data);
-      setSearched(true);
-    } catch {
-      setError("Search failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, query, filter]);
+  /* Design tokens — consistent with rest of app */
+  const bg          = "var(--color-bg-primary)";
+  const cardBg      = "var(--color-bg-secondary)";
+  const border      = "var(--color-border-light)";
+  const textPrimary = "var(--color-text-primary)";
+  const textSecond  = "var(--color-text-secondary)";
+  const accent      = "var(--color-accent)";
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSearch();
+  /* ── Navigation ─────────────────────────────────────────
+     Local mirror of Workspace.tsx generalNavTarget.
+     Kept here so DocumentsModule has no page-level deps.  */
+  const navTarget = (mod: "rfi" | "correspondence", id: string) => {
+    if (mod === "correspondence")
+      return `/projects/${projectId}/workspace/correspondence/${id}`;
+    if (mod === "rfi")
+      return `/projects/${projectId}/workspace/rfis/${id}`;
+    return `/projects/${projectId}/workspace`;
   };
 
+  /* ── Search ──────────────────────────────────────────────
+     Parallel fetch: rfis + correspondences chain RPCs
+     (invoked server-side when q is present).
+     Empty query → clear results, no API call.            */
+  const doSearch = useCallback(
+    async (q: string) => {
+      if (!q.trim()) { setResults([]); return; }
+      setLoading(true);
+      try {
+        const enc = encodeURIComponent(q.trim());
+        const [rfis, corrs] = await Promise.all([
+          api.get<RFIRow[]>(
+            `/projects/${projectId}/rfis?limit=100&q=${enc}`
+          ),
+          api.get<CorrRow[]>(
+            `/projects/${projectId}/correspondences?limit=100&q=${enc}`
+          ),
+        ]);
+
+        const rfiResults: DocSearchResult[] = (rfis ?? []).map((r) => ({
+          module: "rfi" as const,
+          ref:     r.rfi_number,
+          subject: r.subject,
+          status:  r.status,
+          date:    r.submitted_date,
+          id:      r.id,
+          parent_id: r.parent_id,
+          rfi_type:  r.rfi_type,
+        }));
+
+        const corrResults: DocSearchResult[] = (corrs ?? []).map((c) => ({
+          module: "correspondence" as const,
+          ref:     c.corr_number,
+          subject: c.subject,
+          status:  c.status,
+          date:    c.correspondence_date,
+          id:      c.id,
+          parent_id:    c.parent_id,
+          has_response: c.has_response,
+        }));
+
+        /* Correspondence first — mirrors General Search ordering */
+        setResults([...corrResults, ...rfiResults]);
+      } catch {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [projectId]
+  );
+
+  const handleInput = (val: string) => {
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!val.trim()) { setResults([]); return; }
+    debounceRef.current = setTimeout(() => doSearch(val), 400);
+  };
+
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
+
+  /* ── Status pill ─────────────────────────────────────── */
+  const statusPill = (status: string) => {
+    const map: Record<string, { bg: string; color: string }> = {
+      open:      { bg: "var(--color-warning-bg)",  color: "var(--color-warning)"  },
+      responded: { bg: "var(--color-success-bg)",  color: "var(--color-success)"  },
+      closed:    { bg: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" },
+      pending:   { bg: "var(--color-warning-bg)",  color: "var(--color-warning)"  },
+    };
+    const s = map[status] ?? map["pending"];
+    return (
+      <span style={{
+        fontSize: 10, fontWeight: 500, padding: "2px 8px",
+        backgroundColor: s.bg, color: s.color,
+        textTransform: "uppercase" as const, letterSpacing: "0.04em",
+        fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const,
+      }}>
+        {status}
+      </span>
+    );
+  };
+
+  /* ── Render: Correspondence rows (parent-child) ───────── */
+  const renderCorrSection = (group: DocSearchResult[]) => {
+    const childMap = new Map<string, DocSearchResult[]>();
+    group.filter((r) => r.parent_id).forEach((r) => {
+      const arr = childMap.get(r.parent_id!) ?? [];
+      arr.push(r);
+      childMap.set(r.parent_id!, arr);
+    });
+    const parents = group.filter((r) => !r.parent_id);
+
+    const renderRow = (r: DocSearchResult, isChild = false) => (
+      <div key={r.id}>
+        <div
+          onClick={() => navigate(navTarget(r.module, r.id))}
+          style={{
+            display: "flex", alignItems: "center",
+            justifyContent: "space-between",
+            padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+            background: isChild ? bg : cardBg,
+            marginBottom: 2, cursor: "pointer",
+            borderLeft: `2px solid ${
+              isChild ? accent
+              : r.status === "responded" ? "var(--color-success)"
+              : accent
+            }`,
+          }}
+        >
+          <div>
+            <span style={{
+              fontFamily: "JetBrains Mono, monospace", fontSize: 10,
+              color: textSecond, display: "flex", alignItems: "center", gap: 3,
+            }}>
+              {isChild && (
+                <span style={{ color: accent, marginRight: 2 }}>└</span>
+              )}
+              {r.ref}
+              {r.has_response && (
+                <span style={{ fontSize: 11, color: accent }}>↩</span>
+              )}
+            </span>
+            <p style={{
+              fontSize: isChild ? 11 : 12, color: textPrimary,
+              fontWeight: 500, marginTop: 2,
+            }}>
+              {r.subject}
+            </p>
+            <p style={{ fontSize: 10, color: textSecond, marginTop: 1 }}>
+              {r.date}
+            </p>
+          </div>
+          {statusPill(r.status)}
+        </div>
+        {(childMap.get(r.id) ?? []).map((child) =>
+          renderRow(child, true)
+        )}
+      </div>
+    );
+
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,
+          letterSpacing: "0.08em", color: textSecond, marginBottom: 8,
+          fontFamily: "Inter, sans-serif",
+        }}>
+          Correspondence
+        </div>
+        {parents.map((r) => renderRow(r, false))}
+        {/* Orphan children — parent not in result set */}
+        {group
+          .filter((r) => r.parent_id && !group.find((p) => p.id === r.parent_id))
+          .map((r) => renderRow(r, false))}
+      </div>
+    );
+  };
+
+  /* ── Render: RFI rows (parent-child) ─────────────────── */
+  const renderRfiSection = (group: DocSearchResult[]) => {
+    const childMap = new Map<string, DocSearchResult[]>();
+    group.filter((r) => r.parent_id).forEach((r) => {
+      const arr = childMap.get(r.parent_id!) ?? [];
+      arr.push(r);
+      childMap.set(r.parent_id!, arr);
+    });
+    const parents = group.filter((r) => !r.parent_id);
+
+    const renderRow = (r: DocSearchResult, isChild = false) => (
+      <div key={r.id}>
+        <div
+          onClick={() => navigate(navTarget(r.module, r.id))}
+          style={{
+            display: "flex", alignItems: "center",
+            justifyContent: "space-between",
+            padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+            background: isChild ? bg : cardBg,
+            marginBottom: 2, cursor: "pointer",
+            borderLeft: `2px solid ${
+              isChild ? accent
+              : r.status === "responded" ? "var(--color-success)"
+              : accent
+            }`,
+          }}
+        >
+          <div>
+            <span style={{
+              fontFamily: "JetBrains Mono, monospace", fontSize: 10,
+              color: textSecond, display: "flex", alignItems: "center", gap: 3,
+            }}>
+              {isChild && (
+                <span style={{ color: accent, marginRight: 2 }}>└</span>
+              )}
+              {r.ref}
+              {r.rfi_type && r.rfi_type !== "original" && (
+                <span style={{
+                  fontSize: 11, fontWeight: 500, padding: "1px 4px",
+                  backgroundColor:
+                    r.rfi_type === "response"
+                      ? "var(--color-success-bg)"
+                      : "var(--color-bg-secondary)",
+                  color:
+                    r.rfi_type === "response"
+                      ? "var(--color-success)"
+                      : textSecond,
+                  textTransform: "uppercase" as const,
+                }}>
+                  {r.rfi_type === "response" ? "RES" : "REV"}
+                </span>
+              )}
+            </span>
+            <p style={{
+              fontSize: isChild ? 11 : 12, color: textPrimary,
+              fontWeight: 500, marginTop: 2,
+            }}>
+              {r.subject}
+            </p>
+            <p style={{ fontSize: 10, color: textSecond, marginTop: 1 }}>
+              {r.date}
+            </p>
+          </div>
+          {r.rfi_type === "response" ? (
+            <span style={{
+              fontSize: 10, fontWeight: 500, padding: "2px 8px",
+              backgroundColor: "var(--color-success-bg)",
+              color: "var(--color-success)",
+              textTransform: "uppercase" as const, letterSpacing: "0.04em",
+            }}>
+              RESPONSE
+            </span>
+          ) : statusPill(r.status)}
+        </div>
+        {(childMap.get(r.id) ?? []).map((child) =>
+          renderRow(child, true)
+        )}
+      </div>
+    );
+
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,
+          letterSpacing: "0.08em", color: textSecond, marginBottom: 8,
+          fontFamily: "Inter, sans-serif",
+        }}>
+          RFIs
+        </div>
+        {parents.map((r) => renderRow(r, false))}
+        {group
+          .filter((r) => r.parent_id && !group.find((p) => p.id === r.parent_id))
+          .map((r) => renderRow(r, false))}
+      </div>
+    );
+  };
+
+  /* ── Derived lists ───────────────────────────────────── */
+  const corrGroup = results.filter((r) => r.module === "correspondence");
+  const rfiGroup  = results.filter((r) => r.module === "rfi");
+
+  /* ── Render ──────────────────────────────────────────── */
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      height: "100%",
-      minHeight: 0,
-    }}>
-      {/* Header */}
+    <div style={{ display: "flex", flexDirection: "column" as const, gap: 20 }}>
+
+      {/* Search bar */}
+      <div style={{ position: "relative" as const }}>
+        <input
+          value={query}
+          onChange={(e) => handleInput(e.target.value)}
+          placeholder="Belgeleri ara — konu, anahtar kelime, referans..."
+          style={{
+            width: "100%", boxSizing: "border-box" as const,
+            padding: "9px 36px 9px 12px",
+            background: cardBg, border: `1px solid ${border}`,
+            borderRadius: 0, fontSize: 13, color: textPrimary,
+            fontFamily: "Inter, sans-serif", outline: "none",
+          }}
+        />
+        {query && (
+          <button
+            onClick={() => { setQuery(""); setResults([]); }}
+            style={{
+              position: "absolute" as const, right: 10, top: "50%",
+              transform: "translateY(-50%)",
+              background: "none", border: "none",
+              fontSize: 16, color: textSecond, cursor: "pointer", padding: 0,
+            }}
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* States */}
+      {loading && (
+        <p style={{ fontSize: 12, color: textSecond, fontFamily: "Inter, sans-serif" }}>
+          Aranıyor...
+        </p>
+      )}
+
+      {!loading && query.trim() && results.length === 0 && (
+        <p style={{
+          fontSize: 12, color: textSecond, fontStyle: "italic",
+          fontFamily: "Inter, sans-serif",
+        }}>
+          Sonuç bulunamadı.
+        </p>
+      )}
+
+      {!query.trim() && (
+        <p style={{
+          fontSize: 12, color: textSecond, fontStyle: "italic",
+          fontFamily: "Inter, sans-serif",
+        }}>
+          Proje belgelerini aramak için yazmaya başlayın.
+        </p>
+      )}
+
+      {/* Results — Correspondence + RFI sections */}
+      {!loading && results.length > 0 && (
+        <div>
+          {corrGroup.length > 0 && renderCorrSection(corrGroup)}
+          {rfiGroup.length  > 0 && renderRfiSection(rfiGroup)}
+        </div>
+      )}
+
+      {/* ── Document Relationship Graph ───────────────────────
+          Placeholder — DocumentRelationGraph.tsx (pending).
+          Feeds from document_relations table (migration 018).
+          Will show node graph of related docs when populated. */}
       <div style={{
-        padding: "14px 20px",
-        borderBottom: "0.5px solid var(--color-border-medium)",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
+        marginTop: 8, padding: "14px 16px",
+        background: cardBg, borderLeft: `2px solid ${border}`,
       }}>
         <p style={{
-          fontFamily: "Playfair Display, Georgia, serif",
-          fontSize: 16,
-          fontWeight: 500,
-          color: "var(--color-text-primary)",
-          margin: 0,
-          flexShrink: 0,
+          fontSize: 11, fontWeight: 500, color: textSecond,
+          textTransform: "uppercase" as const, letterSpacing: "0.08em",
+          fontFamily: "Inter, sans-serif", margin: 0,
         }}>
-          Documents
+          Belge İlişki Grafiği
         </p>
-        {/* Search bar */}
-        <div style={{ flex: 1, display: "flex", gap: 8 }}>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as DocumentSearchFilter)}
-            style={{
-              fontSize: 12,
-              padding: "7px 10px",
-              border: "1px solid var(--color-border-medium)",
-              borderRadius: 0,
-              background: "var(--color-bg-secondary)",
-              color: "var(--color-text-primary)",
-              fontFamily: "Inter, sans-serif",
-              outline: "none",
-              flexShrink: 0,
-            }}
-          >
-            <option value="general">All Fields</option>
-            <option value="keywords">Keywords</option>
-            <option value="location">Location</option>
-            <option value="subject">Subject</option>
-            <option value="filename">Filename</option>
-            <option value="doc_type">Document Type</option>
-          </select>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search by keyword, location, filename..."
-            style={{
-              flex: 1,
-              fontSize: 13,
-              padding: "7px 12px",
-              border: "1px solid var(--color-border-medium)",
-              borderRadius: 0,
-              background: "var(--color-bg-secondary)",
-              color: "var(--color-text-primary)",
-              fontFamily: "Inter, sans-serif",
-              outline: "none",
-            }}
-          />
-          <button
-            onClick={handleSearch}
-            disabled={loading || !query.trim()}
-            style={{
-              fontSize: 12,
-              padding: "7px 16px",
-              background: query.trim()
-                ? "var(--color-accent)"
-                : "var(--color-border-medium)",
-              color: "#F5F2ED",
-              border: "none",
-              borderRadius: 0,
-              cursor: loading || !query.trim()
-                ? "not-allowed" : "pointer",
-              fontFamily: "Inter, sans-serif",
-              flexShrink: 0,
-            }}
-          >
-            {loading ? "Searching..." : "Search"}
-          </button>
-        </div>
+        <p style={{
+          fontSize: 11, color: textSecond, fontStyle: "italic",
+          fontFamily: "Inter, sans-serif", marginTop: 6, marginBottom: 0,
+        }}>
+          İlişki grafiği yakında aktif olacak.
+        </p>
       </div>
 
-      {/* Results */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-        {error && (
-          <p style={{
-            fontSize: 13,
-            color: "var(--color-alert-red)",
-            fontFamily: "Inter, sans-serif",
-          }}>
-            {error}
-          </p>
-        )}
-
-        {!searched && !loading && (
-          <p style={{
-            fontSize: 13,
-            color: "var(--color-text-secondary)",
-            fontStyle: "italic",
-            fontFamily: "Inter, sans-serif",
-          }}>
-            Search across all project documents by keyword,
-            location, or filename.
-          </p>
-        )}
-
-        {searched && results.length === 0 && (
-          <p style={{
-            fontSize: 13,
-            color: "var(--color-text-secondary)",
-            fontStyle: "italic",
-            fontFamily: "Inter, sans-serif",
-          }}>
-            No documents found for "{query}".
-          </p>
-        )}
-
-        {results.length > 0 && (
-          <div>
-            <p style={{ ...SECTION_LABEL, marginBottom: 12 }}>
-              {results.length} result{results.length !== 1 ? "s" : ""}
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {results.map((doc) => (
-                <div
-                  key={doc.id}
-                  style={{
-                    padding: "12px 16px",
-                    border: "1px solid var(--color-border-light)",
-                    background: "var(--color-bg-secondary)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                  }}
-                >
-                  {/* Row 1: filename + entity type */}
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}>
-                    <p style={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "var(--color-text-primary)",
-                      fontFamily: "Inter, sans-serif",
-                      margin: 0,
-                      wordBreak: "break-all",
-                    }}>
-                      {doc.original_filename}
-                    </p>
-                    <span style={{
-                      fontSize: 10,
-                      fontWeight: 500,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      color: "var(--color-text-secondary)",
-                      fontFamily: "Inter, sans-serif",
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
-                    }}>
-                      {ENTITY_LABELS[doc.entity_type] ?? doc.entity_type}
-                    </span>
-                  </div>
-
-                  {/* Row 1b: subject (from linked RFI/correspondence) */}
-                  {doc.subject && (
-                    <p style={{
-                      fontSize: 12,
-                      color: "var(--color-text-secondary)",
-                      fontFamily: "Inter, sans-serif",
-                      fontStyle: "italic",
-                      margin: 0,
-                    }}>
-                      {doc.subject}
-                    </p>
-                  )}
-
-                  {/* Row 2: metadata */}
-                  <div style={{
-                    display: "flex",
-                    gap: 16,
-                    fontSize: 11,
-                    color: "var(--color-text-secondary)",
-                    fontFamily: "Inter, sans-serif",
-                    flexWrap: "wrap",
-                  }}>
-                    {doc.doc_date && (
-                      <span>{formatDate(doc.doc_date)}</span>
-                    )}
-                    {doc.doc_type && (
-                      <span style={{ textTransform: "capitalize" }}>
-                        {doc.doc_type}
-                      </span>
-                    )}
-                    {doc.location && (
-                      <span>📍 {doc.location}</span>
-                    )}
-                    <span>{formatBytes(doc.file_size_bytes)}</span>
-                    <span style={{
-                      color: doc.parse_status === "completed"
-                        ? "var(--color-success)"
-                        : "var(--color-text-secondary)",
-                    }}>
-                      {doc.parse_status}
-                    </span>
-                  </div>
-
-                  {/* Row 3: keywords */}
-                  {doc.keywords && doc.keywords.length > 0 && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {doc.keywords.map((kw, i) => (
-                        <span
-                          key={i}
-                          style={{
-                            fontSize: 10,
-                            padding: "2px 7px",
-                            background: "var(--color-bg-primary)",
-                            border: "0.5px solid var(--color-border-medium)",
-                            color: "var(--color-text-secondary)",
-                            fontFamily: "JetBrains Mono, monospace",
-                          }}
-                        >
-                          {kw}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

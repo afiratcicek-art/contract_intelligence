@@ -665,55 +665,79 @@ def search_project(
     keyword = f"%{q.strip()}%" if q.strip() else "%"
     results = []
 
-    # Correspondence — chain-aware RPC (subject + document match)
+    # Correspondence — empty query lists all (default view),
+    # non-empty query uses chain-aware RPC (migration 021).
     if q.strip():
         try:
             corr_result = db.rpc(
                 "search_correspondence_chains",
                 {"p_project_id": str(project_id), "p_query": q.strip(), "p_limit": 200},
             ).execute()
-            for r in (corr_result.data or []):
-                results.append({
-                    "module": "correspondence",
-                    "label": "CORR",
-                    "ref": r.get("corr_number", "—"),
-                    "subject": r.get("subject", ""),
-                    "status": r.get("status", ""),
-                    "date": r.get("correspondence_date", ""),
-                    "id": r["id"],
-                    "parent_id": r.get("parent_id"),
-                    "has_response": r.get("has_response", False),
-                })
+            corr_rows = corr_result.data or []
         except Exception as exc:
             logger.error(
                 "Correspondence chain search failed: %s | project=%s q=%s",
                 exc, project_id, q.strip(),
             )
+            corr_rows = []
+    else:
+        corr_rows = (
+            db.table("correspondences")
+            .select("id, corr_number, subject, type, status, correspondence_date, direction, parent_id, has_response")
+            .eq("project_id", str(project_id))
+            .eq("is_deleted", False)
+            .limit(200)
+            .execute()
+        ).data or []
+    for r in corr_rows:
+        results.append({
+            "module": "correspondence",
+            "label": "CORR",
+            "ref": r.get("corr_number", "—"),
+            "subject": r.get("subject", ""),
+            "status": r.get("status", ""),
+            "date": r.get("correspondence_date", ""),
+            "id": r["id"],
+            "parent_id": r.get("parent_id"),
+            "has_response": r.get("has_response", False),
+        })
 
-    # RFI — chain-aware RPC (subject + document match)
+    # RFI — empty query lists all (default view),
+    # non-empty query uses chain-aware RPC (migration 021).
     if q.strip():
         try:
             rfi_result = db.rpc(
                 "search_rfi_chains",
                 {"p_project_id": str(project_id), "p_query": q.strip(), "p_limit": 200},
             ).execute()
-            for r in (rfi_result.data or []):
-                results.append({
-                    "module": "rfi",
-                    "label": "RFI",
-                    "ref": r.get("rfi_number", "—"),
-                    "subject": r.get("subject", ""),
-                    "status": r.get("status", ""),
-                    "date": r.get("submitted_date", ""),
-                    "id": r["id"],
-                    "parent_id": r.get("parent_id"),
-                    "rfi_type": r.get("rfi_type", "original"),
-                })
+            rfi_rows = rfi_result.data or []
         except Exception as exc:
             logger.error(
                 "RFI chain search failed: %s | project=%s q=%s",
                 exc, project_id, q.strip(),
             )
+            rfi_rows = []
+    else:
+        rfi_rows = (
+            db.table("rfis")
+            .select("id, rfi_number, subject, status, submitted_date, discipline, parent_id, rfi_type")
+            .eq("project_id", str(project_id))
+            .eq("is_deleted", False)
+            .limit(200)
+            .execute()
+        ).data or []
+    for r in rfi_rows:
+        results.append({
+            "module": "rfi",
+            "label": "RFI",
+            "ref": r.get("rfi_number", "—"),
+            "subject": r.get("subject", ""),
+            "status": r.get("status", ""),
+            "date": r.get("submitted_date", ""),
+            "id": r["id"],
+            "parent_id": r.get("parent_id"),
+            "rfi_type": r.get("rfi_type", "original"),
+        })
 
     # Change — no chain concept, simple title match
     changes = (

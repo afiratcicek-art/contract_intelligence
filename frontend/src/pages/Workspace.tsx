@@ -89,6 +89,9 @@ export default function Workspace() {
   const [corrDateField, setCorrDateField] = useState<"correspondence_date" | "response_due_date">("correspondence_date");
 
   const [rfis, setRfis] = useState<RFIItem[]>([]);
+  const [rfiDocKeywords, setRfiDocKeywords] = useState<
+    Record<string, string[]>
+  >({});
   const [rfiLoading, setRfiLoading] = useState(false);
   const [rfiKeyword, setRfiKeyword] = useState("");
   const [rfiStatus, setRfiStatus] = useState("");
@@ -177,6 +180,21 @@ export default function Workspace() {
     if (rfiStatus) url += `&status=${rfiStatus}`;
     if (rfiDiscipline) url += `&discipline=${rfiDiscipline}`;
     api.get<RFIItem[]>(url).then(setRfis).catch(() => setRfis([])).finally(() => setRfiLoading(false));
+
+    // Single extra query — all RFI-attached documents in one call.
+    // Groups keywords by entity_id (RFI id) client-side.
+    // No N+1: one request regardless of RFI count.
+    api.get<{ entity_id: string; keywords?: string[] }[]>(
+      `/projects/${projectId}/documents/?entity_type=rfi`
+    ).then((docs) => {
+      const map: Record<string, string[]> = {};
+      for (const doc of docs) {
+        if (!doc.keywords || doc.keywords.length === 0) continue;
+        if (!map[doc.entity_id]) map[doc.entity_id] = [];
+        map[doc.entity_id].push(...doc.keywords);
+      }
+      setRfiDocKeywords(map);
+    }).catch(() => setRfiDocKeywords({}));
   }, [activeModule, projectId, rfiStatus, rfiDiscipline]);
 
   useEffect(() => {
@@ -251,10 +269,24 @@ export default function Workspace() {
     dateInRange(corrDateField === "correspondence_date" ? c.correspondence_date : c.response_due_date, corrDateFrom, corrDateTo)
   );
 
-  const filteredRfis = rfis.filter((r) =>
-    (!rfiKeyword || r.subject.toLowerCase().includes(rfiKeyword.toLowerCase()) || r.rfi_number.toLowerCase().includes(rfiKeyword.toLowerCase())) &&
-    dateInRange(rfiDateField === "submitted_date" ? r.submitted_date : r.response_due_date, rfiDateFrom, rfiDateTo)
-  );
+  const filteredRfis = rfis.filter((r) => {
+    const kw = rfiKeyword.toLowerCase();
+    const matchesText =
+      !kw ||
+      r.subject.toLowerCase().includes(kw) ||
+      r.rfi_number.toLowerCase().includes(kw) ||
+      (rfiDocKeywords[r.id] || []).some((k) =>
+        k.toLowerCase().includes(kw)
+      );
+    return (
+      matchesText &&
+      dateInRange(
+        rfiDateField === "submitted_date" ? r.submitted_date : r.response_due_date,
+        rfiDateFrom,
+        rfiDateTo
+      )
+    );
+  });
 
   const filteredChanges = changes.filter((c) =>
     (!changeKeyword || c.title.toLowerCase().includes(changeKeyword.toLowerCase()) || c.change_number.toLowerCase().includes(changeKeyword.toLowerCase())) &&

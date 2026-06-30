@@ -211,7 +211,8 @@ def list_documents(
                 "id, project_id, entity_type, entity_id, "
                 "original_filename, storage_path, file_size_bytes, "
                 "parse_method, parse_status, page_count, quality_score, "
-                "parse_error, created_by, created_at, updated_at"
+                "parse_error, keywords, location, doc_date, doc_type, "
+                "created_by, created_at, updated_at"
             )
             .eq("project_id", project_id)
             .order("created_at", desc=True)

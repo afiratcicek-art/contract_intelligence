@@ -759,11 +759,16 @@ def search_project(
                 },
             ).execute()
             for r in (doc_result.data or []):
+                # Prefer the linked entity's subject (RFI/correspondence)
+                # so the user sees what it's about, not just the filename.
+                # Fall back to filename when no entity subject exists
+                # (e.g. contract_document, internal_alert attachments).
+                display_subject = r.get("subject") or r.get("original_filename", "")
                 results.append({
                     "module": "document",
                     "label": "DOC",
-                    "ref": r.get("doc_type") or "DOC",
-                    "subject": r.get("original_filename", ""),
+                    "ref": r.get("original_filename", "")[:40],
+                    "subject": display_subject,
                     "status": "",
                     "date": r.get("doc_date", ""),
                     "id": r["id"],

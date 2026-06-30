@@ -145,7 +145,6 @@ export default function Workspace() {
   }, [projectId]);
 
   const handleSearch = useCallback(async (q: string) => {
-    setSearchQuery(q);
     setSearching(true);
     try {
       const res = await api.get<{ query: string; results: SearchResult[] }>(
@@ -158,6 +157,9 @@ export default function Workspace() {
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearchDebounced = useCallback((q: string) => {
+    // Update input immediately — no lag while typing.
+    // Only the API call is debounced.
+    setSearchQuery(q);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => handleSearch(q), 400);
   }, [handleSearch]);
@@ -397,7 +399,7 @@ export default function Workspace() {
                 <span style={{ color: textSecondary, fontSize: 16 }}>⌕</span>
                 <input value={searchQuery} onChange={(e) => handleSearchDebounced(e.target.value)} placeholder={t("general.placeholder")} style={{ background: "none", border: "none", outline: "none", fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", width: "100%" }} />
                 {searching && <span style={{ fontSize: 11, color: textSecondary }}>{t("general.searching")}</span>}
-                {searchQuery && <button onClick={() => handleSearch("")} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
+                {searchQuery && <button onClick={() => { setSearchQuery(""); handleSearch(""); }} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
               </div>
               {filterRow(
                 ...["", "correspondence", "rfi", "change", "deliverable"].map((m) => chip(m === "" ? t("filter.all") : m === "rfi" ? "RFIs" : m === "change" ? "Changes" : m === "deliverable" ? "Deliverables" : "Correspondence", genModFilter === m, () => setGenModFilter(m))),

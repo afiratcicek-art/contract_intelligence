@@ -315,45 +315,37 @@ export default function CorrespondenceDetail() {
             <label style={labelStyle}>{lang === "tr" ? "KARŞI TARAF REF" : "EXT. REFERENCE"}</label>
             <p style={fieldStyle}>{corr.external_ref ?? "—"}</p>
           </div>
-        </div>
-        {/* Document keywords + location chips */}
-        {docs.length > 0 && docs.some(d => d.keywords && d.keywords.length > 0) && (
-          <div style={{ padding: "12px 20px", backgroundColor: cardBg, marginBottom: 16, borderTop: `0.5px solid ${border}` }}>
-            <label style={labelStyle}>
-              {lang === "tr" ? "ANAHTAR KELİMELER" : "KEYWORDS"}
-            </label>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginTop: 6 }}>
-              {docs
-                .flatMap(d => d.keywords || [])
-                .filter((kw, i, arr) => arr.indexOf(kw) === i)
-                .map((kw, i) => (
-                  <span
-                    key={i}
-                    style={{
+          {docs.some(d => d.location) && (
+            <div>
+              <label style={labelStyle}>{lang === "tr" ? "LOKASYON" : "LOCATION"}</label>
+              <p style={fieldStyle}>
+                {docs.find(d => d.location)?.location ?? "—"}
+              </p>
+            </div>
+          )}
+          {docs.some(d => d.keywords && d.keywords.length > 0) && (
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>{lang === "tr" ? "ANAHTAR KELİMELER" : "KEYWORDS"}</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginTop: 4 }}>
+                {docs
+                  .flatMap(d => d.keywords || [])
+                  .filter((kw, i, arr) => arr.indexOf(kw) === i)
+                  .map((kw, i) => (
+                    <span key={i} style={{
                       fontSize: 10,
                       padding: "2px 7px",
                       background: bg,
                       border: `0.5px solid ${border}`,
                       color: textSecond,
                       fontFamily: "JetBrains Mono, monospace",
-                    }}
-                  >
-                    {kw}
-                  </span>
-                ))}
+                    }}>
+                      {kw}
+                    </span>
+                  ))}
+              </div>
             </div>
-          </div>
-        )}
-        {docs.length > 0 && docs.some(d => d.location) && (
-          <div style={{ padding: "12px 20px", backgroundColor: cardBg, marginBottom: 16, borderTop: `0.5px solid ${border}` }}>
-            <label style={labelStyle}>
-              {lang === "tr" ? "LOKASYON" : "LOCATION"}
-            </label>
-            <p style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif", margin: "6px 0 0 0" }}>
-              📍 {docs.find(d => d.location)?.location}
-            </p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Children — bu yazışmaya verilen yanıtlar */}
         {corr.children && corr.children.length > 0 && (

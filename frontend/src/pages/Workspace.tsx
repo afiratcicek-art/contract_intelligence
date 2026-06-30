@@ -89,9 +89,6 @@ export default function Workspace() {
   const [corrDateField, setCorrDateField] = useState<"correspondence_date" | "response_due_date">("correspondence_date");
 
   const [rfis, setRfis] = useState<RFIItem[]>([]);
-  const [rfiDocKeywords, setRfiDocKeywords] = useState<
-    Record<string, string[]>
-  >({});
   const [rfiLoading, setRfiLoading] = useState(false);
   const [rfiKeyword, setRfiKeyword] = useState("");
   const [rfiStatus, setRfiStatus] = useState("");
@@ -166,38 +163,37 @@ export default function Workspace() {
 
   useEffect(() => { if (projectId) handleSearch(""); }, [projectId, handleSearch]);
 
+  // Debounced backend search — replaces client-side filtering.
+  const corrSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (activeModule !== "correspondence") return;
-    setCorrLoading(true);
-    let url = `/projects/${projectId}/correspondences?limit=100`;
-    if (corrStatus) url += `&status=${corrStatus}`;
-    if (corrDir) url += `&direction=${corrDir}`;
-    api.get<CorrItem[]>(url).then(setCorrs).catch(() => setCorrs([])).finally(() => setCorrLoading(false));
-  }, [activeModule, projectId, corrStatus, corrDir]);
+    if (corrSearchDebounceRef.current) clearTimeout(corrSearchDebounceRef.current);
+    corrSearchDebounceRef.current = setTimeout(() => {
+      setCorrLoading(true);
+      let url = `/projects/${projectId}/correspondences?limit=100`;
+      if (corrStatus) url += `&status=${corrStatus}`;
+      if (corrDir) url += `&direction=${corrDir}`;
+      if (corrKeyword.trim()) url += `&q=${encodeURIComponent(corrKeyword.trim())}`;
+      api.get<CorrItem[]>(url).then(setCorrs).catch(() => setCorrs([])).finally(() => setCorrLoading(false));
+    }, corrKeyword.trim() ? 400 : 0);
+  }, [activeModule, projectId, corrStatus, corrDir, corrKeyword]);
 
+  // Debounced backend search — replaces client-side filtering.
+  // q present → chain-aware RPC (search_rfi_chains).
+  // q absent → standard list with status/discipline filters.
+  const rfiSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (activeModule !== "rfis") return;
-    setRfiLoading(true);
-    let url = `/projects/${projectId}/rfis?limit=100`;
-    if (rfiStatus) url += `&status=${rfiStatus}`;
-    if (rfiDiscipline) url += `&discipline=${rfiDiscipline}`;
-    api.get<RFIItem[]>(url).then(setRfis).catch(() => setRfis([])).finally(() => setRfiLoading(false));
-
-    // Single extra query — all RFI-attached documents in one call.
-    // Groups keywords by entity_id (RFI id) client-side.
-    // No N+1: one request regardless of RFI count.
-    api.get<{ entity_id: string; keywords?: string[] }[]>(
-      `/projects/${projectId}/documents/?entity_type=rfi`
-    ).then((docs) => {
-      const map: Record<string, string[]> = {};
-      for (const doc of docs) {
-        if (!doc.keywords || doc.keywords.length === 0) continue;
-        if (!map[doc.entity_id]) map[doc.entity_id] = [];
-        map[doc.entity_id].push(...doc.keywords);
-      }
-      setRfiDocKeywords(map);
-    }).catch(() => setRfiDocKeywords({}));
-  }, [activeModule, projectId, rfiStatus, rfiDiscipline]);
+    if (rfiSearchDebounceRef.current) clearTimeout(rfiSearchDebounceRef.current);
+    rfiSearchDebounceRef.current = setTimeout(() => {
+      setRfiLoading(true);
+      let url = `/projects/${projectId}/rfis?limit=100`;
+      if (rfiStatus) url += `&status=${rfiStatus}`;
+      if (rfiDiscipline) url += `&discipline=${rfiDiscipline}`;
+      if (rfiKeyword.trim()) url += `&q=${encodeURIComponent(rfiKeyword.trim())}`;
+      api.get<RFIItem[]>(url).then(setRfis).catch(() => setRfis([])).finally(() => setRfiLoading(false));
+    }, rfiKeyword.trim() ? 400 : 0);
+  }, [activeModule, projectId, rfiStatus, rfiDiscipline, rfiKeyword]);
 
   useEffect(() => {
     if (activeModule !== "changes") return;
@@ -266,29 +262,20 @@ export default function Workspace() {
 
   const today = new Date().toISOString().slice(0, 10);
 
+  // Keyword matching now happens server-side (search_correspondence_chains RPC).
   const filteredCorrs = corrs.filter((c) =>
-    (!corrKeyword || c.subject.toLowerCase().includes(corrKeyword.toLowerCase()) || c.corr_number.toLowerCase().includes(corrKeyword.toLowerCase())) &&
     dateInRange(corrDateField === "correspondence_date" ? c.correspondence_date : c.response_due_date, corrDateFrom, corrDateTo)
   );
 
-  const filteredRfis = rfis.filter((r) => {
-    const kw = rfiKeyword.toLowerCase();
-    const matchesText =
-      !kw ||
-      r.subject.toLowerCase().includes(kw) ||
-      r.rfi_number.toLowerCase().includes(kw) ||
-      (rfiDocKeywords[r.id] || []).some((k) =>
-        k.toLowerCase().includes(kw)
-      );
-    return (
-      matchesText &&
-      dateInRange(
-        rfiDateField === "submitted_date" ? r.submitted_date : r.response_due_date,
-        rfiDateFrom,
-        rfiDateTo
-      )
-    );
-  });
+  // Keyword matching now happens server-side (search_rfi_chains RPC).
+  // Only date-range filtering remains client-side.
+  const filteredRfis = rfis.filter((r) =>
+    dateInRange(
+      rfiDateField === "submitted_date" ? r.submitted_date : r.response_due_date,
+      rfiDateFrom,
+      rfiDateTo
+    )
+  );
 
   const filteredChanges = changes.filter((c) =>
     (!changeKeyword || c.title.toLowerCase().includes(changeKeyword.toLowerCase()) || c.change_number.toLowerCase().includes(changeKeyword.toLowerCase())) &&

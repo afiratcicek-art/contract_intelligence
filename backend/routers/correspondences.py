@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from typing import Optional
 from uuid import UUID
@@ -16,6 +18,8 @@ from backend.services.deadline_service import DeadlineService
 from backend.services.claude_service import get_ai_service, GateBlockedResult
 from backend.utils.date_utils import urgency_label
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/projects/{project_id}/correspondences", tags=["correspondences"])
 
 
@@ -25,11 +29,42 @@ def list_correspondences(
     direction: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    q: Optional[str] = Query(None, max_length=200, description="Search query — uses chain-aware RPC when present"),
     limit: int = Query(100, le=500),
     offset: int = Query(0, ge=0),
     access: dict = Depends(verify_project_access),
 ):
+    """List correspondences for a project.
+
+    When q is provided, uses search_correspondence_chains RPC
+    (migration 022) for morphological matching on subject and
+    attached document keywords/location. Returns full chains,
+    not just the matching row.
+
+    When q is absent, uses standard repository listing with
+    filters and pagination — unchanged behavior.
+    """
     db = access["db"]
+    if q and q.strip():
+        try:
+            result = db.rpc(
+                "search_correspondence_chains",
+                {"p_project_id": str(project_id), "p_query": q.strip(), "p_limit": limit},
+            ).execute()
+            rows = result.data or []
+            if direction:
+                rows = [r for r in rows if r.get("direction") == direction]
+            if type:
+                rows = [r for r in rows if r.get("type") == type]
+            if status:
+                rows = [r for r in rows if r.get("status") == status]
+            return rows
+        except Exception as exc:
+            logger.error(
+                "Correspondence chain search failed: %s | project=%s q=%s",
+                exc, project_id, q.strip(),
+            )
+            return []
     repo = CorrespondenceRepository(db)
     return repo.list_by_project(
         str(project_id),

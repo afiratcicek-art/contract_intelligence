@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from uuid import UUID
@@ -10,6 +12,8 @@ from backend.services.audit_service import AuditService
 from backend.services.deadline_service import DeadlineService
 from backend.utils.date_utils import urgency_label
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/projects/{project_id}/rfis", tags=["rfis"])
 
 
@@ -18,11 +22,40 @@ def list_rfis(
     project_id: UUID,
     status: Optional[str] = Query(None),
     discipline: Optional[str] = Query(None),
+    q: Optional[str] = Query(None, max_length=200, description="Search query — uses chain-aware RPC when present"),
     limit: int = Query(100, le=500),
     offset: int = Query(0, ge=0),
     access: dict = Depends(verify_project_access),
 ):
+    """List RFIs for a project.
+
+    When q is provided, uses search_rfi_chains RPC (migration 022)
+    for morphological matching on subject and attached document
+    keywords/location. Returns full chains (root + responses/
+    revisions), not just the matching row.
+
+    When q is absent, uses standard repository listing with
+    status/discipline filters and pagination — unchanged behavior.
+    """
     db = access["db"]
+    if q and q.strip():
+        try:
+            result = db.rpc(
+                "search_rfi_chains",
+                {"p_project_id": str(project_id), "p_query": q.strip(), "p_limit": limit},
+            ).execute()
+            rows = result.data or []
+            if status:
+                rows = [r for r in rows if r.get("status") == status]
+            if discipline:
+                rows = [r for r in rows if r.get("discipline") == discipline]
+            return rows
+        except Exception as exc:
+            logger.error(
+                "RFI chain search failed: %s | project=%s q=%s",
+                exc, project_id, q.strip(),
+            )
+            return []
     repo = RFIRepository(db)
     return repo.list_by_project(
         str(project_id),

@@ -19,6 +19,7 @@ from typing import Optional
 from backend.database import get_admin_client
 from backend.services.audit_service import AuditService
 from backend.services.embedding_service import get_embedding_service
+from backend.services.relation_service import get_relation_service
 from backend.utils.pdf_utils import (
     DocumentQuality,
     ParseMethod,
@@ -181,6 +182,22 @@ class PDFPipelineService:
             # Embedding failure must not block PDF pipeline
             logger.warning(
                 "Embedding trigger failed (non-critical): %s | doc_id=%s",
+                exc, doc_id,
+            )
+
+        # Trigger relation detection after embedding completes.
+        # Non-critical — errors are logged inside detect_relations().
+        # TB-12: Move to async queue at scale.
+        try:
+            relation_service = get_relation_service()
+            relation_service.detect_relations(
+                doc_id=doc_id,
+                project_id=project_id,
+                user_id=user_id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Relation detection trigger failed (non-critical): %s | doc_id=%s",
                 exc, doc_id,
             )
 

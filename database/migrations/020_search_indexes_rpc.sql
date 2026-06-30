@@ -1,51 +1,74 @@
 -- ============================================================
--- Migration 020: Full-text search indexes + search RPC
--- Enables morphological search across documents, RFIs,
--- and correspondences with English stemming.
--- RPC: SECURITY INVOKER — caller permissions, RLS enforced.
+-- Migration 020: Full-text search — generated columns + RPC
+-- 
+-- PostgreSQL note: to_tsvector(regconfig, text) and 
+-- array_to_string(text[], text) are STABLE, not IMMUTABLE.
+-- Generated columns require IMMUTABLE expressions, so we wrap
+-- both in IMMUTABLE functions with an explicit regconfig cast.
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 1. GIN index — pdf_document full-text search
---    Covers: keywords array, location, filename, doc_type
+-- 1. IMMUTABLE wrapper functions
 -- ------------------------------------------------------------
-CREATE INDEX IF NOT EXISTS idx_pdf_doc_fts
-    ON pdf_document
-    USING gin(
-        to_tsvector('english',
-            coalesce(array_to_string(keywords, ' '), '') || ' ' ||
+CREATE OR REPLACE FUNCTION immutable_tsvector_english(text)
+RETURNS tsvector
+LANGUAGE sql IMMUTABLE STRICT AS $$
+    SELECT to_tsvector('english'::regconfig, $1)
+$$;
+
+CREATE OR REPLACE FUNCTION immutable_array_to_string(text[], text)
+RETURNS text
+LANGUAGE sql IMMUTABLE STRICT AS $$
+    SELECT array_to_string($1, $2)
+$$;
+
+-- ------------------------------------------------------------
+-- 2. Generated tsvector columns
+-- ------------------------------------------------------------
+ALTER TABLE pdf_document
+    ADD COLUMN IF NOT EXISTS search_vector tsvector
+    GENERATED ALWAYS AS (
+        immutable_tsvector_english(
+            coalesce(immutable_array_to_string(keywords, ' '), '') || ' ' ||
             coalesce(location, '') || ' ' ||
             coalesce(original_filename, '') || ' ' ||
             coalesce(doc_type, '')
         )
-    );
+    ) STORED;
 
--- GIN index for keywords array containment search (@>)
+ALTER TABLE rfis
+    ADD COLUMN IF NOT EXISTS search_vector tsvector
+    GENERATED ALWAYS AS (
+        immutable_tsvector_english(coalesce(subject, ''))
+    ) STORED;
+
+ALTER TABLE correspondences
+    ADD COLUMN IF NOT EXISTS search_vector tsvector
+    GENERATED ALWAYS AS (
+        immutable_tsvector_english(coalesce(subject, ''))
+    ) STORED;
+
+-- ------------------------------------------------------------
+-- 3. GIN indexes on generated columns
+-- ------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_pdf_doc_search_vector
+    ON pdf_document USING gin(search_vector);
+
 CREATE INDEX IF NOT EXISTS idx_pdf_doc_keywords_gin
     ON pdf_document USING gin(keywords);
 
--- ------------------------------------------------------------
--- 2. GIN index — rfis subject full-text search
--- ------------------------------------------------------------
-CREATE INDEX IF NOT EXISTS idx_rfis_subject_fts
-    ON rfis
-    USING gin(to_tsvector('english', subject));
+CREATE INDEX IF NOT EXISTS idx_rfis_search_vector
+    ON rfis USING gin(search_vector);
 
--- ------------------------------------------------------------
--- 3. GIN index — correspondences subject full-text search
--- ------------------------------------------------------------
-CREATE INDEX IF NOT EXISTS idx_correspondences_subject_fts
-    ON correspondences
-    USING gin(to_tsvector('english', subject));
+CREATE INDEX IF NOT EXISTS idx_correspondences_search_vector
+    ON correspondences USING gin(search_vector);
 
 -- ------------------------------------------------------------
 -- 4. search_project_documents RPC
---    SECURITY INVOKER: runs with caller permissions.
---    auth.uid() works — RLS enforced on all three tables.
---    (select auth.uid()) pattern caches uid per query.
---    STABLE: allows query optimizer caching.
---    Filter options: general | keywords | location | 
---                    subject | filename | doc_type
+--    SECURITY INVOKER: caller permissions, RLS enforced.
+--    Uses GIN-indexed search_vector columns — no sequential scan.
+--    Filters: general | keywords | location | subject |
+--             filename | doc_type
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION search_project_documents(
     p_project_id    UUID,
@@ -93,7 +116,6 @@ AS $$
         pd.metadata_source,
         pd.created_at,
         pd.updated_at,
-        -- Subject from linked entity (null for non-RFI/correspondence)
         COALESCE(r.subject, c.subject) AS subject
     FROM pdf_document pd
     LEFT JOIN rfis r
@@ -109,36 +131,24 @@ AS $$
         AND (
             CASE p_filter
                 WHEN 'keywords' THEN
-                    to_tsvector('english',
-                        coalesce(array_to_string(pd.keywords, ' '), '')
-                    ) @@ websearch_to_tsquery('english', p_query)
+                    pd.search_vector @@ websearch_to_tsquery('english', p_query)
+                    AND pd.keywords IS NOT NULL
                 WHEN 'location' THEN
-                    to_tsvector('english',
-                        coalesce(pd.location, '')
-                    ) @@ websearch_to_tsquery('english', p_query)
+                    immutable_tsvector_english(coalesce(pd.location, ''))
+                        @@ websearch_to_tsquery('english', p_query)
                 WHEN 'filename' THEN
-                    to_tsvector('english',
-                        coalesce(pd.original_filename, '')
-                    ) @@ websearch_to_tsquery('english', p_query)
+                    immutable_tsvector_english(coalesce(pd.original_filename, ''))
+                        @@ websearch_to_tsquery('english', p_query)
                 WHEN 'doc_type' THEN
-                    to_tsvector('english',
-                        coalesce(pd.doc_type, '')
-                    ) @@ websearch_to_tsquery('english', p_query)
+                    immutable_tsvector_english(coalesce(pd.doc_type, ''))
+                        @@ websearch_to_tsquery('english', p_query)
                 WHEN 'subject' THEN
-                    to_tsvector('english',
-                        coalesce(r.subject, c.subject, '')
-                    ) @@ websearch_to_tsquery('english', p_query)
+                    COALESCE(r.search_vector, c.search_vector)
+                        @@ websearch_to_tsquery('english', p_query)
                 ELSE
-                    -- general: all fields including subject
-                    (
-                        to_tsvector('english',
-                            coalesce(array_to_string(pd.keywords, ' '), '') || ' ' ||
-                            coalesce(pd.location, '') || ' ' ||
-                            coalesce(pd.original_filename, '') || ' ' ||
-                            coalesce(pd.doc_type, '') || ' ' ||
-                            coalesce(r.subject, c.subject, '')
-                        ) @@ websearch_to_tsquery('english', p_query)
-                    )
+                    pd.search_vector @@ websearch_to_tsquery('english', p_query)
+                    OR COALESCE(r.search_vector, c.search_vector)
+                        @@ websearch_to_tsquery('english', p_query)
             END
         )
     ORDER BY pd.doc_date DESC NULLS LAST
@@ -148,6 +158,7 @@ $$;
 COMMENT ON FUNCTION search_project_documents IS
     'Full-text document search across pdf_document, rfis, '
     'and correspondences. SECURITY INVOKER — RLS enforced. '
+    'Uses GIN-indexed generated tsvector columns. '
     'English stemming via websearch_to_tsquery. '
     'Filters: general | keywords | location | subject | '
     'filename | doc_type';

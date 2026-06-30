@@ -95,8 +95,6 @@ export default function Workspace() {
   const [rfiDiscipline, setRfiDiscipline] = useState("");
   const [rfiDateFrom, setRfiDateFrom] = useState("");
   const [rfiDateTo, setRfiDateTo] = useState("");
-  const [rfiDueDateFrom, setRfiDueDateFrom] = useState("");
-  const [rfiDueDateTo, setRfiDueDateTo] = useState("");
   const [corrDropdown, setCorrDropdown] = useState(false);
   const [rfiDropdown, setRfiDropdown] = useState(false);
   const [rfiDateField, setRfiDateField] = useState<"submitted_date" | "response_due_date">("submitted_date");

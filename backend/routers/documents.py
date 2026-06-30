@@ -235,59 +235,46 @@ def list_documents(
 def search_documents(
     project_id: str,
     q: str = Query(..., min_length=1, max_length=200,
-                   description="Keyword search query"),
-    entity_type: str = Query(None),
+                   description="Search query"),
+    filter: str = Query(
+        "general",
+        regex="^(general|keywords|location|subject|filename|doc_type)$",
+        description="Search field filter",
+    ),
     limit: int = Query(20, ge=1, le=100),
     access=Depends(verify_project_access),
 ):
-    """Search documents by keyword, location, filename, doc_type.
+    """Search documents via search_project_documents RPC.
 
-    OR logic across:
-    - keywords array (user-entered or Haiku-extracted)
-    - location field (partial match)
-    - original_filename (partial match)
-    - doc_type (partial match)
+    Uses GIN-indexed generated tsvector columns (migration 020).
+    SECURITY INVOKER RPC — RLS enforced via anon client (JWT).
+    Returns subject from joined RFI/correspondence when available.
+    Morphological matching via websearch_to_tsquery('english', ...).
 
-    Results ordered by doc_date DESC (newest first).
-    extracted_text not returned — large field excluded.
-    N+1: single query, no loop.
+    N+1: single RPC call, JOIN happens inside Postgres.
     """
     from backend.core.sanitizer import sanitize_short
     db = access["db"]
 
-    q_clean = (sanitize_short(q) or "").strip().lower()
+    q_clean = (sanitize_short(q) or "").strip()
     if not q_clean:
         return []
 
     try:
-        query = (
-            db.table("pdf_document")
-            .select(
-                "id, project_id, entity_type, entity_id, "
-                "original_filename, file_size_bytes, "
-                "parse_status, page_count, "
-                "keywords, location, doc_date, doc_type, "
-                "metadata_status, metadata_source, "
-                "created_by, created_at, updated_at"
-            )
-            .eq("project_id", project_id)
-            .or_(
-                f'keywords.cs.{{"{q_clean}"}},'
-                f"location.ilike.%{q_clean}%,"
-                f"original_filename.ilike.%{q_clean}%,"
-                f"doc_type.ilike.%{q_clean}%"
-            )
-            .order("doc_date", desc=True, nullsfirst=False)
-            .limit(limit)
-        )
-        if entity_type:
-            query = query.eq("entity_type", entity_type)
-        result = query.execute()
+        result = db.rpc(
+            "search_project_documents",
+            {
+                "p_project_id": project_id,
+                "p_query": q_clean,
+                "p_filter": filter,
+                "p_limit": limit,
+            },
+        ).execute()
         return result.data or []
     except Exception as exc:
         logger.error(
-            "Document search error: %s | project=%s q=%s",
-            exc, project_id, q_clean,
+            "Document search error: %s | project=%s q=%s filter=%s",
+            exc, project_id, q_clean, filter,
         )
         raise HTTPException(status_code=500, detail="Arama başarısız.")
 

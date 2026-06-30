@@ -4,6 +4,7 @@ import {
   searchDocuments,
   listDocuments,
   type ProjectDocument,
+  type DocumentSearchFilter,
 } from "../services/api";
 
 interface DocumentsModuleProps {
@@ -44,6 +45,7 @@ const ENTITY_LABELS: Record<string, string> = {
 
 export default function DocumentsModule({ projectId }: DocumentsModuleProps) {
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<DocumentSearchFilter>("general");
   const [results, setResults] = useState<ProjectDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -55,7 +57,7 @@ export default function DocumentsModule({ projectId }: DocumentsModuleProps) {
     setLoading(true);
     setError(null);
     try {
-      const data = await searchDocuments(projectId, q);
+      const data = await searchDocuments(projectId, q, filter);
       setResults(data);
       setSearched(true);
     } catch {
@@ -63,7 +65,7 @@ export default function DocumentsModule({ projectId }: DocumentsModuleProps) {
     } finally {
       setLoading(false);
     }
-  }, [projectId, query]);
+  }, [projectId, query, filter]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSearch();
@@ -96,6 +98,28 @@ export default function DocumentsModule({ projectId }: DocumentsModuleProps) {
         </p>
         {/* Search bar */}
         <div style={{ flex: 1, display: "flex", gap: 8 }}>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as DocumentSearchFilter)}
+            style={{
+              fontSize: 12,
+              padding: "7px 10px",
+              border: "1px solid var(--color-border-medium)",
+              borderRadius: 0,
+              background: "var(--color-bg-secondary)",
+              color: "var(--color-text-primary)",
+              fontFamily: "Inter, sans-serif",
+              outline: "none",
+              flexShrink: 0,
+            }}
+          >
+            <option value="general">All Fields</option>
+            <option value="keywords">Keywords</option>
+            <option value="location">Location</option>
+            <option value="subject">Subject</option>
+            <option value="filename">Filename</option>
+            <option value="doc_type">Document Type</option>
+          </select>
           <input
             type="text"
             value={query}
@@ -220,6 +244,19 @@ export default function DocumentsModule({ projectId }: DocumentsModuleProps) {
                       {ENTITY_LABELS[doc.entity_type] ?? doc.entity_type}
                     </span>
                   </div>
+
+                  {/* Row 1b: subject (from linked RFI/correspondence) */}
+                  {doc.subject && (
+                    <p style={{
+                      fontSize: 12,
+                      color: "var(--color-text-secondary)",
+                      fontFamily: "Inter, sans-serif",
+                      fontStyle: "italic",
+                      margin: 0,
+                    }}>
+                      {doc.subject}
+                    </p>
+                  )}
 
                   {/* Row 2: metadata */}
                   <div style={{

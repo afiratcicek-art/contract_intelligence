@@ -92,7 +92,7 @@ export default function RFIDetail() {
     newFile: null,
   });
   const [flagSubmitting, setFlagSubmitting] = useState(false);
-  const [docs, setDocs] = useState<{ id: string; original_filename: string; parse_status: string }[]>([]);
+  const [docs, setDocs] = useState<{ id: string; original_filename: string; parse_status: string; keywords?: string[] }[]>([]);
   const [deadline, setDeadline] = useState<DeadlineInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -124,7 +124,7 @@ export default function RFIDetail() {
 
   useEffect(() => {
     if (!projectId || !rfiId) return;
-    api.get<{ id: string; original_filename: string; parse_status: string }[]>(
+    api.get<{ id: string; original_filename: string; parse_status: string; keywords?: string[] }[]>(
       `/projects/${projectId}/documents/?entity_type=rfi&entity_id=${rfiId}`
     ).then(setDocs).catch(() => {});
   }, [projectId, rfiId]);
@@ -275,6 +275,40 @@ export default function RFIDetail() {
               {field(lang === "tr" ? "Gönderen" : "Submitted By", rfi.submitted_by)}
               {field(lang === "tr" ? "Gönderim Tarihi" : "Submission Date", rfi.submitted_date?.slice(0, 10))}
               {field(lang === "tr" ? "Harici Referans" : "External Reference", rfi.external_ref, true)}
+              {docs.length > 0 && docs.some(d => d.keywords && d.keywords.length > 0) && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: `0.5px solid ${border}` }}>
+                  <div style={{
+                    fontSize: 10,
+                    fontWeight: 500,
+                    textTransform: "uppercase" as const,
+                    letterSpacing: "0.06em",
+                    color: textSecond,
+                    marginBottom: 8,
+                  }}>
+                    {lang === "tr" ? "Anahtar Kelimeler" : "Keywords"}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                    {docs
+                      .flatMap(d => d.keywords || [])
+                      .filter((kw, i, arr) => arr.indexOf(kw) === i)
+                      .map((kw, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            fontSize: 10,
+                            padding: "2px 7px",
+                            background: bg,
+                            border: `0.5px solid ${border}`,
+                            color: textSecond,
+                            fontFamily: "JetBrains Mono, monospace",
+                          }}
+                        >
+                          {kw}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
             {rfi.description && (
               <div style={{ background: cardBg, padding: 20, marginBottom: 16 }}>

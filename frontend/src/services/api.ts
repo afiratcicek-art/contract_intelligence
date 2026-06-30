@@ -230,16 +230,24 @@ export interface ProjectDocument {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  subject: string | null;
 }
+
+export type DocumentSearchFilter =
+  | "general"
+  | "keywords"
+  | "location"
+  | "subject"
+  | "filename"
+  | "doc_type";
 
 export async function searchDocuments(
   projectId: string,
   q: string,
-  entityType?: string,
+  filter: DocumentSearchFilter = "general",
   limit = 20
 ): Promise<ProjectDocument[]> {
-  const params = new URLSearchParams({ q, limit: String(limit) });
-  if (entityType) params.set("entity_type", entityType);
+  const params = new URLSearchParams({ q, filter, limit: String(limit) });
   return api.get(
     `/projects/${projectId}/documents/search?${params}`
   );

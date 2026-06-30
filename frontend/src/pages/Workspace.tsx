@@ -10,7 +10,7 @@ import DocumentsModule from "../components/DocumentsModule";
 
 type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
-interface SearchResult { module: string; label: string; ref: string; subject: string; status: string; date: string; id: string; parent_id?: string | null; has_response?: boolean; rfi_type?: string; }
+interface SearchResult { module: string; label: string; ref: string; subject: string; status: string; date: string; id: string; parent_id?: string | null; has_response?: boolean; rfi_type?: string; entity_type?: string; entity_id?: string; }
 interface CorrItem { id: string; corr_number: string; subject: string; type: string; status: string; correspondence_date: string; direction: string; response_due_date: string | null; parent_id: string | null; has_response: boolean; }
 interface RFIItem { id: string; rfi_number: string; subject: string; status: string; submitted_date: string; response_due_date: string | null; discipline: string | null; parent_id: string | null; rfi_type: string; }
 interface ChangeItem { id: string; change_number: string; title: string; status: string; origin: string; notice_due_date: string | null; created_at: string; }
@@ -309,11 +309,16 @@ export default function Workspace() {
   const SIDEBAR_MAIN: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies"];
   const SIDEBAR_SYS: Module[] = ["documents", "config"];
 
-  const generalNavTarget = (mod: string, id: string) => {
+  const generalNavTarget = (mod: string, id: string, r?: SearchResult) => {
     if (mod === "correspondence") return `/projects/${projectId}/workspace/correspondence/${id}`;
     if (mod === "rfi") return `/projects/${projectId}/workspace/rfis/${id}`;
     if (mod === "change") return `/projects/${projectId}/workspace/changes/${id}`;
     if (mod === "deliverable") return `/projects/${projectId}/workspace/deliverables/${id}`;
+    if (mod === "document" && r?.entity_type === "rfi" && r.entity_id)
+      return `/projects/${projectId}/workspace/rfis/${r.entity_id}`;
+    if (mod === "document" && r?.entity_type === "correspondence" && r.entity_id)
+      return `/projects/${projectId}/workspace/correspondence/${r.entity_id}`;
+    if (mod === "document") return `/projects/${projectId}/workspace?module=documents`;
     return `/projects/${projectId}/workspace`;
   };
 
@@ -402,7 +407,7 @@ export default function Workspace() {
                 {searchQuery && <button onClick={() => { setSearchQuery(""); handleSearch(""); }} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
               </div>
               {filterRow(
-                ...["", "correspondence", "rfi", "change", "deliverable"].map((m) => chip(m === "" ? t("filter.all") : m === "rfi" ? "RFIs" : m === "change" ? "Changes" : m === "deliverable" ? "Deliverables" : "Correspondence", genModFilter === m, () => setGenModFilter(m))),
+                ...["", "correspondence", "rfi", "change", "deliverable", "document"].map((m) => chip(m === "" ? t("filter.all") : m === "rfi" ? "RFIs" : m === "change" ? "Changes" : m === "deliverable" ? "Deliverables" : m === "document" ? "Documents" : "Correspondence", genModFilter === m, () => setGenModFilter(m))),
                 <div key="div1" style={{ width: "0.5px", background: border, height: 20 }} />,
                 ...["", "open", "draft", "under_review", "approved", "published", "closed", "overdue"].map((s) => chip(s === "" ? t("filter.allstatus") : s.replace("_", " "), genStatusFilter === s, () => setGenStatusFilter(s)))
               )}
@@ -414,10 +419,10 @@ export default function Workspace() {
               )}
               {searching && <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p>}
               {!searching && filteredGeneral.length === 0 && <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("general.noresults")}</p>}
-              {["correspondence", "rfi", "change", "deliverable"].map((mod) => {
+              {["correspondence", "rfi", "change", "deliverable", "document"].map((mod) => {
                 const group = filteredGeneral.filter((r) => r.module === mod);
                 if (group.length === 0) return null;
-                const label = mod === "correspondence" ? "Correspondence" : mod === "rfi" ? "RFIs" : mod === "change" ? "Changes" : "Deliverables";
+                const label = mod === "correspondence" ? "Correspondence" : mod === "rfi" ? "RFIs" : mod === "change" ? "Changes" : mod === "document" ? (lang === "tr" ? "Belgeler" : "Documents") : "Deliverables";
 
                 // Correspondence — parent-child gruplama
                 if (mod === "correspondence") {
@@ -521,7 +526,7 @@ export default function Workspace() {
                   <div key={mod} style={{ marginBottom: 20 }}>
                     <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
                     {group.map((r) => (
-                      <div key={r.id} onClick={() => navigate(generalNavTarget(mod, r.id))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
+                      <div key={r.id} onClick={() => navigate(generalNavTarget(mod, r.id, r))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                         <div>
                           <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary }}>{r.ref}</span>
                           <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>

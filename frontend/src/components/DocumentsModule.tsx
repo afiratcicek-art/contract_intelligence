@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { api } from "../services/api";
 import DocumentRelationGraph from "./DocumentRelationGraph";
+import FocusedRelationGraph from "./FocusedRelationGraph";
 
 /* ── Local types ───────────────────────────────────────────
    Mirrors Workspace.tsx SearchResult + minimal RFI/Corr
@@ -45,8 +46,45 @@ interface Props {
 
 export default function DocumentsModule({ projectId }: Props) {
   const navigate = useNavigate();
-
+  const location = useLocation();
   const [query, setQuery]     = useState("");
+
+  /* ── Focus mode ────────────────────────────────────────
+     Driven by ?focus_type=correspondence|rfi&focus_id=...
+     in the URL (alongside ?module=documents). Set by
+     RelationPopup's "İlişki Haritasını Gör" link and by
+     the per-row map trigger button. Cleared via badge ×. */
+  const [focusType, setFocusType] = useState<"correspondence" | "rfi" | null>(null);
+  const [focusId,   setFocusId]   = useState<string | null>(null);
+  const [focusRef,  setFocusRef]  = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const ft = params.get("focus_type");
+    const fid = params.get("focus_id");
+    const fref = params.get("focus_ref");
+    if ((ft === "correspondence" || ft === "rfi") && fid) {
+      setFocusType(ft);
+      setFocusId(fid);
+      setFocusRef(fref);
+    } else {
+      setFocusType(null);
+      setFocusId(null);
+      setFocusRef(null);
+    }
+  }, [location.search]);
+
+  const clearFocus = () => {
+    const params = new URLSearchParams(location.search);
+    params.delete("focus_type");
+    params.delete("focus_id");
+    params.delete("focus_ref");
+    navigate(
+      { pathname: location.pathname, search: params.toString() },
+      { replace: true }
+    );
+  };
+
   const [results, setResults] = useState<DocSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -335,13 +373,46 @@ export default function DocumentsModule({ projectId }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column" as const, gap: 20 }}>
 
+      {/* Focus mode badge */}
+      {focusId && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: "var(--color-ai-bg)", border: "1px solid var(--color-ai)",
+          borderRadius: 6, padding: "8px 14px", marginBottom: 4,
+        }}>
+          <span style={{
+            fontSize: 12, color: "var(--color-ai)", fontWeight: 500,
+            fontFamily: "Inter, sans-serif",
+          }}>
+            Odaklanıldı: {focusRef || focusId}
+          </span>
+          <button
+            onClick={clearFocus}
+            style={{
+              background: "none", border: "none", color: "var(--color-ai)",
+              fontSize: 16, cursor: "pointer", padding: 0,
+            }}
+            aria-label="Odağı kapat"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Search bar */}
       <div style={{ position: "relative" as const }}>
         <input
           value={query}
           onChange={(e) => handleInput(e.target.value)}
-          placeholder="Belgeleri ara — konu, anahtar kelime, referans..."
+          disabled={!!focusId}
+          placeholder={
+            focusId
+              ? "Odak modundasınız — aramak için odağı kapatın"
+              : "Belgeleri ara — konu, anahtar kelime, referans..."
+          }
           style={{
+            opacity: focusId ? 0.5 : 1,
+            cursor: focusId ? "not-allowed" : "text",
             width: "100%", boxSizing: "border-box" as const,
             padding: "9px 36px 9px 12px",
             background: cardBg, border: `1px solid ${border}`,
@@ -400,7 +471,15 @@ export default function DocumentsModule({ projectId }: Props) {
       {/* ── Document Relationship Graph ──────────────────────
           Feeds from GET /all-relations → document_relations
           (migration 018). Empty state handled inside component. */}
-      <DocumentRelationGraph projectId={projectId} />
+      {focusId && focusType ? (
+        <FocusedRelationGraph
+          projectId={projectId}
+          entityType={focusType}
+          entityId={focusId}
+        />
+      ) : (
+        <DocumentRelationGraph projectId={projectId} />
+      )}
 
     </div>
   );

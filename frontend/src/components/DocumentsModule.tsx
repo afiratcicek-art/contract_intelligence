@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import DocumentRelationGraph from "./DocumentRelationGraph";
 
 /* ── Local types ───────────────────────────────────────────
    Mirrors Workspace.tsx SearchResult + minimal RFI/Corr
@@ -396,28 +397,10 @@ export default function DocumentsModule({ projectId }: Props) {
         </div>
       )}
 
-      {/* ── Document Relationship Graph ───────────────────────
-          Placeholder — DocumentRelationGraph.tsx (pending).
-          Feeds from document_relations table (migration 018).
-          Will show node graph of related docs when populated. */}
-      <div style={{
-        marginTop: 8, padding: "14px 16px",
-        background: cardBg, borderLeft: `2px solid ${border}`,
-      }}>
-        <p style={{
-          fontSize: 11, fontWeight: 500, color: textSecond,
-          textTransform: "uppercase" as const, letterSpacing: "0.08em",
-          fontFamily: "Inter, sans-serif", margin: 0,
-        }}>
-          Belge İlişki Grafiği
-        </p>
-        <p style={{
-          fontSize: 11, color: textSecond, fontStyle: "italic",
-          fontFamily: "Inter, sans-serif", marginTop: 6, marginBottom: 0,
-        }}>
-          İlişki grafiği yakında aktif olacak.
-        </p>
-      </div>
+      {/* ── Document Relationship Graph ──────────────────────
+          Feeds from GET /all-relations → document_relations
+          (migration 018). Empty state handled inside component. */}
+      <DocumentRelationGraph projectId={projectId} />
 
     </div>
   );

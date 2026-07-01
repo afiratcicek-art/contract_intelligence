@@ -418,6 +418,150 @@ def get_all_document_relations(
         )
 
 
+@router.get("/card-relations/{entity_type}/{entity_id}", status_code=200)
+def get_card_relations(
+    project_id: str,
+    entity_type: str,
+    entity_id: str,
+    access=Depends(verify_project_access),
+):
+    """Return related cards for a single correspondence/rfi,
+    grouped by relation strength:
+      1. chain    — parent/child (strongest)
+      2. sibling  — same parent
+      3. content  — keyword + subject overlap (weakest, deterministic)
+
+    Response: { chain: [...], sibling: [...], content: [...] }
+    Each item: { id, ref, subject, status, entity_type, score }
+    """
+    if entity_type not in ("correspondence", "rfi"):
+        raise HTTPException(status_code=400, detail="Geçersiz entity_type.")
+
+    db = access["db"]
+    try:
+        corr_res = (
+            db.table("correspondences")
+            .select(
+                "id, corr_number, subject, status, "
+                "parent_id, correspondence_date, keywords"
+            )
+            .eq("project_id", project_id)
+            .execute()
+        )
+        corrs: list[dict] = corr_res.data or []
+
+        rfi_res = (
+            db.table("rfis")
+            .select(
+                "id, rfi_number, subject, status, "
+                "parent_id, rfi_type, submitted_date, keywords"
+            )
+            .eq("project_id", project_id)
+            .execute()
+        )
+        rfis: list[dict] = rfi_res.data or []
+
+        def _to_node(row: dict, etype: str) -> dict:
+            ref = row.get("corr_number") or row.get("rfi_number")
+            return {
+                "id":          row["id"],
+                "ref":         ref,
+                "subject":     row["subject"],
+                "status":      row["status"],
+                "entity_type": etype,
+                "parent_id":   row.get("parent_id"),
+                "keywords":    row.get("keywords") or [],
+            }
+
+        all_nodes = (
+            [_to_node(c, "correspondence") for c in corrs]
+            + [_to_node(r, "rfi") for r in rfis]
+        )
+        node_map = {n["id"]: n for n in all_nodes}
+
+        self_node = node_map.get(entity_id)
+        if not self_node:
+            return {"chain": [], "sibling": [], "content": []}
+
+        # ── Layer 1: chain (parent + children) ──────────────
+        chain_ids: set[str] = set()
+        if self_node.get("parent_id"):
+            chain_ids.add(self_node["parent_id"])
+        for n in all_nodes:
+            if n.get("parent_id") == entity_id:
+                chain_ids.add(n["id"])
+
+        # ── Layer 2: sibling (same parent, excl. self) ──────
+        sibling_ids: set[str] = set()
+        if self_node.get("parent_id"):
+            for n in all_nodes:
+                if (
+                    n.get("parent_id") == self_node["parent_id"]
+                    and n["id"] != entity_id
+                    and n["id"] not in chain_ids
+                ):
+                    sibling_ids.add(n["id"])
+
+        # ── Layer 3: content (keyword + subject overlap) ────
+        def _jaccard(a: set, b: set) -> float:
+            if not a or not b:
+                return 0.0
+            return len(a & b) / len(a | b)
+
+        def _subject_overlap(s1: str, s2: str) -> float:
+            t1 = {t for t in (s1 or "").lower()
+                  .replace(",", " ").replace(".", " ")
+                  .replace(":", " ").replace("-", " ").split()
+                  if len(t) > 2}
+            t2 = {t for t in (s2 or "").lower()
+                  .replace(",", " ").replace(".", " ")
+                  .replace(":", " ").replace("-", " ").split()
+                  if len(t) > 2}
+            if not t1 or not t2:
+                return 0.0
+            return len(t1 & t2) / len(t1 | t2)
+
+        self_kw = set(self_node.get("keywords") or [])
+        content_items: list[dict] = []
+        for n in all_nodes:
+            if n["id"] == entity_id:
+                continue
+            if n["id"] in chain_ids or n["id"] in sibling_ids:
+                continue
+            kw_score  = _jaccard(self_kw, set(n.get("keywords") or []))
+            sub_score = _subject_overlap(self_node["subject"], n["subject"])
+            score = round((kw_score + sub_score) / 2, 3)
+            if score >= 0.25:
+                content_items.append({**n, "score": score})
+
+        content_items.sort(key=lambda x: x["score"], reverse=True)
+
+        def _strip(n: dict, score: float) -> dict:
+            return {
+                "id":          n["id"],
+                "ref":         n["ref"],
+                "subject":     n["subject"],
+                "status":      n["status"],
+                "entity_type": n["entity_type"],
+                "score":       score,
+            }
+
+        return {
+            "chain":   [_strip(node_map[i], 1.0) for i in chain_ids if i in node_map],
+            "sibling": [_strip(node_map[i], 0.9) for i in sibling_ids if i in node_map],
+            "content": [_strip(item, item["score"]) for item in content_items],
+        }
+
+    except Exception as exc:
+        logger.error(
+            "Kart ilişki hatası: %s | entity=%s/%s",
+            exc, entity_type, entity_id,
+        )
+        raise HTTPException(
+            status_code=500, detail="İlişkili kayıtlar alınamadı."
+        )
+
+
 # ----------------------------------------------------------
 # GET /projects/{project_id}/documents/{doc_id}
 # ----------------------------------------------------------

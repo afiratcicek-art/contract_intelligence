@@ -242,7 +242,38 @@ export default function DocumentsModule({ projectId }: Props) {
               {r.date}
             </p>
           </div>
-          {statusPill(r.status)}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const params = new URLSearchParams({
+                  module: "documents",
+                  focus_type: "correspondence",
+                  focus_id: r.id,
+                  focus_ref: r.ref,
+                });
+                navigate(`/projects/${projectId}/workspace?${params.toString()}`);
+              }}
+              title="İlişki haritasını gör"
+              aria-label="İlişki haritasını gör"
+              style={{
+                background: "var(--color-ai-bg)", color: "var(--color-ai)",
+                border: "1px solid var(--color-ai)", borderRadius: 4,
+                width: 22, height: 22, display: "flex",
+                alignItems: "center", justifyContent: "center",
+                cursor: "pointer", padding: 0, flexShrink: 0,
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="5" r="2.5" />
+                <circle cx="5" cy="19" r="2.5" />
+                <circle cx="19" cy="19" r="2.5" />
+                <line x1="12" y1="7.5" x2="6.5" y2="17" />
+                <line x1="12" y1="7.5" x2="17.5" y2="17" />
+              </svg>
+            </button>
+            {statusPill(r.status)}
+          </div>
         </div>
         {(childMap.get(r.id) ?? []).map((child) =>
           renderRow(child, true)
@@ -331,16 +362,47 @@ export default function DocumentsModule({ projectId }: Props) {
               {r.date}
             </p>
           </div>
-          {r.rfi_type === "response" ? (
-            <span style={{
-              fontSize: 10, fontWeight: 500, padding: "2px 8px",
-              backgroundColor: "var(--color-success-bg)",
-              color: "var(--color-success)",
-              textTransform: "uppercase" as const, letterSpacing: "0.04em",
-            }}>
-              RESPONSE
-            </span>
-          ) : statusPill(r.status)}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const params = new URLSearchParams({
+                  module: "documents",
+                  focus_type: "rfi",
+                  focus_id: r.id,
+                  focus_ref: r.ref,
+                });
+                navigate(`/projects/${projectId}/workspace?${params.toString()}`);
+              }}
+              title="İlişki haritasını gör"
+              aria-label="İlişki haritasını gör"
+              style={{
+                background: "var(--color-ai-bg)", color: "var(--color-ai)",
+                border: "1px solid var(--color-ai)", borderRadius: 4,
+                width: 22, height: 22, display: "flex",
+                alignItems: "center", justifyContent: "center",
+                cursor: "pointer", padding: 0, flexShrink: 0,
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="5" r="2.5" />
+                <circle cx="5" cy="19" r="2.5" />
+                <circle cx="19" cy="19" r="2.5" />
+                <line x1="12" y1="7.5" x2="6.5" y2="17" />
+                <line x1="12" y1="7.5" x2="17.5" y2="17" />
+              </svg>
+            </button>
+            {r.rfi_type === "response" ? (
+              <span style={{
+                fontSize: 10, fontWeight: 500, padding: "2px 8px",
+                backgroundColor: "var(--color-success-bg)",
+                color: "var(--color-success)",
+                textTransform: "uppercase" as const, letterSpacing: "0.04em",
+              }}>
+                RESPONSE
+              </span>
+            ) : statusPill(r.status)}
+          </div>
         </div>
         {(childMap.get(r.id) ?? []).map((child) =>
           renderRow(child, true)

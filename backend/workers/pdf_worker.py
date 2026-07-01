@@ -23,8 +23,6 @@ from datetime import datetime, timezone
 from backend.database import get_admin_client, get_anon_client
 from backend.services.audit_service import AuditService
 from backend.services.pdf_pipeline_service import PDFPipelineService
-from backend.services.embedding_service import get_embedding_service
-from backend.services.relation_service import get_relation_service
 
 logging.basicConfig(
     level=logging.INFO,
@@ -159,38 +157,6 @@ def process_one(record: dict) -> None:
                 "char_count": len(clean_text),
             },
         )
-
-        # ADIM 5 — Embedding pipeline (non-critical, TB-12: async at scale)
-        if clean_text:
-            try:
-                get_embedding_service().embed_document(
-                    doc_id=doc_id,
-                    project_id=project_id,
-                    entity_type=entity_type,
-                    entity_id=entity_id,
-                    user_id=user_id,
-                    text=clean_text,
-                    doc_date=None,   # TB-5: from extraction metadata
-                    doc_type=None,   # TB-5: from extraction metadata
-                )
-            except Exception as emb_exc:
-                logger.warning(
-                    "Embedding trigger failed (non-critical): %s | doc_id=%s",
-                    emb_exc, doc_id,
-                )
-
-        # ADIM 6 — Relation detection (non-critical, TB-12: async at scale)
-        try:
-            get_relation_service().detect_relations(
-                doc_id=doc_id,
-                project_id=project_id,
-                user_id=user_id,
-            )
-        except Exception as rel_exc:
-            logger.warning(
-                "Relation detection trigger failed (non-critical): %s | doc_id=%s",
-                rel_exc, doc_id,
-            )
 
         logger.info(
             "Tamamlandı: %s | method=%s pages=%d score=%.3f chars=%d",

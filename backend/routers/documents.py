@@ -232,54 +232,6 @@ def list_documents(
 # ----------------------------------------------------------
 # GET /projects/{project_id}/documents/search
 # ----------------------------------------------------------
-@router.get("/search", status_code=200)
-def search_documents(
-    project_id: str,
-    q: str = Query(..., min_length=1, max_length=200,
-                   description="Search query"),
-    filter: str = Query(
-        "general",
-        regex="^(general|keywords|location|subject|filename|doc_type)$",
-        description="Search field filter",
-    ),
-    limit: int = Query(20, ge=1, le=100),
-    access=Depends(verify_project_access),
-):
-    """Search documents via search_project_documents RPC.
-
-    Uses GIN-indexed generated tsvector columns (migration 020).
-    SECURITY INVOKER RPC — RLS enforced via anon client (JWT).
-    Returns subject from joined RFI/correspondence when available.
-    Morphological matching via websearch_to_tsquery('english', ...).
-
-    N+1: single RPC call, JOIN happens inside Postgres.
-    """
-    from backend.core.sanitizer import sanitize_short
-    db = access["db"]
-
-    q_clean = (sanitize_short(q) or "").strip()
-    if not q_clean:
-        return []
-
-    try:
-        result = db.rpc(
-            "search_project_documents",
-            {
-                "p_project_id": project_id,
-                "p_query": q_clean,
-                "p_filter": filter,
-                "p_limit": limit,
-            },
-        ).execute()
-        return result.data or []
-    except Exception as exc:
-        logger.error(
-            "Document search error: %s | project=%s q=%s filter=%s",
-            exc, project_id, q_clean, filter,
-        )
-        raise HTTPException(status_code=500, detail="Arama başarısız.")
-
-
 @router.get("/all-relations", status_code=200)
 def get_all_document_relations(
     project_id: str,

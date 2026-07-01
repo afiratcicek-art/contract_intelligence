@@ -444,20 +444,24 @@ export default function CorrespondenceDetail() {
           <button
             onClick={() => setShowRelations(true)}
             style={{
-              background: "transparent",
-              color: "var(--color-warning)",
-              border: "1px solid var(--color-warning)",
-              borderRadius: 0,
-              padding: "8px 16px",
+              background: "var(--color-ai-bg)",
+              color: "var(--color-ai)",
+              border: "1px solid var(--color-ai)",
+              borderRadius: 6,
+              padding: "9px 18px",
               fontSize: 11, fontWeight: 500,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase" as const,
+              letterSpacing: "0.04em",
               display: "flex", alignItems: "center", gap: 6,
               cursor: "pointer",
               fontFamily: "Inter, sans-serif",
             }}
           >
-            ⛓ İlişkili Kayıtlar
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18h6" />
+              <path d="M10 22h4" />
+              <path d="M12 2a7 7 0 0 0-4.24 12.6c.7.53 1.24 1.4 1.24 2.4v.5h6v-.5c0-1 .54-1.87 1.24-2.4A7 7 0 0 0 12 2z" />
+            </svg>
+            Benzerlik Tespit Edilen Kayıtlar
           </button>
         </div>
       </div>

@@ -69,8 +69,8 @@ export default function RelationPopup({
       style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         width: "100%", textAlign: "left" as const,
-        padding: isChild ? "7px 10px 7px 24px" : "8px 10px",
-        marginBottom: 4,
+        padding: isChild ? "9px 12px 9px 26px" : "10px 12px",
+        marginBottom: 6,
         background: isChild ? "var(--color-bg-primary)" : "var(--color-bg-secondary)",
         border: `1px solid ${border}`,
         borderLeft: `2px solid ${color}`,
@@ -174,7 +174,8 @@ export default function RelationPopup({
         onClick={(e) => e.stopPropagation()}
         style={{
           background: bg, border: `1px solid ${border}`,
-          borderRadius: 0, padding: 20,
+          borderLeft: "3px solid var(--color-ai)",
+          borderRadius: 6, padding: 20,
           width: "100%", maxWidth: 440,
           maxHeight: "70vh", overflowY: "auto" as const,
         }}
@@ -187,7 +188,7 @@ export default function RelationPopup({
             fontFamily: "Playfair Display, Georgia, serif",
             fontSize: 16, color: textP, fontWeight: 500,
           }}>
-            İlişkili Kayıtlar
+            Benzerlik Tespit Edilen Kayıtlar
           </div>
           <button
             onClick={onClose}
@@ -217,7 +218,7 @@ export default function RelationPopup({
 
         {!loading && data && (
           <>
-            {renderGroup("Zincir (Parent / Child)", data.chain, accent, true)}
+            {renderGroup("Zincir (Parent / Child)", data.chain, "var(--color-ai)", true)}
             {renderGroup("İçerik Benzerliği", data.content, textS, false)}
           </>
         )}

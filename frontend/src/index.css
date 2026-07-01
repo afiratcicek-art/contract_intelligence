@@ -39,6 +39,9 @@
   --color-warning:    #92400E;
   --color-warning-bg: #FEF9E7;
 
+  --color-ai:    #6E3F87;
+  --color-ai-bg: #F2E9F5;
+
   /* Priority */
   --color-priority-critical: #A93226;
   --color-priority-high:     #E07060;
@@ -84,6 +87,9 @@ html.dark {
   /* Status — Warning */
   --color-warning:    #D4956A;
   --color-warning-bg: #3D2E0A;
+
+  --color-ai:    #C79FDB;
+  --color-ai-bg: #3A2440;
 
   /* Priority */
   --color-priority-critical: #E05555;

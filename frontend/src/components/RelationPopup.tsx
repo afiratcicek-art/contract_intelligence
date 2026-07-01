@@ -9,6 +9,7 @@ interface RelationItem {
   status: string;
   entity_type: "correspondence" | "rfi";
   score: number;
+  parent_id?: string | null;
 }
 
 interface RelationsResponse {
@@ -61,12 +62,78 @@ export default function RelationPopup({
     navigate(entityPath(projectId, item));
   };
 
+  const renderRow = (item: RelationItem, color: string, isChild = false) => (
+    <button
+      key={item.id}
+      onClick={() => goTo(item)}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        width: "100%", textAlign: "left" as const,
+        padding: isChild ? "7px 10px 7px 24px" : "8px 10px",
+        marginBottom: 4,
+        background: isChild ? "var(--color-bg-primary)" : "var(--color-bg-secondary)",
+        border: `1px solid ${border}`,
+        borderLeft: `2px solid ${color}`,
+        cursor: "pointer", fontFamily: "Inter, sans-serif",
+      }}
+    >
+      <div>
+        <span style={{
+          fontFamily: "JetBrains Mono, monospace",
+          fontSize: 10, color: textS,
+          display: "flex", alignItems: "center", gap: 3,
+        }}>
+          {isChild && <span style={{ color, marginRight: 2 }}>└</span>}
+          {item.ref}
+        </span>
+        <p style={{ fontSize: isChild ? 11 : 12, color: textP, margin: "2px 0 0" }}>
+          {item.subject}
+        </p>
+      </div>
+      <span style={{ fontSize: 10, color: textS }}>
+        {item.score.toFixed(2)}
+      </span>
+    </button>
+  );
+
   const renderGroup = (
     title: string,
     items: RelationItem[],
-    color: string
+    color: string,
+    asTree = false
   ) => {
     if (items.length === 0) return null;
+
+    if (!asTree) {
+      return (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{
+            fontSize: 11, fontWeight: 500, color: textS,
+            textTransform: "uppercase" as const,
+            letterSpacing: "0.06em", marginBottom: 6,
+            fontFamily: "Inter, sans-serif",
+          }}>
+            {title}
+          </div>
+          {items.map((item) => renderRow(item, color, false))}
+        </div>
+      );
+    }
+
+    // Tree render — group by parent_id, roots first.
+    const byId = new Map(items.map((i) => [i.id, i]));
+    const childMap = new Map<string, RelationItem[]>();
+    items.forEach((i) => {
+      if (i.parent_id && byId.has(i.parent_id)) {
+        const arr = childMap.get(i.parent_id) ?? [];
+        arr.push(i);
+        childMap.set(i.parent_id, arr);
+      }
+    });
+    const roots = items.filter(
+      (i) => !i.parent_id || !byId.has(i.parent_id)
+    );
+
     return (
       <div style={{ marginBottom: 16 }}>
         <div style={{
@@ -77,35 +144,13 @@ export default function RelationPopup({
         }}>
           {title}
         </div>
-        {items.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => goTo(item)}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              width: "100%", textAlign: "left" as const,
-              padding: "8px 10px", marginBottom: 4,
-              background: "var(--color-bg-secondary)",
-              border: `1px solid ${border}`,
-              borderLeft: `2px solid ${color}`,
-              cursor: "pointer", fontFamily: "Inter, sans-serif",
-            }}
-          >
-            <div>
-              <span style={{
-                fontFamily: "JetBrains Mono, monospace",
-                fontSize: 10, color: textS,
-              }}>
-                {item.ref}
-              </span>
-              <p style={{ fontSize: 12, color: textP, margin: "2px 0 0" }}>
-                {item.subject}
-              </p>
-            </div>
-            <span style={{ fontSize: 10, color: textS }}>
-              {item.score.toFixed(2)}
-            </span>
-          </button>
+        {roots.map((root) => (
+          <div key={root.id}>
+            {renderRow(root, color, false)}
+            {(childMap.get(root.id) ?? []).map((child) =>
+              renderRow(child, color, true)
+            )}
+          </div>
         ))}
       </div>
     );
@@ -172,8 +217,8 @@ export default function RelationPopup({
 
         {!loading && data && (
           <>
-            {renderGroup("Zincir (Parent / Child)", data.chain, accent)}
-            {renderGroup("İçerik Benzerliği", data.content, textS)}
+            {renderGroup("Zincir (Parent / Child)", data.chain, accent, true)}
+            {renderGroup("İçerik Benzerliği", data.content, textS, false)}
           </>
         )}
       </div>

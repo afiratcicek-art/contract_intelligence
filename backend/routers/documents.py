@@ -557,6 +557,7 @@ def get_card_relations(
                 "status":      n["status"],
                 "entity_type": n["entity_type"],
                 "score":       score,
+                "parent_id":   n.get("parent_id"),
             }
 
         return {

@@ -444,18 +444,20 @@ export default function CorrespondenceDetail() {
           <button
             onClick={() => setShowRelations(true)}
             style={{
-              background: "var(--color-accent)",
-              color: "#F5F2ED",
-              border: "none", borderRadius: 0,
-              padding: "10px 18px",
-              fontSize: 12, fontWeight: 500,
-              letterSpacing: "0.03em",
-              display: "flex", alignItems: "center", gap: 8,
+              background: "transparent",
+              color: "var(--color-warning)",
+              border: "1px solid var(--color-warning)",
+              borderRadius: 0,
+              padding: "8px 16px",
+              fontSize: 11, fontWeight: 500,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase" as const,
+              display: "flex", alignItems: "center", gap: 6,
               cursor: "pointer",
               fontFamily: "Inter, sans-serif",
             }}
           >
-            🔗 İlişkili Kayıtlar
+            ⛓ İlişkili Kayıtlar
           </button>
         </div>
       </div>

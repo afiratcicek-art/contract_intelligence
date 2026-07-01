@@ -280,6 +280,68 @@ def search_documents(
         raise HTTPException(status_code=500, detail="Arama başarısız.")
 
 
+@router.get("/all-relations", status_code=200)
+def get_all_document_relations(
+    project_id: str,
+    access=Depends(verify_project_access),
+):
+    """Return all document_relations for a project as a
+    graph payload: { nodes: [...], edges: [...] }.
+
+    Nodes: unique pdf_document rows referenced in edges.
+    Edges: relation rows (non-rejected), ordered by score DESC.
+
+    Two-step fetch — no N+1:
+      1. All relation rows for project (excludes user_rejected).
+      2. All referenced docs in a single IN query.
+    """
+    db = access["db"]
+    try:
+        # Step 1: all relations for project
+        rel_res = (
+            db.table("document_relations")
+            .select(
+                "source_doc_id, target_doc_id, score, "
+                "score_breakdown, relation_type"
+            )
+            .eq("project_id", project_id)
+            .neq("relation_type", "user_rejected")
+            .order("score", desc=True)
+            .execute()
+        )
+        edges: list[dict] = rel_res.data or []
+
+        if not edges:
+            return {"nodes": [], "edges": []}
+
+        # Step 2: collect unique doc IDs, single IN query
+        doc_ids = list(
+            {e["source_doc_id"] for e in edges}
+            | {e["target_doc_id"] for e in edges}
+        )
+        doc_res = (
+            db.table("pdf_document")
+            .select(
+                "id, original_filename, entity_type, "
+                "entity_id, keywords, location, doc_type"
+            )
+            .in_("id", doc_ids)
+            .execute()
+        )
+        nodes = doc_res.data or []
+
+        return {"nodes": nodes, "edges": edges}
+
+    except Exception as exc:
+        logger.error(
+            "Proje belge ilişki grafiği hatası: %s | project=%s",
+            exc, project_id,
+        )
+        raise HTTPException(
+            status_code=500, detail="Belge ilişki grafiği alınamadı."
+        )
+
+
 # ----------------------------------------------------------
 # GET /projects/{project_id}/documents/{doc_id}
 # ----------------------------------------------------------

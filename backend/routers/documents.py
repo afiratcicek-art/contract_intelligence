@@ -233,191 +233,220 @@ def list_documents(
 # ----------------------------------------------------------
 # GET /projects/{project_id}/documents/search
 # ----------------------------------------------------------
+# ════════════════════════════════════════════════════
+# Shared relation-computation helpers
+# Used by /all-relations, /card-relations, /focused-graph.
+# Single source of truth — avoids triplicated scoring logic.
+# ════════════════════════════════════════════════════
+
+def _build_relation_index(project_id: str, db):
+    """Fetch all correspondences + rfis for a project once.
+    Returns (all_nodes, node_map, parent_map, children_map).
+    Single pair of queries — reused across all relation endpoints
+    to avoid repeated DB round-trips (no N+1).
+    """
+    corr_res = (
+        db.table("correspondences")
+        .select(
+            "id, corr_number, subject, status, "
+            "parent_id, correspondence_date, keywords"
+        )
+        .eq("project_id", project_id)
+        .execute()
+    )
+    corrs: list[dict] = corr_res.data or []
+
+    rfi_res = (
+        db.table("rfis")
+        .select(
+            "id, rfi_number, subject, status, "
+            "parent_id, rfi_type, submitted_date, keywords"
+        )
+        .eq("project_id", project_id)
+        .execute()
+    )
+    rfis: list[dict] = rfi_res.data or []
+
+    all_nodes: list[dict] = []
+    for c in corrs:
+        all_nodes.append({
+            "id":          c["id"],
+            "ref":         c["corr_number"],
+            "subject":     c["subject"],
+            "status":      c["status"],
+            "entity_type": "correspondence",
+            "parent_id":   c.get("parent_id"),
+            "date":        c.get("correspondence_date"),
+            "keywords":    c.get("keywords") or [],
+        })
+    for r in rfis:
+        all_nodes.append({
+            "id":          r["id"],
+            "ref":         r["rfi_number"],
+            "subject":     r["subject"],
+            "status":      r["status"],
+            "entity_type": "rfi",
+            "parent_id":   r.get("parent_id"),
+            "rfi_type":    r.get("rfi_type"),
+            "date":        r.get("submitted_date"),
+            "keywords":    r.get("keywords") or [],
+        })
+
+    node_map = {n["id"]: n for n in all_nodes}
+    parent_map = {n["id"]: n.get("parent_id") for n in all_nodes}
+    children_map: dict = defaultdict(list)
+    for n in all_nodes:
+        if n.get("parent_id"):
+            children_map[n["parent_id"]].append(n["id"])
+
+    return all_nodes, node_map, parent_map, children_map
+
+
+def _jaccard(a: set, b: set) -> float:
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
+def _subject_overlap(s1: str, s2: str) -> float:
+    """Token overlap between two subjects (tokens > 2 chars)."""
+    def _tokens(s: str) -> set:
+        return {
+            t for t in (s or "").lower()
+            .replace(",", " ").replace(".", " ")
+            .replace(":", " ").replace("-", " ").split()
+            if len(t) > 2
+        }
+    t1, t2 = _tokens(s1), _tokens(s2)
+    if not t1 or not t2:
+        return 0.0
+    return len(t1 & t2) / len(t1 | t2)
+
+
+def _content_score(n1: dict, n2: dict) -> float:
+    """Average of keyword Jaccard + subject token overlap."""
+    kw = _jaccard(set(n1.get("keywords") or []), set(n2.get("keywords") or []))
+    sub = _subject_overlap(n1.get("subject") or "", n2.get("subject") or "")
+    return round((kw + sub) / 2, 3)
+
+
+def _full_chain_ids(entity_id: str, parent_map: dict, children_map: dict) -> set:
+    """Root-to-leaves BFS. Returns all transitive chain member ids
+    (ancestors + descendants + siblings), excluding entity_id itself.
+    """
+    root_id = entity_id
+    seen_up: set = set()
+    while parent_map.get(root_id) and root_id not in seen_up:
+        seen_up.add(root_id)
+        root_id = parent_map[root_id]
+
+    chain_ids: set = set()
+    queue = [root_id]
+    visited: set = set()
+    while queue:
+        curr = queue.pop(0)
+        if curr in visited:
+            continue
+        visited.add(curr)
+        chain_ids.add(curr)
+        queue.extend(children_map.get(curr, []))
+    chain_ids.discard(entity_id)
+    return chain_ids
+
+
+def _content_neighbors(
+    entity_id: str, self_node: dict, all_nodes: list,
+    exclude_ids: set, threshold: float = 0.25,
+) -> dict:
+    """Direct content-similarity neighbors, excluding exclude_ids/self."""
+    result: dict = {}
+    for n in all_nodes:
+        if n["id"] == entity_id or n["id"] in exclude_ids:
+            continue
+        score = _content_score(self_node, n)
+        if score >= threshold:
+            result[n["id"]] = score
+    return result
+
+
+# ════════════════════════════════════════════════════
+# GET /all-relations — full project graph (existing UI)
+# ════════════════════════════════════════════════════
+
 @router.get("/all-relations", status_code=200)
 def get_all_document_relations(
     project_id: str,
     access=Depends(verify_project_access),
 ):
     """Graph payload for DocumentRelationGraph.
-
     Nodes: all correspondences + RFIs in project.
     Edges (three layers):
       1. Structural  — parent_id chain (score=1.0)
       2. Bilateral   — same-parent siblings (score=0.9)
       3. Content     — avg(keyword_jaccard, subject_overlap)
                        cross-entity included, threshold >= 0.25
-
-    No pdf_document / document_relations dependency.
-    TB-5: Haiku keywords feed into Layer 3 automatically
-    when API key is configured.
     """
     db = access["db"]
     try:
-        # ── Fetch ──────────────────────────────────────────
-        corr_res = (
-            db.table("correspondences")
-            .select(
-                "id, corr_number, subject, status, "
-                "parent_id, correspondence_date, keywords"
-            )
-            .eq("project_id", project_id)
-            .execute()
-        )
-        corrs: list[dict] = corr_res.data or []
-
-        rfi_res = (
-            db.table("rfis")
-            .select(
-                "id, rfi_number, subject, status, "
-                "parent_id, rfi_type, submitted_date, keywords"
-            )
-            .eq("project_id", project_id)
-            .execute()
-        )
-        rfis: list[dict] = rfi_res.data or []
-
-        if not corrs and not rfis:
+        all_nodes, node_map, parent_map, children_map = _build_relation_index(project_id, db)
+        if not all_nodes:
             return {"nodes": [], "edges": []}
 
-        # ── Nodes ──────────────────────────────────────────
-        nodes: list[dict] = []
-        for c in corrs:
-            nodes.append({
-                "id":          c["id"],
-                "ref":         c["corr_number"],
-                "subject":     c["subject"],
-                "status":      c["status"],
-                "entity_type": "correspondence",
-                "date":        c.get("correspondence_date"),
-                "keywords":    c.get("keywords") or [],
-            })
-        for r in rfis:
-            nodes.append({
-                "id":          r["id"],
-                "ref":         r["rfi_number"],
-                "subject":     r["subject"],
-                "status":      r["status"],
-                "entity_type": "rfi",
-                "rfi_type":    r.get("rfi_type"),
-                "date":        r.get("submitted_date"),
-                "keywords":    r.get("keywords") or [],
-            })
+        nodes = [
+            {
+                "id": n["id"], "ref": n["ref"], "subject": n["subject"],
+                "status": n["status"], "entity_type": n["entity_type"],
+                "date": n.get("date"), "keywords": n.get("keywords") or [],
+                **({"rfi_type": n["rfi_type"]} if n["entity_type"] == "rfi" else {}),
+            }
+            for n in all_nodes
+        ]
 
-        # ── Helpers ────────────────────────────────────────
-        def _jaccard(a: set, b: set) -> float:
-            if not a or not b:
-                return 0.0
-            return len(a & b) / len(a | b)
-
-        def _subject_overlap(s1: str, s2: str) -> float:
-            """Token overlap between two subjects."""
-            t1 = set((s1 or "").lower()
-                     .replace(",", " ").replace(".", " ")
-                     .replace(":", " ").replace("-", " ")
-                     .split())
-            t2 = set((s2 or "").lower()
-                     .replace(",", " ").replace(".", " ")
-                     .replace(":", " ").replace("-", " ")
-                     .split())
-            # Remove very short tokens (≤2 chars)
-            t1 = {t for t in t1 if len(t) > 2}
-            t2 = {t for t in t2 if len(t) > 2}
-            if not t1 or not t2:
-                return 0.0
-            return len(t1 & t2) / len(t1 | t2)
-
-        def _content_score(n1: dict, n2: dict) -> float:
-            """Average of keyword Jaccard + subject overlap."""
-            kw  = _jaccard(
-                set(n1.get("keywords") or []),
-                set(n2.get("keywords") or []),
-            )
-            sub = _subject_overlap(
-                n1.get("subject") or "",
-                n2.get("subject") or "",
-            )
-            return round((kw + sub) / 2, 3)
-
-        # ── Edges ──────────────────────────────────────────
         edges: list[dict] = []
-        seen_edges: set[tuple] = set()
+        seen_edges: set = set()
 
-        def _add_edge(src: str, tgt: str, score: float,
-                      layer: str) -> None:
+        def _add_edge(src: str, tgt: str, score: float, layer: str) -> None:
             key = (min(src, tgt), max(src, tgt))
             if key in seen_edges:
                 return
             seen_edges.add(key)
-            edges.append({
-                "source": src,
-                "target": tgt,
-                "score":  score,
-                "layer":  layer,
-            })
+            edges.append({"source": src, "target": tgt, "score": score, "layer": layer})
 
-        # All nodes for content scoring
-        all_nodes = nodes  # already built above
+        for n in all_nodes:
+            if n.get("parent_id"):
+                _add_edge(n["parent_id"], n["id"], 1.0, "chain")
 
-        # Layer 1 — parent_id chain (score=1.0)
-        for c in corrs:
-            if c.get("parent_id"):
-                _add_edge(c["parent_id"], c["id"],
-                          1.0, "chain")
-        for r in rfis:
-            if r.get("parent_id"):
-                _add_edge(r["parent_id"], r["id"],
-                          1.0, "chain")
-
-        # Layer 2 — bilateral siblings (same parent, score=0.9)
-        # Group by parent_id
-        from collections import defaultdict
-        corr_siblings: dict = defaultdict(list)
-        for c in corrs:
-            if c.get("parent_id"):
-                corr_siblings[c["parent_id"]].append(c["id"])
-        for sibs in corr_siblings.values():
+        sibling_groups: dict = defaultdict(list)
+        for n in all_nodes:
+            if n.get("parent_id"):
+                sibling_groups[n["parent_id"]].append(n["id"])
+        for sibs in sibling_groups.values():
             for i in range(len(sibs)):
                 for j in range(i + 1, len(sibs)):
                     _add_edge(sibs[i], sibs[j], 0.9, "sibling")
 
-        rfi_siblings: dict = defaultdict(list)
-        for r in rfis:
-            if r.get("parent_id"):
-                rfi_siblings[r["parent_id"]].append(r["id"])
-        for sibs in rfi_siblings.values():
-            for i in range(len(sibs)):
-                for j in range(i + 1, len(sibs)):
-                    _add_edge(sibs[i], sibs[j], 0.9, "sibling")
-
-        # Layer 3 — content scoring (keyword + subject, threshold=0.25)
-        # Build node lookup for scoring
-        node_map = {n["id"]: n for n in all_nodes}
         node_ids = list(node_map.keys())
         for i in range(len(node_ids)):
             for j in range(i + 1, len(node_ids)):
                 nid1, nid2 = node_ids[i], node_ids[j]
-                # Skip if already connected by chain/sibling
                 key = (min(nid1, nid2), max(nid1, nid2))
                 if key in seen_edges:
                     continue
-                score = _content_score(
-                    node_map[nid1], node_map[nid2]
-                )
+                score = _content_score(node_map[nid1], node_map[nid2])
                 if score >= 0.25:
                     _add_edge(nid1, nid2, score, "content")
 
         return {"nodes": nodes, "edges": edges}
 
     except Exception as exc:
-        logger.error(
-            "Proje ilişki grafiği hatası: %s | project=%s",
-            exc, project_id,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail="Belge ilişki grafiği alınamadı."
-        )
+        logger.error("Proje ilişki grafiği hatası: %s | project=%s", exc, project_id)
+        raise HTTPException(status_code=500, detail="Belge ilişki grafiği alınamadı.")
 
+
+# ════════════════════════════════════════════════════
+# GET /card-relations/{entity_type}/{entity_id}
+# Single-card popup — chain (transitive) + content.
+# ════════════════════════════════════════════════════
 
 @router.get("/card-relations/{entity_type}/{entity_id}", status_code=200)
 def get_card_relations(
@@ -426,153 +455,181 @@ def get_card_relations(
     entity_id: str,
     access=Depends(verify_project_access),
 ):
-    """Return related cards for a single correspondence/rfi,
-    grouped by relation strength:
-      1. chain    — parent/child (strongest)
-      2. sibling  — same parent
-      3. content  — keyword + subject overlap (weakest, deterministic)
-
-    Response: { chain: [...], sibling: [...], content: [...] }
-    Each item: { id, ref, subject, status, entity_type, score }
+    """Related cards for a single correspondence/rfi, grouped by
+    relation strength:
+      1. chain   — full transitive parent/child tree (strongest)
+      2. content — keyword + subject overlap (weaker, deterministic)
+    Response: { chain: [...], content: [...] }
+    Each item: { id, ref, subject, status, entity_type, score, parent_id }
     """
     if entity_type not in ("correspondence", "rfi"):
         raise HTTPException(status_code=400, detail="Geçersiz entity_type.")
 
     db = access["db"]
     try:
-        corr_res = (
-            db.table("correspondences")
-            .select(
-                "id, corr_number, subject, status, "
-                "parent_id, correspondence_date, keywords"
-            )
-            .eq("project_id", project_id)
-            .execute()
-        )
-        corrs: list[dict] = corr_res.data or []
-
-        rfi_res = (
-            db.table("rfis")
-            .select(
-                "id, rfi_number, subject, status, "
-                "parent_id, rfi_type, submitted_date, keywords"
-            )
-            .eq("project_id", project_id)
-            .execute()
-        )
-        rfis: list[dict] = rfi_res.data or []
-
-        def _to_node(row: dict, etype: str) -> dict:
-            ref = row.get("corr_number") or row.get("rfi_number")
-            return {
-                "id":          row["id"],
-                "ref":         ref,
-                "subject":     row["subject"],
-                "status":      row["status"],
-                "entity_type": etype,
-                "parent_id":   row.get("parent_id"),
-                "keywords":    row.get("keywords") or [],
-            }
-
-        all_nodes = (
-            [_to_node(c, "correspondence") for c in corrs]
-            + [_to_node(r, "rfi") for r in rfis]
-        )
-        node_map = {n["id"]: n for n in all_nodes}
-
+        all_nodes, node_map, parent_map, children_map = _build_relation_index(project_id, db)
         self_node = node_map.get(entity_id)
         if not self_node:
-            return {"chain": [], "sibling": [], "content": []}
+            return {"chain": [], "content": []}
 
-        # ── Layer 1: chain (full transitive tree) ───────────
-        # Walk up to root, then BFS down through all
-        # descendants. Covers ancestors, descendants, AND
-        # siblings (a sibling is one hop up + one hop down
-        # from root) — no separate sibling layer needed.
-        parent_map: dict[str, str] = {
-            n["id"]: n.get("parent_id") for n in all_nodes
-        }
-        children_map: dict = defaultdict(list)
-        for n in all_nodes:
-            if n.get("parent_id"):
-                children_map[n["parent_id"]].append(n["id"])
-
-        root_id = entity_id
-        seen_up: set = set()
-        while parent_map.get(root_id) and root_id not in seen_up:
-            seen_up.add(root_id)
-            root_id = parent_map[root_id]
-
-        chain_ids: set[str] = set()
-        queue = [root_id]
-        visited: set = set()
-        while queue:
-            curr = queue.pop(0)
-            if curr in visited:
-                continue
-            visited.add(curr)
-            chain_ids.add(curr)
-            queue.extend(children_map.get(curr, []))
-        chain_ids.discard(entity_id)
-
-        # ── Layer 3: content (keyword + subject overlap) ────
-        def _jaccard(a: set, b: set) -> float:
-            if not a or not b:
-                return 0.0
-            return len(a & b) / len(a | b)
-
-        def _subject_overlap(s1: str, s2: str) -> float:
-            t1 = {t for t in (s1 or "").lower()
-                  .replace(",", " ").replace(".", " ")
-                  .replace(":", " ").replace("-", " ").split()
-                  if len(t) > 2}
-            t2 = {t for t in (s2 or "").lower()
-                  .replace(",", " ").replace(".", " ")
-                  .replace(":", " ").replace("-", " ").split()
-                  if len(t) > 2}
-            if not t1 or not t2:
-                return 0.0
-            return len(t1 & t2) / len(t1 | t2)
-
-        self_kw = set(self_node.get("keywords") or [])
-        content_items: list[dict] = []
-        for n in all_nodes:
-            if n["id"] == entity_id:
-                continue
-            if n["id"] in chain_ids:
-                continue
-            kw_score  = _jaccard(self_kw, set(n.get("keywords") or []))
-            sub_score = _subject_overlap(self_node["subject"], n["subject"])
-            score = round((kw_score + sub_score) / 2, 3)
-            if score >= 0.25:
-                content_items.append({**n, "score": score})
-
-        content_items.sort(key=lambda x: x["score"], reverse=True)
+        chain_ids = _full_chain_ids(entity_id, parent_map, children_map)
+        content_scores = _content_neighbors(
+            entity_id, self_node, all_nodes,
+            exclude_ids=chain_ids | {entity_id},
+        )
 
         def _strip(n: dict, score: float) -> dict:
             return {
-                "id":          n["id"],
-                "ref":         n["ref"],
-                "subject":     n["subject"],
-                "status":      n["status"],
-                "entity_type": n["entity_type"],
-                "score":       score,
-                "parent_id":   n.get("parent_id"),
+                "id": n["id"], "ref": n["ref"], "subject": n["subject"],
+                "status": n["status"], "entity_type": n["entity_type"],
+                "score": score, "parent_id": n.get("parent_id"),
             }
 
+        content_items = sorted(
+            [_strip(node_map[i], s) for i, s in content_scores.items() if i in node_map],
+            key=lambda x: x["score"], reverse=True,
+        )
+
         return {
-            "chain":   [_strip(node_map[i], 1.0) for i in chain_ids if i in node_map],
-            "content": [_strip(item, item["score"]) for item in content_items],
+            "chain": [_strip(node_map[i], 1.0) for i in chain_ids if i in node_map],
+            "content": content_items,
         }
 
     except Exception as exc:
-        logger.error(
-            "Kart ilişki hatası: %s | entity=%s/%s",
-            exc, entity_type, entity_id,
+        logger.error("Kart ilişki hatası: %s | entity=%s/%s", exc, entity_type, entity_id)
+        raise HTTPException(status_code=500, detail="İlişkili kayıtlar alınamadı.")
+
+
+# ════════════════════════════════════════════════════
+# GET /focused-graph/{entity_type}/{entity_id}
+# 2-hop relation graph centered on one card, for the
+# Documents-tab node graph triggered from RelationPopup.
+# ════════════════════════════════════════════════════
+
+@router.get("/focused-graph/{entity_type}/{entity_id}", status_code=200)
+def get_focused_graph(
+    project_id: str,
+    entity_type: str,
+    entity_id: str,
+    access=Depends(verify_project_access),
+):
+    """2-hop relation graph centered on one card.
+
+    Tiers (strongest to weakest):
+      chain    — in center's full transitive chain tree, OR in a
+                 directly-related node's own chain tree. Structural
+                 and deterministic — always promoted to this tier
+                 regardless of hop distance from center.
+      content  — direct content-similarity match to center (1-hop).
+      indirect — content-similarity match of a directly-related
+                 node, with no direct link to center (2-hop only).
+                 Weakest — probabilistic signal on a probabilistic
+                 signal. Score is halved to reflect this.
+
+    Nodes are deduplicated globally — a node keeps its strongest
+    tier if reachable multiple ways. Capped at MAX_FOCUS_NODES
+    (sorted by tier then score) to keep the graph readable.
+    """
+    if entity_type not in ("correspondence", "rfi"):
+        raise HTTPException(status_code=400, detail="Geçersiz entity_type.")
+
+    MAX_FOCUS_NODES = 30
+
+    db = access["db"]
+    try:
+        all_nodes, node_map, parent_map, children_map = _build_relation_index(project_id, db)
+        center = node_map.get(entity_id)
+        if not center:
+            raise HTTPException(status_code=404, detail="Kayıt bulunamadı.")
+
+        tiers: dict = {}
+        scores: dict = {}
+        edges: list[dict] = []
+
+        # ── Hop 1: center's own relations ───────────────────
+        chain_ids = _full_chain_ids(entity_id, parent_map, children_map)
+        content_scores = _content_neighbors(
+            entity_id, center, all_nodes,
+            exclude_ids=chain_ids | {entity_id},
         )
-        raise HTTPException(
-            status_code=500, detail="İlişkili kayıtlar alınamadı."
-        )
+        direct_ids = chain_ids | set(content_scores.keys())
+
+        for cid in chain_ids:
+            tiers[cid] = "chain"
+            scores[cid] = 1.0
+            parent = parent_map.get(cid)
+            if parent and (parent == entity_id or parent in chain_ids):
+                edges.append({"source": parent, "target": cid, "score": 1.0, "tier": "chain"})
+
+        for cid, sc in content_scores.items():
+            tiers[cid] = "content"
+            scores[cid] = sc
+            edges.append({"source": entity_id, "target": cid, "score": sc, "tier": "content"})
+
+        # ── Hop 2: relations of each directly-related node ──
+        for rid in direct_ids:
+            r_node = node_map.get(rid)
+            if not r_node:
+                continue
+
+            # 2a. that node's own chain tree — promoted to "chain"
+            r_chain_ids = _full_chain_ids(rid, parent_map, children_map)
+            for cid2 in r_chain_ids:
+                if cid2 == entity_id or cid2 in direct_ids:
+                    continue
+                if tiers.get(cid2) != "chain":
+                    tiers[cid2] = "chain"
+                    scores[cid2] = 1.0
+                parent2 = parent_map.get(cid2)
+                if parent2 and (parent2 == rid or parent2 in r_chain_ids):
+                    edges.append({"source": parent2, "target": cid2, "score": 1.0, "tier": "chain"})
+
+            # 2b. that node's own content neighbors — weakest tier
+            r_content = _content_neighbors(
+                rid, r_node, all_nodes,
+                exclude_ids=direct_ids | {entity_id, rid} | r_chain_ids,
+            )
+            for cid2, sc2 in r_content.items():
+                if cid2 not in tiers:
+                    weakened = round(sc2 * 0.5, 3)
+                    tiers[cid2] = "indirect"
+                    scores[cid2] = weakened
+                    edges.append({"source": rid, "target": cid2, "score": weakened, "tier": "indirect"})
+
+        # ── Cap + assemble ───────────────────────────────────
+        tier_rank = {"chain": 0, "content": 1, "indirect": 2}
+        kept_ordered = sorted(
+            tiers.keys(),
+            key=lambda i: (tier_rank[tiers[i]], -scores[i]),
+        )[:MAX_FOCUS_NODES]
+        kept_ids = set(kept_ordered)
+
+        nodes = [
+            {
+                "id": node_map[i]["id"], "ref": node_map[i]["ref"],
+                "subject": node_map[i]["subject"], "status": node_map[i]["status"],
+                "entity_type": node_map[i]["entity_type"],
+                "tier": tiers[i], "score": scores[i],
+            }
+            for i in kept_ordered if i in node_map
+        ]
+        valid_ids = kept_ids | {entity_id}
+        final_edges = [e for e in edges if e["source"] in valid_ids and e["target"] in valid_ids]
+
+        center_out = {
+            "id": center["id"], "ref": center["ref"], "subject": center["subject"],
+            "status": center["status"], "entity_type": center["entity_type"],
+            "tier": "center", "score": 1.0,
+        }
+
+        return {"center": center_out, "nodes": nodes, "edges": final_edges}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Odaklı graph hatası: %s | entity=%s/%s", exc, entity_type, entity_id)
+        raise HTTPException(status_code=500, detail="İlişki haritası alınamadı.")
+
 
 
 # ----------------------------------------------------------

@@ -12,6 +12,7 @@ Async parse mimarisi:
 """
 import logging
 import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -483,24 +484,36 @@ def get_card_relations(
         if not self_node:
             return {"chain": [], "sibling": [], "content": []}
 
-        # ── Layer 1: chain (parent + children) ──────────────
-        chain_ids: set[str] = set()
-        if self_node.get("parent_id"):
-            chain_ids.add(self_node["parent_id"])
+        # ── Layer 1: chain (full transitive tree) ───────────
+        # Walk up to root, then BFS down through all
+        # descendants. Covers ancestors, descendants, AND
+        # siblings (a sibling is one hop up + one hop down
+        # from root) — no separate sibling layer needed.
+        parent_map: dict[str, str] = {
+            n["id"]: n.get("parent_id") for n in all_nodes
+        }
+        children_map: dict = defaultdict(list)
         for n in all_nodes:
-            if n.get("parent_id") == entity_id:
-                chain_ids.add(n["id"])
+            if n.get("parent_id"):
+                children_map[n["parent_id"]].append(n["id"])
 
-        # ── Layer 2: sibling (same parent, excl. self) ──────
-        sibling_ids: set[str] = set()
-        if self_node.get("parent_id"):
-            for n in all_nodes:
-                if (
-                    n.get("parent_id") == self_node["parent_id"]
-                    and n["id"] != entity_id
-                    and n["id"] not in chain_ids
-                ):
-                    sibling_ids.add(n["id"])
+        root_id = entity_id
+        seen_up: set = set()
+        while parent_map.get(root_id) and root_id not in seen_up:
+            seen_up.add(root_id)
+            root_id = parent_map[root_id]
+
+        chain_ids: set[str] = set()
+        queue = [root_id]
+        visited: set = set()
+        while queue:
+            curr = queue.pop(0)
+            if curr in visited:
+                continue
+            visited.add(curr)
+            chain_ids.add(curr)
+            queue.extend(children_map.get(curr, []))
+        chain_ids.discard(entity_id)
 
         # ── Layer 3: content (keyword + subject overlap) ────
         def _jaccard(a: set, b: set) -> float:
@@ -526,7 +539,7 @@ def get_card_relations(
         for n in all_nodes:
             if n["id"] == entity_id:
                 continue
-            if n["id"] in chain_ids or n["id"] in sibling_ids:
+            if n["id"] in chain_ids:
                 continue
             kw_score  = _jaccard(self_kw, set(n.get("keywords") or []))
             sub_score = _subject_overlap(self_node["subject"], n["subject"])
@@ -548,7 +561,6 @@ def get_card_relations(
 
         return {
             "chain":   [_strip(node_map[i], 1.0) for i in chain_ids if i in node_map],
-            "sibling": [_strip(node_map[i], 0.9) for i in sibling_ids if i in node_map],
             "content": [_strip(item, item["score"]) for item in content_items],
         }
 

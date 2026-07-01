@@ -333,20 +333,6 @@ export default function RFIDetail() {
                   </div>
                 </div>
               )}
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${border}` }}>
-                <button
-                  onClick={() => setShowRelations(true)}
-                  style={{
-                    background: "none", border: "none",
-                    color: "var(--color-accent)", fontSize: 12,
-                    cursor: "pointer", padding: 0,
-                    fontFamily: "Inter, sans-serif",
-                    display: "flex", alignItems: "center", gap: 4,
-                  }}
-                >
-                  📎 İlişkili Kayıtlar →
-                </button>
-              </div>
 
               {showRelations && projectId && rfiId && (
                 <RelationPopup
@@ -424,6 +410,28 @@ export default function RFIDetail() {
           <button onClick={() => navigate(`/projects/${projectId}/workspace?module=rfis`)}
             style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
             {lang === "tr" ? "← RFI Listesine Dön" : "← Back to RFIs"}
+          </button>
+        </div>
+
+        <div style={{
+          display: "flex", justifyContent: "flex-end",
+          marginTop: 24, marginBottom: 8,
+        }}>
+          <button
+            onClick={() => setShowRelations(true)}
+            style={{
+              background: "var(--color-accent)",
+              color: "#F5F2ED",
+              border: "none", borderRadius: 0,
+              padding: "10px 18px",
+              fontSize: 12, fontWeight: 500,
+              letterSpacing: "0.03em",
+              display: "flex", alignItems: "center", gap: 8,
+              cursor: "pointer",
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            🔗 İlişkili Kayıtlar
           </button>
         </div>
 

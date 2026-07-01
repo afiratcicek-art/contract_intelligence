@@ -347,20 +347,6 @@ export default function CorrespondenceDetail() {
               </div>
             </div>
           )}
-          <div style={{ gridColumn: "1 / -1", marginTop: 8, paddingTop: 12, borderTop: `1px solid ${border}` }}>
-            <button
-              onClick={() => setShowRelations(true)}
-              style={{
-                background: "none", border: "none",
-                color: "var(--color-accent)", fontSize: 12,
-                cursor: "pointer", padding: 0,
-                fontFamily: "Inter, sans-serif",
-                display: "flex", alignItems: "center", gap: 4,
-              }}
-            >
-              📎 İlişkili Kayıtlar →
-            </button>
-          </div>
         </div>
 
         {showRelations && projectId && corrId && (
@@ -448,6 +434,28 @@ export default function CorrespondenceDetail() {
             style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}
           >
             {lang === "tr" ? "← Yazışma Listesine Dön" : "← Back to Correspondence"}
+          </button>
+        </div>
+
+        <div style={{
+          display: "flex", justifyContent: "flex-end",
+          marginTop: 24, marginBottom: 8,
+        }}>
+          <button
+            onClick={() => setShowRelations(true)}
+            style={{
+              background: "var(--color-accent)",
+              color: "#F5F2ED",
+              border: "none", borderRadius: 0,
+              padding: "10px 18px",
+              fontSize: 12, fontWeight: 500,
+              letterSpacing: "0.03em",
+              display: "flex", alignItems: "center", gap: 8,
+              cursor: "pointer",
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            🔗 İlişkili Kayıtlar
           </button>
         </div>
       </div>

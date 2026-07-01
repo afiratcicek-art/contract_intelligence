@@ -13,7 +13,6 @@ interface RelationItem {
 
 interface RelationsResponse {
   chain:   RelationItem[];
-  sibling: RelationItem[];
   content: RelationItem[];
 }
 
@@ -53,7 +52,7 @@ export default function RelationPopup({
         `/projects/${projectId}/documents/card-relations/${entityType}/${entityId}`
       )
       .then(setData)
-      .catch(() => setData({ chain: [], sibling: [], content: [] }))
+      .catch(() => setData({ chain: [], content: [] }))
       .finally(() => setLoading(false));
   }, [projectId, entityType, entityId]);
 
@@ -113,7 +112,7 @@ export default function RelationPopup({
   };
 
   const total = data
-    ? data.chain.length + data.sibling.length + data.content.length
+    ? data.chain.length + data.content.length
     : 0;
 
   return (
@@ -174,7 +173,6 @@ export default function RelationPopup({
         {!loading && data && (
           <>
             {renderGroup("Zincir (Parent / Child)", data.chain, accent)}
-            {renderGroup("Kardeş Kayıtlar", data.sibling, "var(--color-success)")}
             {renderGroup("İçerik Benzerliği", data.content, textS)}
           </>
         )}

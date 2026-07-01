@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { getAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
+import RelationPopup from "../components/RelationPopup";
 
 interface BreadcrumbItem {
   id: string;
@@ -62,6 +63,7 @@ export default function CorrespondenceDetail() {
 
   const [corr, setCorr] = useState<CorrDetail | null>(null);
   const [docs, setDocs] = useState<Document[]>([]);
+  const [showRelations, setShowRelations] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [flagOpen, setFlagOpen] = useState(false);
@@ -345,7 +347,30 @@ export default function CorrespondenceDetail() {
               </div>
             </div>
           )}
+          <div style={{ gridColumn: "1 / -1", marginTop: 8, paddingTop: 12, borderTop: `1px solid ${border}` }}>
+            <button
+              onClick={() => setShowRelations(true)}
+              style={{
+                background: "none", border: "none",
+                color: "var(--color-accent)", fontSize: 12,
+                cursor: "pointer", padding: 0,
+                fontFamily: "Inter, sans-serif",
+                display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              📎 İlişkili Kayıtlar →
+            </button>
+          </div>
         </div>
+
+        {showRelations && projectId && corrId && (
+          <RelationPopup
+            projectId={projectId}
+            entityType="correspondence"
+            entityId={corrId}
+            onClose={() => setShowRelations(false)}
+          />
+        )}
 
         {/* Children — bu yazışmaya verilen yanıtlar */}
         {corr.children && corr.children.length > 0 && (

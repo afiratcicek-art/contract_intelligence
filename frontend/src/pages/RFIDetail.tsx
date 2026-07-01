@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { getAuth, clearAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
+import RelationPopup from "../components/RelationPopup";
 
 interface ChainItem {
   id: string;
@@ -93,6 +94,7 @@ export default function RFIDetail() {
   });
   const [flagSubmitting, setFlagSubmitting] = useState(false);
   const [docs, setDocs] = useState<{ id: string; original_filename: string; parse_status: string; keywords?: string[]; location?: string | null }[]>([]);
+  const [showRelations, setShowRelations] = useState(false);
   const [deadline, setDeadline] = useState<DeadlineInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -330,6 +332,29 @@ export default function RFIDetail() {
                       ))}
                   </div>
                 </div>
+              )}
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${border}` }}>
+                <button
+                  onClick={() => setShowRelations(true)}
+                  style={{
+                    background: "none", border: "none",
+                    color: "var(--color-accent)", fontSize: 12,
+                    cursor: "pointer", padding: 0,
+                    fontFamily: "Inter, sans-serif",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}
+                >
+                  📎 İlişkili Kayıtlar →
+                </button>
+              </div>
+
+              {showRelations && projectId && rfiId && (
+                <RelationPopup
+                  projectId={projectId}
+                  entityType="rfi"
+                  entityId={rfiId}
+                  onClose={() => setShowRelations(false)}
+                />
               )}
             </div>
             {rfi.description && (

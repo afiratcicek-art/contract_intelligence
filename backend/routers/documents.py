@@ -237,60 +237,184 @@ def get_all_document_relations(
     project_id: str,
     access=Depends(verify_project_access),
 ):
-    """Return all document_relations for a project as a
-    graph payload: { nodes: [...], edges: [...] }.
+    """Graph payload for DocumentRelationGraph.
 
-    Nodes: unique pdf_document rows referenced in edges.
-    Edges: relation rows (non-rejected), ordered by score DESC.
+    Nodes: all correspondences + RFIs in project.
+    Edges (three layers):
+      1. Structural  — parent_id chain (score=1.0)
+      2. Bilateral   — same-parent siblings (score=0.9)
+      3. Content     — avg(keyword_jaccard, subject_overlap)
+                       cross-entity included, threshold >= 0.25
 
-    Two-step fetch — no N+1:
-      1. All relation rows for project (excludes user_rejected).
-      2. All referenced docs in a single IN query.
+    No pdf_document / document_relations dependency.
+    TB-5: Haiku keywords feed into Layer 3 automatically
+    when API key is configured.
     """
     db = access["db"]
     try:
-        # Step 1: all relations for project
-        rel_res = (
-            db.table("document_relations")
+        # ── Fetch ──────────────────────────────────────────
+        corr_res = (
+            db.table("correspondences")
             .select(
-                "source_doc_id, target_doc_id, score, "
-                "score_breakdown, relation_type"
+                "id, corr_number, subject, status, "
+                "parent_id, correspondence_date, keywords"
             )
             .eq("project_id", project_id)
-            .neq("relation_type", "user_rejected")
-            .order("score", desc=True)
             .execute()
         )
-        edges: list[dict] = rel_res.data or []
+        corrs: list[dict] = corr_res.data or []
 
-        if not edges:
+        rfi_res = (
+            db.table("rfis")
+            .select(
+                "id, rfi_number, subject, status, "
+                "parent_id, rfi_type, submitted_date"
+            )
+            .eq("project_id", project_id)
+            .execute()
+        )
+        rfis: list[dict] = rfi_res.data or []
+
+        if not corrs and not rfis:
             return {"nodes": [], "edges": []}
 
-        # Step 2: collect unique doc IDs, single IN query
-        doc_ids = list(
-            {e["source_doc_id"] for e in edges}
-            | {e["target_doc_id"] for e in edges}
-        )
-        doc_res = (
-            db.table("pdf_document")
-            .select(
-                "id, original_filename, entity_type, "
-                "entity_id, keywords, location, doc_type"
+        # ── Nodes ──────────────────────────────────────────
+        nodes: list[dict] = []
+        for c in corrs:
+            nodes.append({
+                "id":          c["id"],
+                "ref":         c["corr_number"],
+                "subject":     c["subject"],
+                "status":      c["status"],
+                "entity_type": "correspondence",
+                "date":        c.get("correspondence_date"),
+                "keywords":    c.get("keywords") or [],
+            })
+        for r in rfis:
+            nodes.append({
+                "id":          r["id"],
+                "ref":         r["rfi_number"],
+                "subject":     r["subject"],
+                "status":      r["status"],
+                "entity_type": "rfi",
+                "rfi_type":    r.get("rfi_type"),
+                "date":        r.get("submitted_date"),
+                "keywords":    [],
+            })
+
+        # ── Helpers ────────────────────────────────────────
+        def _jaccard(a: set, b: set) -> float:
+            if not a or not b:
+                return 0.0
+            return len(a & b) / len(a | b)
+
+        def _subject_overlap(s1: str, s2: str) -> float:
+            """Token overlap between two subjects."""
+            t1 = set((s1 or "").lower()
+                     .replace(",", " ").replace(".", " ")
+                     .replace(":", " ").replace("-", " ")
+                     .split())
+            t2 = set((s2 or "").lower()
+                     .replace(",", " ").replace(".", " ")
+                     .replace(":", " ").replace("-", " ")
+                     .split())
+            # Remove very short tokens (≤2 chars)
+            t1 = {t for t in t1 if len(t) > 2}
+            t2 = {t for t in t2 if len(t) > 2}
+            if not t1 or not t2:
+                return 0.0
+            return len(t1 & t2) / len(t1 | t2)
+
+        def _content_score(n1: dict, n2: dict) -> float:
+            """Average of keyword Jaccard + subject overlap."""
+            kw  = _jaccard(
+                set(n1.get("keywords") or []),
+                set(n2.get("keywords") or []),
             )
-            .in_("id", doc_ids)
-            .execute()
-        )
-        nodes = doc_res.data or []
+            sub = _subject_overlap(
+                n1.get("subject") or "",
+                n2.get("subject") or "",
+            )
+            return round((kw + sub) / 2, 3)
+
+        # ── Edges ──────────────────────────────────────────
+        edges: list[dict] = []
+        seen_edges: set[tuple] = set()
+
+        def _add_edge(src: str, tgt: str, score: float,
+                      layer: str) -> None:
+            key = (min(src, tgt), max(src, tgt))
+            if key in seen_edges:
+                return
+            seen_edges.add(key)
+            edges.append({
+                "source": src,
+                "target": tgt,
+                "score":  score,
+                "layer":  layer,
+            })
+
+        # All nodes for content scoring
+        all_nodes = nodes  # already built above
+
+        # Layer 1 — parent_id chain (score=1.0)
+        for c in corrs:
+            if c.get("parent_id"):
+                _add_edge(c["parent_id"], c["id"],
+                          1.0, "chain")
+        for r in rfis:
+            if r.get("parent_id"):
+                _add_edge(r["parent_id"], r["id"],
+                          1.0, "chain")
+
+        # Layer 2 — bilateral siblings (same parent, score=0.9)
+        # Group by parent_id
+        from collections import defaultdict
+        corr_siblings: dict = defaultdict(list)
+        for c in corrs:
+            if c.get("parent_id"):
+                corr_siblings[c["parent_id"]].append(c["id"])
+        for sibs in corr_siblings.values():
+            for i in range(len(sibs)):
+                for j in range(i + 1, len(sibs)):
+                    _add_edge(sibs[i], sibs[j], 0.9, "sibling")
+
+        rfi_siblings: dict = defaultdict(list)
+        for r in rfis:
+            if r.get("parent_id"):
+                rfi_siblings[r["parent_id"]].append(r["id"])
+        for sibs in rfi_siblings.values():
+            for i in range(len(sibs)):
+                for j in range(i + 1, len(sibs)):
+                    _add_edge(sibs[i], sibs[j], 0.9, "sibling")
+
+        # Layer 3 — content scoring (keyword + subject, threshold=0.25)
+        # Build node lookup for scoring
+        node_map = {n["id"]: n for n in all_nodes}
+        node_ids = list(node_map.keys())
+        for i in range(len(node_ids)):
+            for j in range(i + 1, len(node_ids)):
+                nid1, nid2 = node_ids[i], node_ids[j]
+                # Skip if already connected by chain/sibling
+                key = (min(nid1, nid2), max(nid1, nid2))
+                if key in seen_edges:
+                    continue
+                score = _content_score(
+                    node_map[nid1], node_map[nid2]
+                )
+                if score >= 0.25:
+                    _add_edge(nid1, nid2, score, "content")
 
         return {"nodes": nodes, "edges": edges}
 
     except Exception as exc:
         logger.error(
-            "Proje belge ilişki grafiği hatası: %s | project=%s",
+            "Proje ilişki grafiği hatası: %s | project=%s",
             exc, project_id,
         )
         raise HTTPException(
-            status_code=500, detail="Belge ilişki grafiği alınamadı."
+            status_code=500,
+            detail="Belge ilişki grafiği alınamadı."
         )
 
 

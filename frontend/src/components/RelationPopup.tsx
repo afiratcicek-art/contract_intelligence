@@ -62,6 +62,16 @@ export default function RelationPopup({
     navigate(entityPath(projectId, item));
   };
 
+  const goToGraph = () => {
+    onClose();
+    const params = new URLSearchParams({
+      module: "documents",
+      focus_type: entityType,
+      focus_id: entityId,
+    });
+    navigate(`/projects/${projectId}/workspace?${params.toString()}`);
+  };
+
   const renderRow = (item: RelationItem, color: string, isChild = false) => (
     <button
       key={item.id}
@@ -220,6 +230,28 @@ export default function RelationPopup({
           <>
             {renderGroup("Zincir (Parent / Child)", data.chain, "var(--color-ai)", true)}
             {renderGroup("İçerik Benzerliği", data.content, textS, false)}
+            {total > 0 && (
+              <button
+                onClick={goToGraph}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  gap: 6, width: "100%", marginTop: 4,
+                  background: "var(--color-ai-bg)", color: "var(--color-ai)",
+                  border: "1px solid var(--color-ai)", borderRadius: 6,
+                  padding: "9px 14px", fontSize: 12, fontWeight: 500,
+                  cursor: "pointer", fontFamily: "Inter, sans-serif",
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="5" r="2.5" />
+                  <circle cx="5" cy="19" r="2.5" />
+                  <circle cx="19" cy="19" r="2.5" />
+                  <line x1="12" y1="7.5" x2="6.5" y2="17" />
+                  <line x1="12" y1="7.5" x2="17.5" y2="17" />
+                </svg>
+                İlişki Haritasını Gör
+              </button>
+            )}
           </>
         )}
       </div>

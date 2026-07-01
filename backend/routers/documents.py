@@ -268,7 +268,7 @@ def get_all_document_relations(
             db.table("rfis")
             .select(
                 "id, rfi_number, subject, status, "
-                "parent_id, rfi_type, submitted_date"
+                "parent_id, rfi_type, submitted_date, keywords"
             )
             .eq("project_id", project_id)
             .execute()
@@ -299,7 +299,7 @@ def get_all_document_relations(
                 "entity_type": "rfi",
                 "rfi_type":    r.get("rfi_type"),
                 "date":        r.get("submitted_date"),
-                "keywords":    [],
+                "keywords":    r.get("keywords") or [],
             })
 
         # ── Helpers ────────────────────────────────────────

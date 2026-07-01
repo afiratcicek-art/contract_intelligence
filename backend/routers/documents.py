@@ -622,7 +622,17 @@ def get_focused_graph(
             "tier": "center", "score": 1.0,
         }
 
-        return {"center": center_out, "nodes": nodes, "edges": final_edges}
+        total_found = len(tiers)
+        truncated = total_found > len(kept_ordered)
+
+        return {
+            "center": center_out,
+            "nodes": nodes,
+            "edges": final_edges,
+            "total_found": total_found,
+            "truncated": truncated,
+            "hidden_count": total_found - len(kept_ordered) if truncated else 0,
+        }
 
     except HTTPException:
         raise

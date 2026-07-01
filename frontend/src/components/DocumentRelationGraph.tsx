@@ -3,24 +3,24 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 
 /* ── Types ─────────────────────────────────────────────────
-   Shape mirrors GET /all-relations response.
-   Kept local — component-scoped.                          */
+   Shape mirrors GET /all-relations response
+   (correspondence + rfi cards, chain/sibling/content edges). */
 interface GraphNode {
   id: string;
-  original_filename: string;
-  entity_type: string;
-  entity_id: string;
+  ref: string;
+  subject: string;
+  status: string;
+  entity_type: "correspondence" | "rfi";
+  rfi_type?: string;
+  date?: string | null;
   keywords: string[];
-  location?: string | null;
-  doc_type?: string | null;
 }
 
 interface GraphEdge {
-  source_doc_id: string;
-  target_doc_id: string;
+  source: string;
+  target: string;
   score: number;
-  score_breakdown?: { keyword?: number; semantic?: number } | null;
-  relation_type: string;
+  layer: "chain" | "sibling" | "content";
 }
 
 interface GraphPayload {
@@ -30,24 +30,19 @@ interface GraphPayload {
 
 interface Props {
   projectId: string;
-  /** Called when user clicks a node — parent can use for
-   *  checkbox / chronology bridge (future). Optional.    */
   onSelect?: (node: GraphNode) => void;
 }
 
 /* ── Layout constants ───────────────────────────────────── */
-const CX      = 340;   // SVG centre-x
-const CY      = 260;   // SVG centre-y
-const RADIUS  = 190;   // node orbit radius
-const NODE_R  = 22;    // node circle radius
+const CX      = 340;
+const CY      = 260;
+const RADIUS  = 190;
+const NODE_R  = 22;
 const W       = 680;
 const H       = 520;
 
 /* ── Helpers ────────────────────────────────────────────── */
-/** Distribute N nodes evenly on a circle. */
-function circleLayout(
-  count: number
-): Array<{ x: number; y: number }> {
+function circleLayout(count: number): Array<{ x: number; y: number }> {
   return Array.from({ length: count }, (_, i) => {
     const angle = (2 * Math.PI * i) / count - Math.PI / 2;
     return {
@@ -57,39 +52,33 @@ function circleLayout(
   });
 }
 
-/** Entity type → short label for node badge. */
 function entityLabel(type: string): string {
-  const map: Record<string, string> = {
-    correspondence: "C",
-    rfi:            "R",
-    change:         "CH",
-    deliverable:    "D",
-    contract_document: "CT",
-  };
-  return map[type] ?? "?";
+  return type === "correspondence" ? "C" : type === "rfi" ? "R" : "?";
 }
 
-/** Truncate filename for node label. */
-function shortName(name: string, max = 14): string {
-  if (name.length <= max) return name;
-  return name.slice(0, max - 1) + "…";
+function shortSubject(subject: string, max = 16): string {
+  if (!subject) return "";
+  if (subject.length <= max) return subject;
+  return subject.slice(0, max - 1) + "…";
 }
 
-/** Navigate path from entity_type + entity_id. */
 function entityPath(
   projectId: string,
   entityType: string,
-  entityId: string
+  id: string
 ): string {
   if (entityType === "correspondence")
-    return `/projects/${projectId}/workspace/correspondence/${entityId}`;
+    return `/projects/${projectId}/workspace/correspondence/${id}`;
   if (entityType === "rfi")
-    return `/projects/${projectId}/workspace/rfis/${entityId}`;
-  if (entityType === "change")
-    return `/projects/${projectId}/workspace/changes/${entityId}`;
-  if (entityType === "deliverable")
-    return `/projects/${projectId}/workspace/deliverables/${entityId}`;
+    return `/projects/${projectId}/workspace/rfis/${id}`;
   return `/projects/${projectId}/workspace`;
+}
+
+/** Edge layer → stroke color + label. */
+function layerStyle(layer: string, accent: string): { color: string; label: string } {
+  if (layer === "chain")    return { color: accent,               label: "Zincir" };
+  if (layer === "sibling")  return { color: "var(--color-success)", label: "Kardeş" };
+  return                          { color: "var(--color-border-light)", label: "İçerik" };
 }
 
 /* ── Component ──────────────────────────────────────────── */
@@ -99,17 +88,16 @@ export default function DocumentRelationGraph({
 }: Props) {
   const navigate = useNavigate();
 
-  const [graph,     setGraph]     = useState<GraphPayload | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [hovered,   setHovered]   = useState<string | null>(null);
-  const [selected,  setSelected]  = useState<string | null>(null);
+  const [graph,    setGraph]    = useState<GraphPayload | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [hovered,  setHovered]  = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
-  /* Design tokens */
-  const cardBg     = "var(--color-bg-secondary)";
-  const border     = "var(--color-border-light)";
-  const textPrim   = "var(--color-text-primary)";
-  const textSec    = "var(--color-text-secondary)";
-  const accent     = "var(--color-accent)";
+  const cardBg   = "var(--color-bg-secondary)";
+  const border   = "var(--color-border-light)";
+  const textPrim = "var(--color-text-primary)";
+  const textSec  = "var(--color-text-secondary)";
+  const accent   = "var(--color-accent)";
 
   useEffect(() => {
     setLoading(true);
@@ -120,21 +108,16 @@ export default function DocumentRelationGraph({
       .finally(() => setLoading(false));
   }, [projectId]);
 
-  /* ── Loading ─────────────────────────────────────────── */
   if (loading) {
     return (
       <div style={{ padding: "14px 0" }}>
-        <p style={{
-          fontSize: 11, color: textSec,
-          fontFamily: "Inter, sans-serif",
-        }}>
+        <p style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
           Belge ilişki grafiği yükleniyor…
         </p>
       </div>
     );
   }
 
-  /* ── Empty ───────────────────────────────────────────── */
   if (!graph || graph.nodes.length === 0) {
     return (
       <div style={{
@@ -154,27 +137,19 @@ export default function DocumentRelationGraph({
           fontFamily: "Inter, sans-serif",
           marginTop: 6, marginBottom: 0,
         }}>
-          Henüz ilişkili belge bulunamadı. Belgeler yüklendikçe
-          ilişkiler otomatik olarak tespit edilecektir.
+          Henüz ilişkili kayıt bulunamadı.
         </p>
       </div>
     );
   }
 
-  /* ── Layout ──────────────────────────────────────────── */
   const { nodes, edges } = graph;
   const positions = circleLayout(nodes.length);
-  const posMap = new Map(
-    nodes.map((n, i) => [n.id, positions[i]])
-  );
-
-  /* ── Tooltip node ────────────────────────────────────── */
+  const posMap = new Map(nodes.map((n, i) => [n.id, positions[i]]));
   const hoveredNode = nodes.find((n) => n.id === hovered) ?? null;
 
-  /* ── Render ──────────────────────────────────────────── */
   return (
     <div>
-      {/* Header */}
       <div style={{
         fontSize: 11, fontWeight: 500,
         textTransform: "uppercase" as const,
@@ -187,11 +162,10 @@ export default function DocumentRelationGraph({
           color: textSec, fontWeight: 400,
           textTransform: "none" as const,
         }}>
-          {nodes.length} belge · {edges.length} ilişki
+          {nodes.length} kayıt · {edges.length} ilişki
         </span>
       </div>
 
-      {/* SVG graph */}
       <div style={{
         background: cardBg, border: `1px solid ${border}`,
         borderRadius: 0, overflow: "hidden",
@@ -202,38 +176,31 @@ export default function DocumentRelationGraph({
           style={{ width: "100%", display: "block" }}
           aria-label="Belge ilişki grafiği"
         >
-          {/* Edges */}
           {edges.map((e, i) => {
-            const src = posMap.get(e.source_doc_id);
-            const tgt = posMap.get(e.target_doc_id);
+            const src = posMap.get(e.source);
+            const tgt = posMap.get(e.target);
             if (!src || !tgt) return null;
-            const isHovered =
-              hovered === e.source_doc_id ||
-              hovered === e.target_doc_id;
+            const isHovered = hovered === e.source || hovered === e.target;
+            const style = layerStyle(e.layer, accent);
             return (
               <line
                 key={i}
                 x1={src.x} y1={src.y}
                 x2={tgt.x} y2={tgt.y}
-                stroke={isHovered ? accent : "var(--color-border-light)"}
+                stroke={style.color}
                 strokeWidth={isHovered
                   ? Math.max(1.5, e.score * 4)
                   : Math.max(0.5, e.score * 2)}
-                strokeOpacity={isHovered ? 0.9 : 0.4}
+                strokeOpacity={isHovered ? 0.9 : 0.45}
               />
             );
           })}
 
-          {/* Score labels on hovered edges */}
           {hovered && edges
-            .filter(
-              (e) =>
-                e.source_doc_id === hovered ||
-                e.target_doc_id === hovered
-            )
+            .filter((e) => e.source === hovered || e.target === hovered)
             .map((e, i) => {
-              const src = posMap.get(e.source_doc_id);
-              const tgt = posMap.get(e.target_doc_id);
+              const src = posMap.get(e.source);
+              const tgt = posMap.get(e.target);
               if (!src || !tgt) return null;
               const mx = (src.x + tgt.x) / 2;
               const my = (src.y + tgt.y) / 2;
@@ -246,18 +213,17 @@ export default function DocumentRelationGraph({
                   fill={textSec}
                   fontFamily="JetBrains Mono, monospace"
                 >
-                  {e.score.toFixed(2)}
+                  {layerStyle(e.layer, accent).label} {e.score.toFixed(2)}
                 </text>
               );
             })}
 
-          {/* Nodes */}
           {nodes.map((node) => {
             const pos  = posMap.get(node.id);
             if (!pos) return null;
             const isHov = hovered  === node.id;
             const isSel = selected === node.id;
-            const r    = isHov ? NODE_R + 4 : NODE_R;
+            const r     = isHov ? NODE_R + 4 : NODE_R;
             return (
               <g
                 key={node.id}
@@ -265,43 +231,45 @@ export default function DocumentRelationGraph({
                 onClick={() => {
                   setSelected(node.id);
                   onSelect?.(node);
-                  navigate(
-                    entityPath(projectId, node.entity_type, node.entity_id)
-                  );
+                  navigate(entityPath(projectId, node.entity_type, node.id));
                 }}
                 onMouseEnter={() => setHovered(node.id)}
                 onMouseLeave={() => setHovered(null)}
               >
-                {/* Outer ring — selection indicator */}
                 {isSel && (
                   <circle
                     cx={pos.x} cy={pos.y} r={r + 4}
-                    fill="none"
-                    stroke={accent}
-                    strokeWidth={1.5}
-                    strokeOpacity={0.5}
+                    fill="none" stroke={accent}
+                    strokeWidth={1.5} strokeOpacity={0.5}
                   />
                 )}
-                {/* Node body */}
                 <circle
                   cx={pos.x} cy={pos.y} r={r}
                   fill={isHov ? accent : cardBg}
                   stroke={accent}
                   strokeWidth={isHov ? 0 : 1.5}
                 />
-                {/* Entity badge */}
                 <text
                   x={pos.x} y={pos.y - 4}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize={10}
-                  fontWeight={500}
+                  fontSize={10} fontWeight={500}
                   fill={isHov ? "#F5F2ED" : accent}
                   fontFamily="Inter, sans-serif"
                 >
                   {entityLabel(node.entity_type)}
                 </text>
-                {/* Filename label below node */}
+                <text
+                  x={pos.x} y={pos.y - 4}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  dy={12}
+                  fontSize={8}
+                  fill={isHov ? "#F5F2ED" : textSec}
+                  fontFamily="JetBrains Mono, monospace"
+                >
+                  {node.ref}
+                </text>
                 <text
                   x={pos.x} y={pos.y + r + 11}
                   textAnchor="middle"
@@ -309,14 +277,13 @@ export default function DocumentRelationGraph({
                   fill={textSec}
                   fontFamily="Inter, sans-serif"
                 >
-                  {shortName(node.original_filename)}
+                  {shortSubject(node.subject)}
                 </text>
               </g>
             );
           })}
         </svg>
 
-        {/* Hover tooltip */}
         {hoveredNode && (
           <div style={{
             position: "absolute" as const,
@@ -331,16 +298,14 @@ export default function DocumentRelationGraph({
               color: textPrim, margin: 0,
               fontFamily: "Inter, sans-serif",
             }}>
-              {hoveredNode.original_filename}
+              {hoveredNode.ref} — {hoveredNode.subject}
             </p>
-            {hoveredNode.location && (
-              <p style={{
-                fontSize: 10, color: textSec,
-                margin: "3px 0 0", fontFamily: "Inter, sans-serif",
-              }}>
-                📍 {hoveredNode.location}
-              </p>
-            )}
+            <p style={{
+              fontSize: 10, color: textSec,
+              margin: "3px 0 0", fontFamily: "Inter, sans-serif",
+            }}>
+              Durum: {hoveredNode.status}
+            </p>
             {(hoveredNode.keywords ?? []).length > 0 && (
               <p style={{
                 fontSize: 10, color: textSec,
@@ -359,22 +324,21 @@ export default function DocumentRelationGraph({
         )}
       </div>
 
-      {/* Legend */}
       <div style={{
         display: "flex", gap: 16, marginTop: 8,
-        alignItems: "center",
+        alignItems: "center", flexWrap: "wrap" as const,
       }}>
-        <span style={{
-          fontSize: 10, color: textSec,
-          fontFamily: "Inter, sans-serif",
-        }}>
-          C = Yazışma · R = RFI · CH = Değişiklik · D = Teslim
+        <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
+          C = Yazışma · R = RFI
         </span>
-        <span style={{
-          fontSize: 10, color: textSec,
-          fontFamily: "Inter, sans-serif",
-        }}>
-          Kenar kalınlığı = ilişki skoru
+        <span style={{ fontSize: 10, color: accent, fontFamily: "Inter, sans-serif" }}>
+          ── Zincir
+        </span>
+        <span style={{ fontSize: 10, color: "var(--color-success)", fontFamily: "Inter, sans-serif" }}>
+          ── Kardeş
+        </span>
+        <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
+          ── İçerik
         </span>
       </div>
     </div>

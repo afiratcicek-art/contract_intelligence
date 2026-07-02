@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 
@@ -52,6 +52,8 @@ const CENTER_R = 26;
 const NODE_R = 18;
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
+const RING_GAP = 90;
+const BASE_RADIUS = 95;
 
 const TIER_OPACITY: Record<string, number> = {
   chain: 1,
@@ -70,13 +72,14 @@ function shortSubject(subject: string, max = 14): string {
   return subject.length <= max ? subject : subject.slice(0, max - 1) + "…";
 }
 
-/* ── Layout ──────────────────────────────────────────────────
-   BFS radial-tree: distance from center = hop count over the
-   real edge graph. Direct neighbors of center get their own
-   angular slice; descendants inherit their parent's angle with
-   a small fan-out so sibling branches stay visually clustered
-   together (a real chain reads as one radiating arm, not
-   scattered around the ring). Zero dependency, deterministic. */
+/* ── Layout: DFS post-order tree slotting ──────────────────
+   Standard collision-free radial tree technique. Each leaf
+   gets one unique angular slot (0..leafCount-1); internal
+   nodes take the average slot of their children. Distance
+   from center (BFS hop count) sets the ring radius. This
+   guarantees zero overlap regardless of graph shape, and
+   naturally clusters a chain branch along one angular arc
+   since all its members share the same leaf-descendant slots. */
 function computeLayout(
   centerId: string,
   nodeIds: string[],
@@ -92,67 +95,65 @@ function computeLayout(
     addAdj(e.target, e.source);
   });
 
+  // BFS: distance + parent (tree structure over the graph)
   const distance = new Map<string, number>();
   const parent = new Map<string, string | null>();
   distance.set(centerId, 0);
   parent.set(centerId, null);
-  const queue: string[] = [centerId];
-  while (queue.length) {
-    const curr = queue.shift() as string;
+  const bfsQueue: string[] = [centerId];
+  while (bfsQueue.length) {
+    const curr = bfsQueue.shift() as string;
     const d = distance.get(curr) as number;
     for (const nb of adjacency.get(curr) ?? []) {
       if (!distance.has(nb)) {
         distance.set(nb, d + 1);
         parent.set(nb, curr);
-        queue.push(nb);
+        bfsQueue.push(nb);
       }
     }
   }
 
-  const childrenOf = new Map<string, string[]>();
+  const children = new Map<string, string[]>();
   parent.forEach((p, id) => {
-    if (p) {
-      if (!childrenOf.has(p)) childrenOf.set(p, []);
-      childrenOf.get(p)!.push(id);
+    if (p !== null && p !== undefined) {
+      if (!children.has(p)) children.set(p, []);
+      children.get(p)!.push(id);
     }
   });
 
-  const angle = new Map<string, number>();
-  const directChildren = childrenOf.get(centerId) ?? [];
-  const branchCount = Math.max(directChildren.length, 1);
-  directChildren.forEach((id, i) => {
-    angle.set(id, (2 * Math.PI * i) / branchCount - Math.PI / 2);
-  });
+  // DFS post-order: assign leaf slots, propagate averages up.
+  let nextSlot = 0;
+  const slot = new Map<string, number>();
 
-  const order = [...distance.entries()]
-    .filter(([id]) => id !== centerId)
-    .sort((a, b) => a[1] - b[1]);
-
-  order.forEach(([id, dist]) => {
-    if (angle.has(id)) return;
-    const p = parent.get(id);
-    if (p && angle.has(p)) {
-      const siblings = childrenOf.get(p) ?? [];
-      const idx = siblings.indexOf(id);
-      const count = siblings.length;
-      const spread = 0.5 / Math.max(dist, 1);
-      const offset = count > 1 ? (idx - (count - 1) / 2) * spread : 0;
-      angle.set(id, (angle.get(p) as number) + offset);
-    } else {
-      angle.set(id, 0);
+  const visit = (id: string): number => {
+    const kids = children.get(id) ?? [];
+    if (kids.length === 0) {
+      const s = nextSlot;
+      nextSlot += 1;
+      slot.set(id, s);
+      return s;
     }
-  });
+    const kidSlots = kids.map((k) => visit(k));
+    const avg = kidSlots.reduce((a, b) => a + b, 0) / kidSlots.length;
+    slot.set(id, avg);
+    return avg;
+  };
+  visit(centerId);
 
+  const totalLeaves = Math.max(nextSlot, 1);
   const posMap = new Map<string, { x: number; y: number }>();
   posMap.set(centerId, { x: CX, y: CY });
+
   nodeIds.forEach((id) => {
     if (id === centerId) return;
-    const dist = distance.get(id) ?? 1;
-    const a = angle.get(id) ?? 0;
-    const radius = 90 + (dist - 1) * 75;
+    const dist = distance.get(id);
+    if (dist === undefined) return; // unreachable — should not happen
+    const s = slot.get(id) ?? 0;
+    const angle = (s / totalLeaves) * 2 * Math.PI - Math.PI / 2;
+    const radius = BASE_RADIUS + (dist - 1) * RING_GAP;
     posMap.set(id, {
-      x: CX + radius * Math.cos(a),
-      y: CY + radius * Math.sin(a),
+      x: CX + radius * Math.cos(angle),
+      y: CY + radius * Math.sin(angle),
     });
   });
 
@@ -170,12 +171,13 @@ export default function FocusedRelationGraph({
   const [hovered, setHovered] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 
-  /* ── Zoom / pan — self-managed, no browser page zoom ────── */
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const dragRef = useRef<{ dragging: boolean; startX: number; startY: number; panX: number; panY: number }>({
-    dragging: false, startX: 0, startY: 0, panX: 0, panY: 0,
-  });
+  const dragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  const svgWrapRef = useRef<HTMLDivElement>(null);
+  const fsSvgWrapRef = useRef<HTMLDivElement>(null);
 
   const cardBg = "var(--color-bg-secondary)";
   const border = "var(--color-border-light)";
@@ -217,33 +219,46 @@ export default function FocusedRelationGraph({
     navigate(entityPath(projectId, n.entity_type, n.id));
   };
 
-  const zoomBy = (factor: number) => {
+  const zoomBy = useCallback((factor: number) => {
     setScale((s) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s * factor)));
-  };
+  }, []);
   const resetView = () => {
     setScale(1);
     setPan({ x: 0, y: 0 });
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    zoomBy(e.deltaY < 0 ? 1.12 : 0.89);
-  };
-  const handleMouseDown = (e: React.MouseEvent) => {
-    dragRef.current = {
-      dragging: true, startX: e.clientX, startY: e.clientY,
-      panX: pan.x, panY: pan.y,
+  /* ── Native wheel listener ────────────────────────────────
+     React's synthetic onWheel is registered as a passive
+     listener by the browser, so calling preventDefault()
+     inside it does NOT stop page scroll. A native listener
+     with { passive: false } is required to actually own the
+     wheel gesture for zoom instead of the page. */
+  useEffect(() => {
+    const attach = (el: HTMLDivElement | null) => {
+      if (!el) return () => {};
+      const handler = (e: WheelEvent) => {
+        e.preventDefault();
+        zoomBy(e.deltaY < 0 ? 1.12 : 0.89);
+      };
+      el.addEventListener("wheel", handler, { passive: false });
+      return () => el.removeEventListener("wheel", handler);
     };
+    const cleanups = [attach(svgWrapRef.current), attach(fsSvgWrapRef.current)];
+    return () => cleanups.forEach((fn) => fn());
+  }, [zoomBy, fullscreen]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    dragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
   };
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!dragRef.current.dragging) return;
-    const dx = (e.clientX - dragRef.current.startX) / scale;
-    const dy = (e.clientY - dragRef.current.startY) / scale;
-    setPan({ x: dragRef.current.panX + dx, y: dragRef.current.panY + dy });
+    if (!dragging.current) return;
+    const dx = (e.clientX - dragStart.current.x) / scale;
+    const dy = (e.clientY - dragStart.current.y) / scale;
+    setPan({ x: dragStart.current.panX + dx, y: dragStart.current.panY + dy });
   };
   const handleMouseUp = () => {
-    dragRef.current.dragging = false;
+    dragging.current = false;
   };
 
   if (loading) {
@@ -264,22 +279,21 @@ export default function FocusedRelationGraph({
 
   const { center, nodes, edges, truncated, hidden_count } = data;
 
-  const renderSvg = (widthPx: string, heightPx: string) => (
+  const renderSvg = () => (
     <svg
       viewBox={`0 0 ${W} ${H}`}
       style={{
-        width: widthPx, height: heightPx, display: "block",
-        cursor: dragRef.current.dragging ? "grabbing" : "grab",
-        touchAction: "none",
+        width: "100%", height: "100%", display: "block",
+        cursor: dragging.current ? "grabbing" : "grab",
+        userSelect: "none" as const,
       }}
       aria-label="İlişki haritası"
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <g transform={`translate(${pan.x * scale + (CX - CX * scale)}, ${pan.y * scale + (CY - CY * scale)}) scale(${scale})`}>
+      <g transform={`translate(${CX},${CY}) scale(${scale}) translate(${-CX + pan.x},${-CY + pan.y})`}>
         {edges.map((e, i) => {
           const src = posMap.get(e.source);
           const tgt = posMap.get(e.target);
@@ -396,23 +410,25 @@ export default function FocusedRelationGraph({
       >
         Sıfırla
       </button>
-      <button
-        onClick={() => setFullscreen(true)}
-        aria-label="Tam ekran"
-        title="Tam ekran"
-        style={{
-          width: 24, height: 24, background: "transparent", color: textSec,
-          border: `1px solid ${border}`, borderRadius: 4, cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-          <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
-          <path d="M3 16v3a2 2 0 0 0 2 2h3" />
-          <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
-        </svg>
-      </button>
+      {!fullscreen && (
+        <button
+          onClick={() => setFullscreen(true)}
+          aria-label="Tam ekran"
+          title="Tam ekran"
+          style={{
+            width: 24, height: 24, background: "transparent", color: textSec,
+            border: `1px solid ${border}`, borderRadius: 4, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+            <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+            <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+            <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 
@@ -435,12 +451,16 @@ export default function FocusedRelationGraph({
         {controls}
       </div>
 
-      <div style={{
-        background: cardBg, border: `1px solid ${border}`,
-        borderLeft: `3px solid ${ai}`, borderRadius: 6,
-        overflow: "hidden", position: "relative" as const,
-      }}>
-        {renderSvg("100%", "auto")}
+      <div
+        ref={svgWrapRef}
+        style={{
+          background: cardBg, border: `1px solid ${border}`,
+          borderLeft: `3px solid ${ai}`, borderRadius: 6,
+          overflow: "hidden", position: "relative" as const,
+          height: 420,
+        }}
+      >
+        {renderSvg()}
       </div>
 
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" as const }}>
@@ -502,8 +522,8 @@ export default function FocusedRelationGraph({
                 </button>
               </div>
             </div>
-            <div style={{ flex: 1, overflow: "hidden" }}>
-              {renderSvg("100%", "100%")}
+            <div ref={fsSvgWrapRef} style={{ flex: 1, overflow: "hidden" }}>
+              {renderSvg()}
             </div>
           </div>
         </div>

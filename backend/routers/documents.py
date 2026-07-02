@@ -24,12 +24,11 @@ from backend.core.limiter import limiter
 from backend.database import get_admin_client
 from backend.services.permission_service import PermissionService
 from backend.utils.file_handler import upload_document, delete_document, get_signed_url
-from backend.utils.pdf_utils import validate_pdf_bytes, validate_document_bytes
+from backend.utils.pdf_utils import validate_document_bytes
 from fastapi import BackgroundTasks
 from backend.models.document import (
     DocumentMetadataUpdate,
     DocumentMetadataApprove,
-    DocumentMetadataResponse,
 )
 from backend.services.extraction_service import get_extraction_service
 from backend.services.audit_service import AuditService
@@ -230,9 +229,6 @@ def list_documents(
         raise HTTPException(status_code=500, detail="Belgeler alınamadı.")
 
 
-# ----------------------------------------------------------
-# GET /projects/{project_id}/documents/search
-# ----------------------------------------------------------
 # ════════════════════════════════════════════════════
 # Shared relation-computation helpers
 # Used by /all-relations, /card-relations, /focused-graph.
@@ -470,7 +466,7 @@ def get_card_relations(
         all_nodes, node_map, parent_map, children_map = _build_relation_index(project_id, db)
         self_node = node_map.get(entity_id)
         if not self_node:
-            return {"chain": [], "content": []}
+            raise HTTPException(status_code=404, detail="Kayıt bulunamadı.")
 
         chain_ids = _full_chain_ids(entity_id, parent_map, children_map)
         content_scores = _content_neighbors(

@@ -531,8 +531,9 @@ export default function DocumentsModule({ projectId }: Props) {
       )}
 
       {/* ── Document Relationship Graph ──────────────────────
-          Feeds from GET /all-relations → document_relations
-          (migration 018). Empty state handled inside component. */}
+          Feeds from GET /all-relations (computed live from
+          correspondence/rfi cards — no document_relations table).
+          Empty state handled inside component. */}
       {focusId && focusType ? (
         <FocusedRelationGraph
           projectId={projectId}

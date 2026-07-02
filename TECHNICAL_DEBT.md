@@ -152,3 +152,30 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
 ### İlgili Dosyalar
 - frontend/src/pages/ProjectDetail.tsx
 - frontend/src/components/CorrespondenceChart.tsx (genişletilecek)
+
+---
+
+## Relation graph / search architecture
+
+- **TB-17**: Chain search RPCs (search_rfi_chains,
+  search_correspondence_chains, migration 021/022) still
+  match via pdf_document.search_vector (includes
+  pdf_document.keywords). Relation graph endpoints
+  (/all-relations, /card-relations, /focused-graph) use
+  card-level keywords (correspondences.keywords,
+  rfis.keywords, migration 024) instead. These are two
+  different keyword sources for two different features —
+  intentional for now, but should be reconciled once TB-5
+  (Haiku) is live and both paths need the same source of
+  truth.
+- **TB-18**: Card-level keywords (migration 024) are not
+  yet included in correspondences/rfis full-text search
+  (search_vector, migration 020 — still subject-only).
+  Searching by a card keyword won't surface it via the
+  main search bar. Needs a migration to extend
+  search_vector generation.
+- **TB-19**: entityPath() navigation helper is duplicated
+  across DocumentRelationGraph.tsx, FocusedRelationGraph.tsx,
+  and RelationPopup.tsx. Low risk (identical logic, small),
+  but should be extracted to a shared util when touching
+  these files next.

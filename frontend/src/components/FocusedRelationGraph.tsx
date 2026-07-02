@@ -335,7 +335,7 @@ export default function FocusedRelationGraph({
               <text
                 x={pos.x} y={pos.y - 3}
                 textAnchor="middle" dominantBaseline="middle"
-                fontSize={9} fontWeight={500}
+                fontSize={11} fontWeight={600}
                 fill={isHov ? "#F5F2ED" : ai}
                 fontFamily="Inter, sans-serif"
               >
@@ -463,7 +463,9 @@ export default function FocusedRelationGraph({
         {renderSvg()}
       </div>
 
-      <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" as const }}>
+      <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" as const, alignItems: "center" }}>
+        <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>C = Yazışma · R = RFI</span>
+        <span style={{ width: 1, height: 12, background: border }} />
         <span style={{ fontSize: 10, color: ai, fontFamily: "Inter, sans-serif" }}>● Zincir</span>
         <span style={{ fontSize: 10, color: ai, opacity: 0.65, fontFamily: "Inter, sans-serif" }}>● İçerik</span>
         <span style={{ fontSize: 10, color: ai, opacity: 0.35, fontFamily: "Inter, sans-serif" }}>┄ Dolaylı</span>

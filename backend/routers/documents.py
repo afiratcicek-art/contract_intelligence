@@ -561,6 +561,19 @@ def get_focused_graph(
             if parent and (parent == entity_id or parent in chain_ids):
                 edges.append({"source": parent, "target": cid, "score": 1.0, "tier": "chain"})
 
+        # BUG FIX: the loop above only connects a chain member
+        # to ITS OWN parent when that parent is the center or
+        # another chain member. It never adds the edge from the
+        # center's own direct parent TO the center, because the
+        # center itself is excluded from chain_ids. Without this
+        # edge, an ancestor of the center (e.g. entity's parent)
+        # has no path to center in the edges array, so the
+        # frontend's BFS layout treats it as unreachable and
+        # never renders it — even though it's present in `nodes`.
+        entity_parent = parent_map.get(entity_id)
+        if entity_parent and entity_parent in chain_ids:
+            edges.append({"source": entity_parent, "target": entity_id, "score": 1.0, "tier": "chain"})
+
         for cid, sc in content_scores.items():
             tiers[cid] = "content"
             scores[cid] = sc

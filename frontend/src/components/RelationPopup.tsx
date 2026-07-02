@@ -229,7 +229,7 @@ export default function RelationPopup({
         {!loading && data && (
           <>
             {renderGroup("Zincir (Parent / Child)", data.chain, "var(--color-ai)", true)}
-            {renderGroup("İçerik Benzerliği", data.content, textS, false)}
+            {renderGroup("İçerik Benzerliği", data.content, textS, true)}
             {total > 0 && (
               <button
                 onClick={goToGraph}

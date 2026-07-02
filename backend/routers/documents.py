@@ -575,6 +575,31 @@ def get_focused_graph(
             scores[cid] = sc
             edges.append({"source": entity_id, "target": cid, "score": sc, "tier": "content"})
 
+        # ── Chain edges WITHIN direct_ids ────────────────────
+        # A node can reach the center via content/indirect
+        # similarity while ALSO having a real parent_id chain
+        # relationship to another directly-related node (e.g.
+        # RFI-011 is content-linked separately to CORR-009,
+        # CORR-010, AND CORR-011, but those three also form a
+        # real chain among themselves). The hop-1/hop-2 logic
+        # above only chain-walks from each node's OWN position
+        # and skips anything already in direct_ids — so these
+        # mutual chain relationships were never drawn. Fix:
+        # explicitly check every pair within direct_ids for a
+        # direct parent-child relationship and add the edge.
+        direct_list = list(direct_ids)
+        for i in range(len(direct_list)):
+            for j in range(len(direct_list)):
+                if i == j:
+                    continue
+                a, b = direct_list[i], direct_list[j]
+                if parent_map.get(b) == a:
+                    tiers[a] = "chain"
+                    tiers[b] = "chain"
+                    scores[a] = 1.0
+                    scores[b] = 1.0
+                    edges.append({"source": a, "target": b, "score": 1.0, "tier": "chain"})
+
         # ── Hop 2: relations of each directly-related node ──
         for rid in direct_ids:
             r_node = node_map.get(rid)

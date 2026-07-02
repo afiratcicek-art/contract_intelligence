@@ -609,6 +609,22 @@ def get_focused_graph(
                     scores[cid2] = weakened
                     edges.append({"source": rid, "target": cid2, "score": weakened, "tier": "indirect"})
 
+        # ── Dedupe edges ──────────────────────────────────────
+        # Multiple direct_ids can rediscover the same chain
+        # relationship from different iterations (e.g. center
+        # content-linked to 3 chain siblings independently, each
+        # re-walks the shared chain and re-adds the same edge).
+        # Keep first occurrence per (unordered pair, tier).
+        seen_edge_keys: set = set()
+        deduped_edges: list[dict] = []
+        for e in edges:
+            key = (frozenset((e["source"], e["target"])), e["tier"])
+            if key in seen_edge_keys:
+                continue
+            seen_edge_keys.add(key)
+            deduped_edges.append(e)
+        edges = deduped_edges
+
         # ── Cap + assemble ───────────────────────────────────
         tier_rank = {"chain": 0, "content": 1, "indirect": 2}
         kept_ordered = sorted(

@@ -44,19 +44,19 @@ interface Props {
   entityId: string;
 }
 
-const W = 680;
-const H = 560;
-const CX = 340;
-const TOP_Y = 60;
-const LEVEL_GAP = 110;
-const TREE_HALF_WIDTH = 260;
-const SATELLITE_OFFSET = 72;
-
-const CENTER_R = 28;
+const W = 900;
+const H = 760;
+const CX = 450;
+const CY = 380;
+const CENTER_R = 30;
 const CHAIN_NODE_R = 22;
-const SATELLITE_R = 16;
+const SATELLITE_R = 18;
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
+
+const LEVEL_GAP_CHAIN = 120;
+const BAND_BASE_RADIUS: Record<1 | 2, number> = { 1: 180, 2: 300 };
+const LEVEL_GAP_SATELLITE = 110;
 
 const TIER_OPACITY: Record<string, number> = {
   chain: 1,
@@ -70,65 +70,126 @@ function entityPath(projectId: string, entityType: string, id: string): string {
   return `/projects/${projectId}/workspace/rfis/${id}`;
 }
 
-function shortSubject(subject: string, max = 16): string {
-  if (!subject) return "";
-  return subject.length <= max ? subject : subject.slice(0, max - 1) + "…";
-}
-
 interface LaidOutNode {
-  id: string;
   x: number;
   y: number;
-  kind: "chain" | "satellite";
 }
 
-/* ── Layout: top-down tidy tree + satellites ────────────────
-   Chain relations (tier="chain") are real parent/child
-   structure — they form a tree, and the center node can sit
-   ANYWHERE in that tree (it may have both ancestors AND
-   descendants, e.g. CORR-009 → CORR-010(center) → CORR-011).
-   Drawing them as "equal-distance spokes from center" (the
-   previous approach) hid this sequential relationship.
+/* ── Layout: unified band-based BFS from center ─────────────
+   A single tree is built from center outward using ALL edges,
+   but with priority: chain edges first (band 0 — center's own
+   structural chain, whether center is mid-chain or an endpoint),
+   then content edges (band 1), then indirect edges (band 2) for
+   anything not yet reached. Once an external node is reached via
+   content/indirect, its OWN chain siblings are pulled in at the
+   same band via further chain-edge BFS — this is what makes a
+   secondary chain (e.g. CORR-009→010→011) render correctly as a
+   connected sub-branch even when the graph's center (e.g. an RFI)
+   sits outside that chain entirely.
 
-   Fix: find the true root of the chain tree (walk up from
-   center via parent links), then lay out the WHOLE tree
-   top-down (root at top, depth increases downward), using
-   classic DFS leaf-slot spacing for horizontal position —
-   this guarantees zero overlap and reads as one continuous
-   line/branch structure, exactly matching the real hierarchy.
-
-   Content/indirect nodes are not part of this structural tree
-   — each is attached (per its edge) to whichever node it
-   actually relates to, and drawn as a small satellite next to
-   that anchor, fanned out if there are multiple per anchor.  */
+   Angle: one global DFS leaf-slot pass across the whole tree,
+   giving every branch a unique angular wedge (zero overlap,
+   full circle used). Radius: band's base radius + local depth
+   within that band × level gap. This generalizes correctly
+   regardless of where center sits relative to any chain.        */
 function computeLayout(
   centerId: string,
   allNodeIds: string[],
   edges: FocusEdge[]
 ): Map<string, LaidOutNode> {
-  const chainEdges = edges.filter((e) => e.tier === "chain");
-  const parentOf = new Map<string, string>();
-  const childrenOf = new Map<string, string[]>();
-  chainEdges.forEach((e) => {
-    parentOf.set(e.target, e.source);
-    if (!childrenOf.has(e.source)) childrenOf.set(e.source, []);
-    childrenOf.get(e.source)!.push(e.target);
-  });
+  const chainAdj = new Map<string, string[]>();
+  const pushAdj = (a: string, b: string) => {
+    if (!chainAdj.has(a)) chainAdj.set(a, []);
+    chainAdj.get(a)!.push(b);
+  };
+  edges
+    .filter((e) => e.tier === "chain")
+    .forEach((e) => {
+      pushAdj(e.source, e.target);
+      pushAdj(e.target, e.source);
+    });
 
-  // Find true root of the chain tree containing center.
-  let root = centerId;
-  const seenUp = new Set<string>();
-  while (parentOf.has(root) && !seenUp.has(root)) {
-    seenUp.add(root);
-    root = parentOf.get(root)!;
+  const parentOf = new Map<string, string | null>();
+  const bandOf = new Map<string, 0 | 1 | 2>();
+  const localDepth = new Map<string, number>();
+
+  // Band 0: center's own chain component (undirected BFS).
+  parentOf.set(centerId, null);
+  bandOf.set(centerId, 0);
+  localDepth.set(centerId, 0);
+  let queue: string[] = [centerId];
+  while (queue.length) {
+    const cur = queue.shift() as string;
+    for (const nb of chainAdj.get(cur) ?? []) {
+      if (!parentOf.has(nb)) {
+        parentOf.set(nb, cur);
+        bandOf.set(nb, 0);
+        localDepth.set(nb, (localDepth.get(cur) ?? 0) + 1);
+        queue.push(nb);
+      }
+    }
   }
 
-  const depthMap = new Map<string, number>();
-  const slotMap = new Map<string, number>();
-  let nextLeaf = 0;
+  // Band 1/2 seeds: direct content/indirect edges FROM center to
+  // not-yet-reached nodes. Prefer content over indirect per node.
+  const bestTierFor = new Map<string, "content" | "indirect">();
+  edges.forEach((e) => {
+    if (e.tier === "chain") return;
+    const isFromCenter = e.source === centerId;
+    const isToCenter = e.target === centerId;
+    if (!isFromCenter && !isToCenter) return;
+    const other = isFromCenter ? e.target : e.source;
+    if (parentOf.has(other)) return;
+    const existing = bestTierFor.get(other);
+    if (!existing || (existing === "indirect" && e.tier === "content")) {
+      bestTierFor.set(other, e.tier as "content" | "indirect");
+    }
+  });
 
-  const visit = (id: string, depth: number): number => {
-    depthMap.set(id, depth);
+  let queue2: string[] = [];
+  bestTierFor.forEach((tier, node) => {
+    if (parentOf.has(node)) return;
+    parentOf.set(node, centerId);
+    bandOf.set(node, tier === "content" ? 1 : 2);
+    localDepth.set(node, 0);
+    queue2.push(node);
+  });
+
+  // Extend each band-1/2 anchor outward via its own chain edges,
+  // inheriting the same band (surfaces secondary chain structure).
+  while (queue2.length) {
+    const cur = queue2.shift() as string;
+    const band = bandOf.get(cur)!;
+    for (const nb of chainAdj.get(cur) ?? []) {
+      if (!parentOf.has(nb)) {
+        parentOf.set(nb, cur);
+        bandOf.set(nb, band);
+        localDepth.set(nb, (localDepth.get(cur) ?? 0) + 1);
+        queue2.push(nb);
+      }
+    }
+  }
+
+  // Safety fallback for any unreached node.
+  allNodeIds.forEach((id) => {
+    if (!parentOf.has(id)) {
+      parentOf.set(id, centerId);
+      bandOf.set(id, 2);
+      localDepth.set(id, 0);
+    }
+  });
+
+  // Global DFS leaf-slot pass for angle (whole tree, one pass).
+  const childrenOf = new Map<string, string[]>();
+  parentOf.forEach((p, id) => {
+    if (p !== null) {
+      if (!childrenOf.has(p)) childrenOf.set(p, []);
+      childrenOf.get(p)!.push(id);
+    }
+  });
+  let nextLeaf = 0;
+  const slotMap = new Map<string, number>();
+  const assign = (id: string): number => {
     const kids = childrenOf.get(id) ?? [];
     if (kids.length === 0) {
       const s = nextLeaf;
@@ -136,63 +197,31 @@ function computeLayout(
       slotMap.set(id, s);
       return s;
     }
-    const kidSlots = kids.map((k) => visit(k, depth + 1));
+    const kidSlots = kids.map((k) => assign(k));
     const avg = kidSlots.reduce((a, b) => a + b, 0) / kidSlots.length;
     slotMap.set(id, avg);
     return avg;
   };
-  visit(root, 0);
-
+  assign(centerId);
   const totalLeaves = Math.max(nextLeaf, 1);
+
   const result = new Map<string, LaidOutNode>();
-  const chainTreeIds = new Set<string>(depthMap.keys());
+  result.set(centerId, { x: CX, y: CY });
 
-  chainTreeIds.forEach((id) => {
-    const depth = depthMap.get(id) ?? 0;
-    const slot = slotMap.get(id) ?? 0;
-    const x =
-      CX + ((slot + 0.5) / totalLeaves) * (2 * TREE_HALF_WIDTH) - TREE_HALF_WIDTH;
-    const y = TOP_Y + depth * LEVEL_GAP;
-    result.set(id, { id, x, y, kind: "chain" });
-  });
-
-  // Satellites: content/indirect nodes attach to their real
-  // connecting node (the other endpoint of their edge), not
-  // forced to center.
-  const satelliteEdges = edges.filter((e) => e.tier !== "chain");
-  const byAnchor = new Map<string, string[]>();
-  satelliteEdges.forEach((e) => {
-    const isSourceKnown = result.has(e.source) || e.source === centerId;
-    const anchorId = isSourceKnown ? e.source : e.target;
-    const satelliteId = isSourceKnown ? e.target : e.source;
-    if (result.has(satelliteId)) return; // already placed as chain node
-    if (!byAnchor.has(anchorId)) byAnchor.set(anchorId, []);
-    if (!byAnchor.get(anchorId)!.includes(satelliteId)) {
-      byAnchor.get(anchorId)!.push(satelliteId);
-    }
-  });
-
-  byAnchor.forEach((satelliteIds, anchorId) => {
-    const anchorPos = result.get(anchorId) ?? { x: CX, y: TOP_Y, kind: "chain" as const, id: anchorId };
-    const count = satelliteIds.length;
-    satelliteIds.forEach((sid, idx) => {
-      const spread = Math.PI / 2.6;
-      const t = count > 1 ? idx / (count - 1) - 0.5 : 0;
-      const angle = t * spread; // fans out to the right of the anchor
-      result.set(sid, {
-        id: sid,
-        x: anchorPos.x + SATELLITE_OFFSET * Math.cos(angle),
-        y: anchorPos.y + SATELLITE_OFFSET * Math.sin(angle),
-        kind: "satellite",
-      });
-    });
-  });
-
-  // Fallback for any node not placed (should not normally happen).
   allNodeIds.forEach((id) => {
-    if (!result.has(id)) {
-      result.set(id, { id, x: CX, y: TOP_Y, kind: "satellite" });
-    }
+    if (id === centerId) return;
+    const band = bandOf.get(id) ?? 2;
+    const depth = localDepth.get(id) ?? 1;
+    const slot = slotMap.get(id) ?? 0;
+    const angle = (slot / totalLeaves) * 2 * Math.PI;
+    const radius =
+      band === 0
+        ? depth * LEVEL_GAP_CHAIN
+        : BAND_BASE_RADIUS[band] + (depth - 1) * LEVEL_GAP_SATELLITE;
+    result.set(id, {
+      x: CX + radius * Math.cos(angle),
+      y: CY + radius * Math.sin(angle),
+    });
   });
 
   return result;
@@ -218,6 +247,7 @@ export default function FocusedRelationGraph({
   const fsSvgWrapRef = useRef<HTMLDivElement>(null);
 
   const cardBg = "var(--color-bg-secondary)";
+  const bgPrimary = "var(--color-bg-primary)";
   const border = "var(--color-border-light)";
   const textPrim = "var(--color-text-primary)";
   const textSec = "var(--color-text-secondary)";
@@ -244,7 +274,7 @@ export default function FocusedRelationGraph({
   }, [data]);
 
   const nodeById = useMemo(() => {
-    if (!data) return new Map();
+    if (!data) return new Map<string, FocusNode | CenterNode>();
     return new Map<string, FocusNode | CenterNode>([
       [data.center.id, data.center],
       ...data.nodes.map((n) => [n.id, n] as const),
@@ -310,6 +340,8 @@ export default function FocusedRelationGraph({
   }
 
   const { center, nodes, edges, truncated, hidden_count } = data;
+  const hoveredNode = hovered ? nodeById.get(hovered) : null;
+  const hoveredPos = hovered ? posMap.get(hovered) : null;
 
   const renderSvg = () => (
     <svg
@@ -325,7 +357,19 @@ export default function FocusedRelationGraph({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <g transform={`translate(${CX},${TOP_Y}) scale(${scale}) translate(${-CX + pan.x},${-TOP_Y + pan.y})`}>
+      <defs>
+        <radialGradient id="focusBgGlow" cx="50%" cy="50%" r="60%">
+          <stop offset="0%" stopColor={ai} stopOpacity="0.06" />
+          <stop offset="100%" stopColor={ai} stopOpacity="0" />
+        </radialGradient>
+        <filter id="focusNodeShadow" x="-60%" y="-60%" width="220%" height="220%">
+          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor={ai} floodOpacity="0.35" />
+        </filter>
+      </defs>
+
+      <g transform={`translate(${CX},${CY}) scale(${scale}) translate(${-CX + pan.x},${-CY + pan.y})`}>
+        <circle cx={CX} cy={CY} r={340} fill="url(#focusBgGlow)" />
+
         {edges.map((e, i) => {
           const src = posMap.get(e.source);
           const tgt = posMap.get(e.target);
@@ -337,8 +381,10 @@ export default function FocusedRelationGraph({
               x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
               stroke={ai}
               strokeWidth={isHov ? Math.max(1.5, e.score * 4) : Math.max(0.75, e.score * 2)}
-              strokeOpacity={TIER_OPACITY[e.tier] * (isHov ? 1 : 0.7)}
+              strokeOpacity={TIER_OPACITY[e.tier] * (isHov ? 1 : 0.65)}
               strokeDasharray={e.tier === "indirect" ? "3,3" : undefined}
+              strokeLinecap="round"
+              style={{ transition: "stroke-opacity 0.15s ease, stroke-width 0.15s ease" }}
             />
           );
         })}
@@ -347,7 +393,7 @@ export default function FocusedRelationGraph({
           const pos = posMap.get(n.id);
           if (!pos) return null;
           const isHov = hovered === n.id;
-          const baseR = pos.kind === "chain" ? CHAIN_NODE_R : SATELLITE_R;
+          const baseR = n.tier === "chain" ? CHAIN_NODE_R : SATELLITE_R;
           const r = isHov ? baseR + 3 : baseR;
           return (
             <g
@@ -364,52 +410,41 @@ export default function FocusedRelationGraph({
                 strokeWidth={1.5}
                 fillOpacity={isHov ? 1 : TIER_OPACITY[n.tier]}
                 strokeOpacity={TIER_OPACITY[n.tier]}
+                filter={isHov ? "url(#focusNodeShadow)" : undefined}
+                style={{ transition: "r 0.15s ease, fill-opacity 0.15s ease" }}
               />
               <text
-                x={pos.x} y={pos.y - 1}
+                x={pos.x} y={pos.y}
                 textAnchor="middle" dominantBaseline="middle"
-                fontSize={7.5} fontWeight={600}
+                fontSize={8} fontWeight={600}
                 fill={isHov ? "#F5F2ED" : ai}
                 fontFamily="JetBrains Mono, monospace"
               >
                 {n.ref}
               </text>
-              <text
-                x={pos.x} y={pos.y + r + 13}
-                textAnchor="middle" fontSize={9} fill={textSec}
-                fontFamily="Inter, sans-serif"
-              >
-                {shortSubject(n.subject)}
-              </text>
             </g>
           );
         })}
 
-        {(() => {
-          const cpos = posMap.get(center.id) ?? { x: CX, y: TOP_Y };
-          return (
-            <g
-              style={{ cursor: "pointer" }}
-              onClick={() => goTo(center.id)}
-              onMouseEnter={() => setHovered(center.id)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              <circle cx={cpos.x} cy={cpos.y} r={CENTER_R} fill={ai} stroke={ai} strokeWidth={2} />
-              <text
-                x={cpos.x} y={cpos.y - 3} textAnchor="middle" dominantBaseline="middle"
-                fontSize={9.5} fontWeight={600} fill="#F5F2ED" fontFamily="JetBrains Mono, monospace"
-              >
-                {center.ref}
-              </text>
-              <text
-                x={cpos.x} y={cpos.y + CENTER_R + 13} textAnchor="middle" fontSize={10}
-                fontWeight={500} fill={textPrim} fontFamily="Inter, sans-serif"
-              >
-                {shortSubject(center.subject, 20)}
-              </text>
-            </g>
-          );
-        })()}
+        <g
+          style={{ cursor: "pointer" }}
+          onClick={() => goTo(center.id)}
+          onMouseEnter={() => setHovered(center.id)}
+          onMouseLeave={() => setHovered(null)}
+        >
+          <circle
+            cx={CX} cy={CY} r={hovered === center.id ? CENTER_R + 3 : CENTER_R}
+            fill={ai} stroke={ai} strokeWidth={2}
+            filter={hovered === center.id ? "url(#focusNodeShadow)" : undefined}
+            style={{ transition: "r 0.15s ease" }}
+          />
+          <text
+            x={CX} y={CY} textAnchor="middle" dominantBaseline="middle"
+            fontSize={9.5} fontWeight={600} fill="#F5F2ED" fontFamily="JetBrains Mono, monospace"
+          >
+            {center.ref}
+          </text>
+        </g>
       </g>
     </svg>
   );
@@ -470,11 +505,43 @@ export default function FocusedRelationGraph({
     </div>
   );
 
+  const tooltip = (hoveredNode && hoveredPos) ? (
+    <div style={{
+      position: "absolute" as const,
+      bottom: 12, left: 12,
+      background: bgPrimary, border: `1px solid ${border}`,
+      borderLeft: `3px solid ${ai}`,
+      padding: "10px 14px", maxWidth: 300, borderRadius: 6,
+      pointerEvents: "none" as const,
+      boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+    }}>
+      <p style={{
+        fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+        color: ai, margin: 0, fontWeight: 600,
+      }}>
+        {hoveredNode.ref}
+      </p>
+      <p style={{
+        fontSize: 12, fontWeight: 500, color: textPrim,
+        margin: "3px 0 0", fontFamily: "Inter, sans-serif",
+      }}>
+        {hoveredNode.subject}
+      </p>
+      <p style={{
+        fontSize: 10, color: textSec, margin: "4px 0 0",
+        fontFamily: "Inter, sans-serif",
+      }}>
+        Durum: {hoveredNode.status}
+        {hoveredNode.tier !== "center" && ` · ${hoveredNode.tier === "chain" ? "Zincir" : hoveredNode.tier === "content" ? "İçerik" : "Dolaylı"}`}
+      </p>
+    </div>
+  ) : null;
+
   return (
     <div>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginBottom: 10,
+        marginBottom: 6,
       }}>
         <div style={{
           fontSize: 11, fontWeight: 500, color: textSec,
@@ -489,16 +556,25 @@ export default function FocusedRelationGraph({
         {controls}
       </div>
 
+      <p style={{
+        fontSize: 10.5, color: textSec, fontStyle: "italic",
+        margin: "0 0 8px", fontFamily: "Inter, sans-serif",
+      }}>
+        Düğümlere fare ile gelin, detay için tıklayın.
+      </p>
+
       <div
         ref={svgWrapRef}
         style={{
-          background: cardBg, border: `1px solid ${border}`,
-          borderLeft: `3px solid ${ai}`, borderRadius: 6,
+          background: `linear-gradient(160deg, ${cardBg}, ${bgPrimary})`,
+          border: `1px solid ${border}`,
+          borderLeft: `3px solid ${ai}`, borderRadius: 10,
           overflow: "hidden", position: "relative" as const,
-          height: 500,
+          height: 560,
         }}
       >
         {renderSvg()}
+        {tooltip}
       </div>
 
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" as const }}>
@@ -529,9 +605,10 @@ export default function FocusedRelationGraph({
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: cardBg, border: `1px solid ${border}`,
-              borderLeft: `3px solid ${ai}`, borderRadius: 6,
-              width: "92vw", maxWidth: 1100, height: "86vh",
+              background: `linear-gradient(160deg, ${cardBg}, ${bgPrimary})`,
+              border: `1px solid ${border}`,
+              borderLeft: `3px solid ${ai}`, borderRadius: 10,
+              width: "94vw", maxWidth: 1300, height: "90vh",
               display: "flex", flexDirection: "column" as const,
               padding: 16,
             }}
@@ -560,8 +637,9 @@ export default function FocusedRelationGraph({
                 </button>
               </div>
             </div>
-            <div ref={fsSvgWrapRef} style={{ flex: 1, overflow: "hidden" }}>
+            <div ref={fsSvgWrapRef} style={{ flex: 1, overflow: "hidden", position: "relative" as const }}>
               {renderSvg()}
+              {tooltip}
             </div>
           </div>
         </div>

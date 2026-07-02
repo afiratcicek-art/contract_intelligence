@@ -75,23 +75,20 @@ interface LaidOutNode {
   y: number;
 }
 
-/* ── Layout: unified band-based BFS from center ─────────────
-   A single tree is built from center outward using ALL edges,
-   but with priority: chain edges first (band 0 — center's own
-   structural chain, whether center is mid-chain or an endpoint),
-   then content edges (band 1), then indirect edges (band 2) for
-   anything not yet reached. Once an external node is reached via
-   content/indirect, its OWN chain siblings are pulled in at the
-   same band via further chain-edge BFS — this is what makes a
-   secondary chain (e.g. CORR-009→010→011) render correctly as a
-   connected sub-branch even when the graph's center (e.g. an RFI)
-   sits outside that chain entirely.
-
-   Angle: one global DFS leaf-slot pass across the whole tree,
-   giving every branch a unique angular wedge (zero overlap,
-   full circle used). Radius: band's base radius + local depth
-   within that band × level gap. This generalizes correctly
-   regardless of where center sits relative to any chain.        */
+/* ── Layout: unified band-based BFS with chain grouping ──
+   Chain relations (tier="chain") form a real tree. The
+   center node's own chain component is band 0. Nodes
+   reached only via content/indirect edges are candidates
+   for band 1/2 — but if several such candidates are ALSO
+   chain-connected to EACH OTHER (e.g. center is an RFI
+   content-linked separately to three CORR docs that form
+   their own chain among themselves), they must render as
+   ONE connected sub-branch, not as three independent
+   spokes from center. Fix: group content/indirect
+   candidates into connected components via chainAdj
+   FIRST, then attach only one anchor per component
+   directly to center; the rest of that component branches
+   from the anchor via chain edges.                       */
 function computeLayout(
   centerId: string,
   allNodeIds: string[],
@@ -130,8 +127,8 @@ function computeLayout(
     }
   }
 
-  // Band 1/2 seeds: direct content/indirect edges FROM center to
-  // not-yet-reached nodes. Prefer content over indirect per node.
+  // Best direct tier (content beats indirect) from center to
+  // each not-yet-placed node.
   const bestTierFor = new Map<string, "content" | "indirect">();
   edges.forEach((e) => {
     if (e.tier === "chain") return;
@@ -146,31 +143,61 @@ function computeLayout(
     }
   });
 
-  let queue2: string[] = [];
-  bestTierFor.forEach((tier, node) => {
-    if (parentOf.has(node)) return;
-    parentOf.set(node, centerId);
-    bandOf.set(node, tier === "content" ? 1 : 2);
-    localDepth.set(node, 0);
-    queue2.push(node);
-  });
+  // Group candidates into chain-connected components, then
+  // attach ONE anchor per component to center; branch the rest
+  // from that anchor via chain edges (inheriting its band).
+  const visited = new Set<string>();
+  bestTierFor.forEach((_tier, candidate) => {
+    if (visited.has(candidate) || parentOf.has(candidate)) return;
 
-  // Extend each band-1/2 anchor outward via its own chain edges,
-  // inheriting the same band (surfaces secondary chain structure).
-  while (queue2.length) {
-    const cur = queue2.shift() as string;
-    const band = bandOf.get(cur)!;
-    for (const nb of chainAdj.get(cur) ?? []) {
-      if (!parentOf.has(nb)) {
-        parentOf.set(nb, cur);
-        bandOf.set(nb, band);
-        localDepth.set(nb, (localDepth.get(cur) ?? 0) + 1);
-        queue2.push(nb);
+    const component: string[] = [];
+    const compSeen = new Set<string>([candidate]);
+    const localQueue: string[] = [candidate];
+    while (localQueue.length) {
+      const cur = localQueue.shift() as string;
+      component.push(cur);
+      for (const nb of chainAdj.get(cur) ?? []) {
+        if (parentOf.has(nb) || compSeen.has(nb)) continue;
+        compSeen.add(nb);
+        localQueue.push(nb);
       }
     }
-  }
+    component.forEach((id) => visited.add(id));
+    const componentSet = new Set(component);
 
-  // Safety fallback for any unreached node.
+    // Pick anchor: prefer a component member with a direct
+    // "content" edge to center over one only reachable via
+    // "indirect"; fall back to the first discovered member.
+    let anchor = component[0];
+    let anchorTier: "content" | "indirect" = bestTierFor.get(anchor) ?? "indirect";
+    for (const id of component) {
+      const t = bestTierFor.get(id);
+      if (t === "content") {
+        anchor = id;
+        anchorTier = "content";
+        break;
+      }
+    }
+
+    parentOf.set(anchor, centerId);
+    bandOf.set(anchor, anchorTier === "content" ? 1 : 2);
+    localDepth.set(anchor, 0);
+
+    const branchQueue: string[] = [anchor];
+    while (branchQueue.length) {
+      const cur = branchQueue.shift() as string;
+      for (const nb of chainAdj.get(cur) ?? []) {
+        if (parentOf.has(nb) || !componentSet.has(nb)) continue;
+        parentOf.set(nb, cur);
+        bandOf.set(nb, bandOf.get(cur)!);
+        localDepth.set(nb, (localDepth.get(cur) ?? 0) + 1);
+        branchQueue.push(nb);
+      }
+    }
+  });
+
+  // Safety fallback for any node not placed (should not
+  // normally happen given the above passes).
   allNodeIds.forEach((id) => {
     if (!parentOf.has(id)) {
       parentOf.set(id, centerId);

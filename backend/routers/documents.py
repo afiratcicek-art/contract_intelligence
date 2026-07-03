@@ -663,6 +663,31 @@ def get_focused_graph(
                         "score": cs, "tier": "cross",
                     })
 
+        # ── Downgrade peripheral chain edges ──────────────────
+        # A chain edge is only "chain"-worthy if the center is
+        # structurally part of that chain. The center's own
+        # chain component is entity_id + its full transitive
+        # chain (_full_chain_ids). If BOTH endpoints of a chain
+        # edge fall OUTSIDE this component, the center is not a
+        # member of that chain — its internal parent/child links
+        # are peripheral (possibly coincidental relative to the
+        # center's keyword links), so they must not visually
+        # outweigh the center's own relations. Downgrade such
+        # edges to "cross" (faintest tier). Applied generically
+        # for any center / graph shape.
+        center_chain_component = _full_chain_ids(
+            entity_id, parent_map, children_map
+        ) | {entity_id}
+        for e in edges:
+            if e["tier"] != "chain":
+                continue
+            if (
+                e["source"] not in center_chain_component
+                and e["target"] not in center_chain_component
+            ):
+                e["tier"] = "cross"
+                e["score"] = round(e["score"] * 0.5, 3)
+
         # ── Dedupe edges ──────────────────────────────────────
         # Multiple direct_ids can rediscover the same chain
         # relationship from different iterations (e.g. center

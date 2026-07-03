@@ -179,3 +179,33 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   and RelationPopup.tsx. Low risk (identical logic, small),
   but should be extracted to a shared util when touching
   these files next.
+
+---
+
+## Performance
+
+- **TB-20**: verify_project_access runs 2 Supabase queries
+  on EVERY request with no caching, while its sub-function
+  require_permission already caches (5-min TTL). On a page
+  that calls several endpoints, this auth cost (~130ms warm,
+  ~600ms cold, per endpoint) stacks. Opportunity: cache the
+  access RESULT (not the JWT-scoped db client) keyed by
+  (user_id, project_id) with a short TTL (30-60s).
+  SECURITY CONSTRAINTS (mandatory, do not skip):
+    1. Cache key MUST be (user_id + project_id) — never
+       project_id alone (cross-tenant leak risk).
+    2. NEVER cache the JWT-scoped db client (access["db"]) —
+       only the permission result (bool + role). The db
+       client must be rebuilt fresh each request with the
+       caller's own token.
+    3. Short TTL only (<=60s) so revoked access / role
+       downgrades take effect quickly (privilege-escalation
+       window otherwise).
+    4. Membership-delete and role-change paths should
+       invalidate the cache (or TTL must be short enough to
+       tolerate staleness).
+    5. In-memory cache is per-worker; note that multi-worker
+       production deployments need a shared store (Redis) for
+       consistency. Current dev is single-worker.
+  Must be implemented in an isolated, well-tested change —
+  auth-layer edits must never be mixed into unrelated commits.

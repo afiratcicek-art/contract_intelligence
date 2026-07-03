@@ -11,7 +11,6 @@ interface FocusNode {
   tier: "chain" | "content" | "indirect";
   score: number;
 }
-
 interface CenterNode {
   id: string;
   ref: string;
@@ -21,14 +20,12 @@ interface CenterNode {
   tier: "center";
   score: number;
 }
-
 interface FocusEdge {
   source: string;
   target: string;
   score: number;
   tier: "chain" | "content" | "indirect";
 }
-
 interface FocusedGraphResponse {
   center: CenterNode;
   nodes: FocusNode[];
@@ -37,31 +34,26 @@ interface FocusedGraphResponse {
   truncated: boolean;
   hidden_count: number;
 }
-
 interface Props {
   projectId: string;
   entityType: "correspondence" | "rfi";
   entityId: string;
 }
 
-const W = 900;
-const H = 760;
-const CX = 450;
-const CY = 380;
-const CENTER_R = 30;
-const CHAIN_NODE_R = 22;
-const SATELLITE_R = 18;
+const W = 760;
+const H = 560;
+const CX = 380;
+const CY = 280;
+const CENTER_R = 34;
+const NODE_R_MAX = 26;
+const NODE_R_MIN = 17;
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
 
-const LEVEL_GAP_CHAIN = 120;
-const BAND_BASE_RADIUS: Record<1 | 2, number> = { 1: 180, 2: 300 };
-const LEVEL_GAP_SATELLITE = 110;
-
 const TIER_OPACITY: Record<string, number> = {
   chain: 1,
-  content: 0.65,
-  indirect: 0.35,
+  content: 0.62,
+  indirect: 0.32,
 };
 
 function entityPath(projectId: string, entityType: string, id: string): string {
@@ -70,184 +62,131 @@ function entityPath(projectId: string, entityType: string, id: string): string {
   return `/projects/${projectId}/workspace/rfis/${id}`;
 }
 
-interface LaidOutNode {
-  x: number;
-  y: number;
-}
+interface LaidOutNode { x: number; y: number; r: number; }
 
-/* ── Layout: unified band-based BFS with chain grouping ──
-   Chain relations (tier="chain") form a real tree. The
-   center node's own chain component is band 0. Nodes
-   reached only via content/indirect edges are candidates
-   for band 1/2 — but if several such candidates are ALSO
-   chain-connected to EACH OTHER (e.g. center is an RFI
-   content-linked separately to three CORR docs that form
-   their own chain among themselves), they must render as
-   ONE connected sub-branch, not as three independent
-   spokes from center. Fix: group content/indirect
-   candidates into connected components via chainAdj
-   FIRST, then attach only one anchor per component
-   directly to center; the rest of that component branches
-   from the anchor via chain edges.                       */
+/* ── Layout: center-anchored radial graph ──────────────────
+   The center connects DIRECTLY to every node it has a
+   content/indirect edge to (so the user sees the center
+   relates to all of them, not just one). Chain edges between
+   those nodes are ALSO drawn, as bridges — so a chain like
+   CORR-009→010→011 reads as a connected sub-structure while
+   each still shows its own relationship to the center.
+
+   Ordering: nodes directly linked to center are placed on an
+   arc. Within a chain, the most-recent member (a leaf in the
+   parent→child chain, i.e. has no child among the set) is
+   placed nearest the center (smallest radius / prime angle);
+   older ancestors fan outward. Node radius shrinks with tier
+   strength and chain depth so the freshest/strongest reads
+   biggest.                                                    */
 function computeLayout(
-  centerId: string,
-  allNodeIds: string[],
+  center: CenterNode,
+  nodes: FocusNode[],
   edges: FocusEdge[]
 ): Map<string, LaidOutNode> {
+  const centerId = center.id;
+  const idSet = new Set(nodes.map((n) => n.id));
+
   const chainAdj = new Map<string, string[]>();
-  const pushAdj = (a: string, b: string) => {
-    if (!chainAdj.has(a)) chainAdj.set(a, []);
-    chainAdj.get(a)!.push(b);
-  };
+  const childOf = new Map<string, string>();
   edges
     .filter((e) => e.tier === "chain")
     .forEach((e) => {
-      pushAdj(e.source, e.target);
-      pushAdj(e.target, e.source);
+      if (!chainAdj.has(e.source)) chainAdj.set(e.source, []);
+      if (!chainAdj.has(e.target)) chainAdj.set(e.target, []);
+      chainAdj.get(e.source)!.push(e.target);
+      chainAdj.get(e.target)!.push(e.source);
+      childOf.set(e.target, e.source);
     });
 
-  const parentOf = new Map<string, string | null>();
-  const bandOf = new Map<string, 0 | 1 | 2>();
-  const localDepth = new Map<string, number>();
-
-  // Band 0: center's own chain component (undirected BFS).
-  parentOf.set(centerId, null);
-  bandOf.set(centerId, 0);
-  localDepth.set(centerId, 0);
-  let queue: string[] = [centerId];
-  while (queue.length) {
-    const cur = queue.shift() as string;
-    for (const nb of chainAdj.get(cur) ?? []) {
-      if (!parentOf.has(nb)) {
-        parentOf.set(nb, cur);
-        bandOf.set(nb, 0);
-        localDepth.set(nb, (localDepth.get(cur) ?? 0) + 1);
-        queue.push(nb);
-      }
-    }
-  }
-
-  // Best direct tier (content beats indirect) from center to
-  // each not-yet-placed node.
-  const bestTierFor = new Map<string, "content" | "indirect">();
+  const directScore = new Map<string, number>();
   edges.forEach((e) => {
     if (e.tier === "chain") return;
-    const isFromCenter = e.source === centerId;
-    const isToCenter = e.target === centerId;
-    if (!isFromCenter && !isToCenter) return;
-    const other = isFromCenter ? e.target : e.source;
-    if (parentOf.has(other)) return;
-    const existing = bestTierFor.get(other);
-    if (!existing || (existing === "indirect" && e.tier === "content")) {
-      bestTierFor.set(other, e.tier as "content" | "indirect");
+    const other =
+      e.source === centerId ? e.target : e.target === centerId ? e.source : null;
+    if (other && idSet.has(other)) {
+      directScore.set(other, Math.max(directScore.get(other) ?? 0, e.score));
     }
   });
 
-  // Group candidates into chain-connected components, then
-  // attach ONE anchor per component to center; branch the rest
-  // from that anchor via chain edges (inheriting its band).
   const visited = new Set<string>();
-  bestTierFor.forEach((_tier, candidate) => {
-    if (visited.has(candidate) || parentOf.has(candidate)) return;
-
-    const component: string[] = [];
-    const compSeen = new Set<string>([candidate]);
-    const localQueue: string[] = [candidate];
-    while (localQueue.length) {
-      const cur = localQueue.shift() as string;
-      component.push(cur);
+  const components: string[][] = [];
+  const directIds = [...directScore.keys()];
+  directIds.forEach((seed) => {
+    if (visited.has(seed)) return;
+    const comp: string[] = [];
+    const q = [seed];
+    visited.add(seed);
+    while (q.length) {
+      const cur = q.shift()!;
+      comp.push(cur);
       for (const nb of chainAdj.get(cur) ?? []) {
-        if (parentOf.has(nb) || compSeen.has(nb)) continue;
-        compSeen.add(nb);
-        localQueue.push(nb);
+        if (!visited.has(nb) && directScore.has(nb)) {
+          visited.add(nb);
+          q.push(nb);
+        }
       }
     }
-    component.forEach((id) => visited.add(id));
-    const componentSet = new Set(component);
-
-    // Pick anchor: prefer a component member with a direct
-    // "content" edge to center over one only reachable via
-    // "indirect"; fall back to the first discovered member.
-    let anchor = component[0];
-    let anchorTier: "content" | "indirect" = bestTierFor.get(anchor) ?? "indirect";
-    for (const id of component) {
-      const t = bestTierFor.get(id);
-      if (t === "content") {
-        anchor = id;
-        anchorTier = "content";
-        break;
-      }
-    }
-
-    parentOf.set(anchor, centerId);
-    bandOf.set(anchor, anchorTier === "content" ? 1 : 2);
-    localDepth.set(anchor, 0);
-
-    const branchQueue: string[] = [anchor];
-    while (branchQueue.length) {
-      const cur = branchQueue.shift() as string;
-      for (const nb of chainAdj.get(cur) ?? []) {
-        if (parentOf.has(nb) || !componentSet.has(nb)) continue;
-        parentOf.set(nb, cur);
-        bandOf.set(nb, bandOf.get(cur)!);
-        localDepth.set(nb, (localDepth.get(cur) ?? 0) + 1);
-        branchQueue.push(nb);
-      }
-    }
+    components.push(comp);
   });
-
-  // Safety fallback for any node not placed (should not
-  // normally happen given the above passes).
-  allNodeIds.forEach((id) => {
-    if (!parentOf.has(id)) {
-      parentOf.set(id, centerId);
-      bandOf.set(id, 2);
-      localDepth.set(id, 0);
-    }
-  });
-
-  // Global DFS leaf-slot pass for angle (whole tree, one pass).
-  const childrenOf = new Map<string, string[]>();
-  parentOf.forEach((p, id) => {
-    if (p !== null) {
-      if (!childrenOf.has(p)) childrenOf.set(p, []);
-      childrenOf.get(p)!.push(id);
-    }
-  });
-  let nextLeaf = 0;
-  const slotMap = new Map<string, number>();
-  const assign = (id: string): number => {
-    const kids = childrenOf.get(id) ?? [];
-    if (kids.length === 0) {
-      const s = nextLeaf;
-      nextLeaf += 1;
-      slotMap.set(id, s);
-      return s;
-    }
-    const kidSlots = kids.map((k) => assign(k));
-    const avg = kidSlots.reduce((a, b) => a + b, 0) / kidSlots.length;
-    slotMap.set(id, avg);
-    return avg;
-  };
-  assign(centerId);
-  const totalLeaves = Math.max(nextLeaf, 1);
 
   const result = new Map<string, LaidOutNode>();
-  result.set(centerId, { x: CX, y: CY });
+  result.set(centerId, { x: CX, y: CY, r: CENTER_R });
 
-  allNodeIds.forEach((id) => {
-    if (id === centerId) return;
-    const band = bandOf.get(id) ?? 2;
-    const depth = localDepth.get(id) ?? 1;
-    const slot = slotMap.get(id) ?? 0;
-    const angle = (slot / totalLeaves) * 2 * Math.PI;
-    const radius =
-      band === 0
-        ? depth * LEVEL_GAP_CHAIN
-        : BAND_BASE_RADIUS[band] + (depth - 1) * LEVEL_GAP_SATELLITE;
-    result.set(id, {
-      x: CX + radius * Math.cos(angle),
-      y: CY + radius * Math.sin(angle),
+  const compCount = Math.max(components.length, 1);
+  components.forEach((comp, ci) => {
+    const inComp = new Set(comp);
+    const leaves = comp.filter((id) => {
+      const kids = (chainAdj.get(id) ?? []).filter(
+        (k) => inComp.has(k) && childOf.get(k) === id
+      );
+      return kids.length === 0;
+    });
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    const startLeaf = leaves.length ? leaves[0] : comp[0];
+    let cursor: string | undefined = startLeaf;
+    while (cursor && !seen.has(cursor)) {
+      ordered.push(cursor);
+      seen.add(cursor);
+      cursor = childOf.get(cursor);
+      if (cursor && !inComp.has(cursor)) cursor = undefined;
+    }
+    comp.forEach((id) => {
+      if (!seen.has(id)) {
+        ordered.push(id);
+        seen.add(id);
+      }
+    });
+
+    const baseAngle = (2 * Math.PI * ci) / compCount - Math.PI / 2;
+    ordered.forEach((id, depth) => {
+      const radius = 130 + depth * 92;
+      const wedge = 0.34;
+      const angle =
+        baseAngle + (ordered.length > 1 ? (depth / ordered.length) * wedge - wedge / 2 : 0);
+      const score = directScore.get(id) ?? 0.3;
+      const r = Math.max(
+        NODE_R_MIN,
+        NODE_R_MAX - depth * 3 - (1 - score) * 4
+      );
+      result.set(id, {
+        x: CX + radius * Math.cos(angle),
+        y: CY + radius * Math.sin(angle),
+        r,
+      });
+    });
+  });
+
+  let fb = 0;
+  nodes.forEach((n) => {
+    if (result.has(n.id)) return;
+    const angle = (2 * Math.PI * fb) / Math.max(nodes.length, 1);
+    fb += 1;
+    result.set(n.id, {
+      x: CX + 300 * Math.cos(angle),
+      y: CY + 300 * Math.sin(angle),
+      r: NODE_R_MIN,
     });
   });
 
@@ -273,11 +212,10 @@ export default function FocusedRelationGraph({
   const svgWrapRef = useRef<HTMLDivElement>(null);
   const fsSvgWrapRef = useRef<HTMLDivElement>(null);
 
-  const cardBg = "var(--color-bg-secondary)";
-  const bgPrimary = "var(--color-bg-primary)";
   const border = "var(--color-border-light)";
   const textPrim = "var(--color-text-primary)";
   const textSec = "var(--color-text-secondary)";
+  const bgPrimary = "var(--color-bg-primary)";
   const ai = "var(--color-ai)";
   const aiBg = "var(--color-ai-bg)";
 
@@ -296,8 +234,7 @@ export default function FocusedRelationGraph({
 
   const posMap = useMemo(() => {
     if (!data) return new Map<string, LaidOutNode>();
-    const ids = [data.center.id, ...data.nodes.map((n) => n.id)];
-    return computeLayout(data.center.id, ids, data.edges);
+    return computeLayout(data.center, data.nodes, data.edges);
   }, [data]);
 
   const nodeById = useMemo(() => {
@@ -357,7 +294,6 @@ export default function FocusedRelationGraph({
       </p>
     );
   }
-
   if (!data) {
     return (
       <p style={{ fontSize: 12, color: textSec, fontStyle: "italic", fontFamily: "Inter, sans-serif" }}>
@@ -368,7 +304,6 @@ export default function FocusedRelationGraph({
 
   const { center, nodes, edges, truncated, hidden_count } = data;
   const hoveredNode = hovered ? nodeById.get(hovered) : null;
-  const hoveredPos = hovered ? posMap.get(hovered) : null;
 
   const renderSvg = () => (
     <svg
@@ -385,32 +320,36 @@ export default function FocusedRelationGraph({
       onMouseLeave={handleMouseUp}
     >
       <defs>
-        <radialGradient id="focusBgGlow" cx="50%" cy="50%" r="60%">
-          <stop offset="0%" stopColor={ai} stopOpacity="0.06" />
+        <radialGradient id="focusGlow" cx="50%" cy="50%" r="60%">
+          <stop offset="0%" stopColor={ai} stopOpacity="0.10" />
+          <stop offset="55%" stopColor={ai} stopOpacity="0.02" />
           <stop offset="100%" stopColor={ai} stopOpacity="0" />
         </radialGradient>
-        <filter id="focusNodeShadow" x="-60%" y="-60%" width="220%" height="220%">
-          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor={ai} floodOpacity="0.35" />
-        </filter>
+        <marker id="focusArrow" viewBox="0 0 10 10" refX="9" refY="5"
+          markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill={ai} opacity="0.5" />
+        </marker>
       </defs>
 
       <g transform={`translate(${CX},${CY}) scale(${scale}) translate(${-CX + pan.x},${-CY + pan.y})`}>
-        <circle cx={CX} cy={CY} r={340} fill="url(#focusBgGlow)" />
+        <circle cx={CX} cy={CY} r={330} fill="url(#focusGlow)" />
 
         {edges.map((e, i) => {
           const src = posMap.get(e.source);
           const tgt = posMap.get(e.target);
           if (!src || !tgt) return null;
           const isHov = hovered === e.source || hovered === e.target;
+          const isChain = e.tier === "chain";
           return (
             <line
               key={i}
               x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
               stroke={ai}
-              strokeWidth={isHov ? Math.max(1.5, e.score * 4) : Math.max(0.75, e.score * 2)}
-              strokeOpacity={TIER_OPACITY[e.tier] * (isHov ? 1 : 0.65)}
+              strokeWidth={isHov ? Math.max(2, e.score * 4) : Math.max(0.75, e.score * 2.4)}
+              strokeOpacity={TIER_OPACITY[e.tier] * (isHov ? 1 : 0.7)}
               strokeDasharray={e.tier === "indirect" ? "3,3" : undefined}
               strokeLinecap="round"
+              markerEnd={isChain ? "url(#focusArrow)" : undefined}
               style={{ transition: "stroke-opacity 0.15s ease, stroke-width 0.15s ease" }}
             />
           );
@@ -420,8 +359,7 @@ export default function FocusedRelationGraph({
           const pos = posMap.get(n.id);
           if (!pos) return null;
           const isHov = hovered === n.id;
-          const baseR = n.tier === "chain" ? CHAIN_NODE_R : SATELLITE_R;
-          const r = isHov ? baseR + 3 : baseR;
+          const r = isHov ? pos.r + 3 : pos.r;
           return (
             <g
               key={n.id}
@@ -437,7 +375,6 @@ export default function FocusedRelationGraph({
                 strokeWidth={1.5}
                 fillOpacity={isHov ? 1 : TIER_OPACITY[n.tier]}
                 strokeOpacity={TIER_OPACITY[n.tier]}
-                filter={isHov ? "url(#focusNodeShadow)" : undefined}
                 style={{ transition: "r 0.15s ease, fill-opacity 0.15s ease" }}
               />
               <text
@@ -459,15 +396,18 @@ export default function FocusedRelationGraph({
           onMouseEnter={() => setHovered(center.id)}
           onMouseLeave={() => setHovered(null)}
         >
+          <circle cx={CX} cy={CY} r={CENTER_R} fill="none" stroke={ai} strokeWidth={1} opacity={0.35}>
+            <animate attributeName="r" values={`${CENTER_R};${CENTER_R + 9};${CENTER_R}`} dur="2.5s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.4;0;0.4" dur="2.5s" repeatCount="indefinite" />
+          </circle>
           <circle
             cx={CX} cy={CY} r={hovered === center.id ? CENTER_R + 3 : CENTER_R}
             fill={ai} stroke={ai} strokeWidth={2}
-            filter={hovered === center.id ? "url(#focusNodeShadow)" : undefined}
             style={{ transition: "r 0.15s ease" }}
           />
           <text
             x={CX} y={CY} textAnchor="middle" dominantBaseline="middle"
-            fontSize={9.5} fontWeight={600} fill="#F5F2ED" fontFamily="JetBrains Mono, monospace"
+            fontSize={10} fontWeight={600} fill="#F5F2ED" fontFamily="JetBrains Mono, monospace"
           >
             {center.ref}
           </text>
@@ -478,143 +418,103 @@ export default function FocusedRelationGraph({
 
   const controls = (
     <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-      <button
-        onClick={() => zoomBy(1 / 1.2)}
-        aria-label="Uzaklaştır"
-        style={{
-          width: 24, height: 24, background: aiBg, color: ai,
-          border: `1px solid ${ai}`, borderRadius: 4, cursor: "pointer",
-          fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        −
-      </button>
-      <button
-        onClick={() => zoomBy(1.2)}
-        aria-label="Yakınlaştır"
-        style={{
-          width: 24, height: 24, background: aiBg, color: ai,
-          border: `1px solid ${ai}`, borderRadius: 4, cursor: "pointer",
-          fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        +
-      </button>
-      <button
-        onClick={resetView}
-        style={{
-          height: 24, padding: "0 8px", background: "transparent", color: textSec,
-          border: `1px solid ${border}`, borderRadius: 4, cursor: "pointer", fontSize: 10,
-          fontFamily: "Inter, sans-serif",
-        }}
-      >
-        Sıfırla
-      </button>
+      <button onClick={() => zoomBy(1 / 1.2)} aria-label="Uzaklaştır"
+        style={{ width: 26, height: 26, background: aiBg, color: ai, border: `1px solid ${ai}`, borderRadius: 6, cursor: "pointer", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+      <button onClick={() => zoomBy(1.2)} aria-label="Yakınlaştır"
+        style={{ width: 26, height: 26, background: aiBg, color: ai, border: `1px solid ${ai}`, borderRadius: 6, cursor: "pointer", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+      <button onClick={resetView}
+        style={{ height: 26, padding: "0 10px", background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 6, cursor: "pointer", fontSize: 10, fontFamily: "Inter, sans-serif" }}>Sıfırla</button>
       {!fullscreen && (
-        <button
-          onClick={() => setFullscreen(true)}
-          aria-label="Tam ekran"
-          title="Tam ekran"
-          style={{
-            width: 24, height: 24, background: "transparent", color: textSec,
-            border: `1px solid ${border}`, borderRadius: 4, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
+        <button onClick={() => setFullscreen(true)} aria-label="Tam ekran" title="Tam ekran"
+          style={{ width: 26, height: 26, background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-            <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
-            <path d="M3 16v3a2 2 0 0 0 2 2h3" />
-            <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+            <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+            <path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
           </svg>
         </button>
       )}
     </div>
   );
 
-  const tooltip = (hoveredNode && hoveredPos) ? (
+  const tooltip = hoveredNode ? (
     <div style={{
-      position: "absolute" as const,
-      bottom: 12, left: 12,
+      position: "absolute" as const, bottom: 12, left: 12,
       background: bgPrimary, border: `1px solid ${border}`,
-      borderLeft: `3px solid ${ai}`,
-      padding: "10px 14px", maxWidth: 300, borderRadius: 6,
-      pointerEvents: "none" as const,
-      boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+      borderLeft: `3px solid ${ai}`, padding: "10px 14px", maxWidth: 300,
+      borderRadius: 6, pointerEvents: "none" as const,
+      boxShadow: "0 6px 20px rgba(0,0,0,0.14)",
     }}>
-      <p style={{
-        fontSize: 11, fontFamily: "JetBrains Mono, monospace",
-        color: ai, margin: 0, fontWeight: 600,
-      }}>
+      <p style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: ai, margin: 0, fontWeight: 600 }}>
         {hoveredNode.ref}
       </p>
-      <p style={{
-        fontSize: 12, fontWeight: 500, color: textPrim,
-        margin: "3px 0 0", fontFamily: "Inter, sans-serif",
-      }}>
+      <p style={{ fontSize: 12, fontWeight: 500, color: textPrim, margin: "3px 0 0", fontFamily: "Inter, sans-serif" }}>
         {hoveredNode.subject}
       </p>
-      <p style={{
-        fontSize: 10, color: textSec, margin: "4px 0 0",
-        fontFamily: "Inter, sans-serif",
-      }}>
+      <p style={{ fontSize: 10, color: textSec, margin: "4px 0 0", fontFamily: "Inter, sans-serif" }}>
         Durum: {hoveredNode.status}
         {hoveredNode.tier !== "center" && ` · ${hoveredNode.tier === "chain" ? "Zincir" : hoveredNode.tier === "content" ? "İçerik" : "Dolaylı"}`}
       </p>
     </div>
   ) : null;
 
+  const header = (inFullscreen: boolean) => (
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+      <div>
+        <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 18, color: textPrim, margin: 0, fontWeight: 500 }}>
+          İlişki Haritası{inFullscreen ? ` — ${center.ref}` : ""}
+        </p>
+        <p style={{ fontSize: 11.5, color: textSec, margin: "4px 0 0", fontStyle: "italic", fontFamily: "Inter, sans-serif" }}>
+          {center.ref} ile bağlantılı {nodes.length} kayıt · zincir ve içerik ilişkileri
+        </p>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {controls}
+        {inFullscreen && (
+          <button onClick={() => setFullscreen(false)} aria-label="Kapat"
+            style={{ background: "none", border: "none", color: textSec, fontSize: 20, cursor: "pointer", padding: 0 }}>×</button>
+        )}
+      </div>
+    </div>
+  );
+
+  const legend = (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+      <div style={{ display: "flex", gap: 14 }}>
+        <span style={{ fontSize: 10, color: ai, fontFamily: "Inter, sans-serif" }}>● Zincir</span>
+        <span style={{ fontSize: 10, color: ai, opacity: 0.62, fontFamily: "Inter, sans-serif" }}>● İçerik</span>
+        <span style={{ fontSize: 10, color: ai, opacity: 0.32, fontFamily: "Inter, sans-serif" }}>┄ Dolaylı</span>
+      </div>
+      <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
+        {nodes.length} kayıt · {edges.length} bağlantı
+      </span>
+    </div>
+  );
+
+  const graphBox = (heightVal: number | string, wrapRef: React.RefObject<HTMLDivElement>) => (
+    <div
+      ref={wrapRef}
+      style={{
+        position: "relative" as const,
+        borderRadius: 12, overflow: "hidden",
+        height: heightVal,
+        background: `radial-gradient(ellipse at 42% 50%, ${aiBg} 0%, transparent 62%), linear-gradient(155deg, var(--color-bg-secondary), var(--color-bg-primary))`,
+        border: `1px solid ${border}`,
+        borderLeft: `3px solid ${ai}`,
+      }}
+    >
+      {renderSvg()}
+      {tooltip}
+    </div>
+  );
+
   return (
     <div>
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginBottom: 6,
-      }}>
-        <div style={{
-          fontSize: 11, fontWeight: 500, color: textSec,
-          textTransform: "uppercase" as const, letterSpacing: "0.08em",
-          fontFamily: "Inter, sans-serif",
-        }}>
-          İlişki Haritası
-          <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400, textTransform: "none" as const }}>
-            {nodes.length} kayıt · {edges.length} bağlantı
-          </span>
-        </div>
-        {controls}
-      </div>
-
-      <p style={{
-        fontSize: 10.5, color: textSec, fontStyle: "italic",
-        margin: "0 0 8px", fontFamily: "Inter, sans-serif",
-      }}>
-        Düğümlere fare ile gelin, detay için tıklayın.
-      </p>
-
-      <div
-        ref={svgWrapRef}
-        style={{
-          background: `linear-gradient(160deg, ${cardBg}, ${bgPrimary})`,
-          border: `1px solid ${border}`,
-          borderLeft: `3px solid ${ai}`, borderRadius: 10,
-          overflow: "hidden", position: "relative" as const,
-          height: 560,
-        }}
-      >
-        {renderSvg()}
-        {tooltip}
-      </div>
-
-      <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" as const }}>
-        <span style={{ fontSize: 10, color: ai, fontFamily: "Inter, sans-serif" }}>● Zincir</span>
-        <span style={{ fontSize: 10, color: ai, opacity: 0.65, fontFamily: "Inter, sans-serif" }}>● İçerik</span>
-        <span style={{ fontSize: 10, color: ai, opacity: 0.35, fontFamily: "Inter, sans-serif" }}>┄ Dolaylı</span>
-      </div>
+      {header(false)}
+      {graphBox(500, svgWrapRef)}
+      {legend}
 
       {truncated && (
-        <p style={{
-          fontSize: 11, color: "var(--color-warning)", marginTop: 8,
-          fontFamily: "Inter, sans-serif",
-        }}>
+        <p style={{ fontSize: 11, color: "var(--color-warning)", marginTop: 8, fontFamily: "Inter, sans-serif" }}>
           ⚠ {hidden_count} ilişkili kayıt daha zayıf bağlantı nedeniyle gösterilmiyor.
         </p>
       )}
@@ -623,51 +523,23 @@ export default function FocusedRelationGraph({
         <div
           onClick={() => setFullscreen(false)}
           style={{
-            position: "fixed" as const, inset: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 1100, padding: 24,
+            position: "fixed" as const, inset: 0, backgroundColor: "rgba(0,0,0,0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 24,
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: `linear-gradient(160deg, ${cardBg}, ${bgPrimary})`,
-              border: `1px solid ${border}`,
-              borderLeft: `3px solid ${ai}`, borderRadius: 10,
-              width: "94vw", maxWidth: 1300, height: "90vh",
-              display: "flex", flexDirection: "column" as const,
-              padding: 16,
+              background: bgPrimary, border: `1px solid ${border}`,
+              borderRadius: 12, width: "94vw", maxWidth: 1300, height: "90vh",
+              display: "flex", flexDirection: "column" as const, padding: 20,
             }}
           >
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 10,
-            }}>
-              <div style={{
-                fontSize: 12, fontWeight: 500, color: textPrim,
-                fontFamily: "Inter, sans-serif",
-              }}>
-                İlişki Haritası — {center.ref}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {controls}
-                <button
-                  onClick={() => setFullscreen(false)}
-                  aria-label="Kapat"
-                  style={{
-                    background: "none", border: "none", color: textSec,
-                    fontSize: 20, cursor: "pointer", padding: 0,
-                  }}
-                >
-                  ×
-                </button>
-              </div>
+            {header(true)}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              {graphBox("100%", fsSvgWrapRef)}
             </div>
-            <div ref={fsSvgWrapRef} style={{ flex: 1, overflow: "hidden", position: "relative" as const }}>
-              {renderSvg()}
-              {tooltip}
-            </div>
+            {legend}
           </div>
         </div>
       )}

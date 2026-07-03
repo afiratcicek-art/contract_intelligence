@@ -630,6 +630,39 @@ def get_focused_graph(
                     scores[cid2] = weakened
                     edges.append({"source": rid, "target": cid2, "score": weakened, "tier": "indirect"})
 
+        # ── Cross edges (lowest priority) ─────────────────────
+        # Content similarity BETWEEN non-center nodes that are
+        # already in the graph. These are real keyword links but
+        # secondary to the focus's own relations — e.g. with
+        # CORR-011 as center, CORR-009<->RFI-011 share keywords
+        # but that's peripheral to CORR-011's story. Draw them
+        # so the relationship is discoverable, but at the
+        # faintest tier ("cross") so they never compete visually
+        # with the center's direct edges. Only added when the
+        # pair has NO stronger edge already (chain/content/
+        # indirect); those win.
+        placed_ids = set(tiers.keys())
+        existing_pairs = {
+            frozenset((e["source"], e["target"])) for e in edges
+        }
+        placed_list = list(placed_ids)
+        for i in range(len(placed_list)):
+            for j in range(i + 1, len(placed_list)):
+                a, b = placed_list[i], placed_list[j]
+                if a == entity_id or b == entity_id:
+                    continue
+                if frozenset((a, b)) in existing_pairs:
+                    continue
+                na, nb = node_map.get(a), node_map.get(b)
+                if not na or not nb:
+                    continue
+                cs = _content_score(na, nb)
+                if cs >= 0.25:
+                    edges.append({
+                        "source": a, "target": b,
+                        "score": cs, "tier": "cross",
+                    })
+
         # ── Dedupe edges ──────────────────────────────────────
         # Multiple direct_ids can rediscover the same chain
         # relationship from different iterations (e.g. center

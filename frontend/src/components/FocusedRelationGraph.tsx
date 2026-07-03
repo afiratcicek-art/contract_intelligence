@@ -24,7 +24,7 @@ interface FocusEdge {
   source: string;
   target: string;
   score: number;
-  tier: "chain" | "content" | "indirect";
+  tier: "chain" | "content" | "indirect" | "cross";
 }
 interface FocusedGraphResponse {
   center: CenterNode;
@@ -54,6 +54,7 @@ const TIER_OPACITY: Record<string, number> = {
   chain: 1,
   content: 0.62,
   indirect: 0.32,
+  cross: 0.16,
 };
 
 function entityPath(projectId: string, entityType: string, id: string): string {
@@ -334,26 +335,38 @@ export default function FocusedRelationGraph({
       <g transform={`translate(${CX},${CY}) scale(${scale}) translate(${-CX + pan.x},${-CY + pan.y})`}>
         <circle cx={CX} cy={CY} r={330} fill="url(#focusGlow)" />
 
-        {edges.map((e, i) => {
-          const src = posMap.get(e.source);
-          const tgt = posMap.get(e.target);
-          if (!src || !tgt) return null;
-          const isHov = hovered === e.source || hovered === e.target;
-          const isChain = e.tier === "chain";
-          return (
-            <line
-              key={i}
-              x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
-              stroke={ai}
-              strokeWidth={isHov ? Math.max(2, e.score * 4) : Math.max(0.75, e.score * 2.4)}
-              strokeOpacity={TIER_OPACITY[e.tier] * (isHov ? 1 : 0.7)}
-              strokeDasharray={e.tier === "indirect" ? "3,3" : undefined}
-              strokeLinecap="round"
-              markerEnd={isChain ? "url(#focusArrow)" : undefined}
-              style={{ transition: "stroke-opacity 0.15s ease, stroke-width 0.15s ease" }}
-            />
-          );
-        })}
+        {[...edges]
+          .sort((a, b) => {
+            const rank = { cross: 0, indirect: 1, content: 2, chain: 3 };
+            return rank[a.tier] - rank[b.tier];
+          })
+          .map((e, i) => {
+            const src = posMap.get(e.source);
+            const tgt = posMap.get(e.target);
+            if (!src || !tgt) return null;
+            const isHov = hovered === e.source || hovered === e.target;
+            const isChain = e.tier === "chain";
+            const isCross = e.tier === "cross";
+            return (
+              <line
+                key={i}
+                x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
+                stroke={ai}
+                strokeWidth={
+                  isHov
+                    ? Math.max(2, e.score * 4)
+                    : isCross
+                    ? 0.6
+                    : Math.max(0.75, e.score * 2.4)
+                }
+                strokeOpacity={TIER_OPACITY[e.tier] * (isHov ? 1 : 0.7)}
+                strokeDasharray={e.tier === "indirect" ? "3,3" : isCross ? "2,4" : undefined}
+                strokeLinecap="round"
+                markerEnd={isChain ? "url(#focusArrow)" : undefined}
+                style={{ transition: "stroke-opacity 0.15s ease, stroke-width 0.15s ease" }}
+              />
+            );
+          })}
 
         {nodes.map((n) => {
           const pos = posMap.get(n.id);
@@ -381,7 +394,7 @@ export default function FocusedRelationGraph({
                 x={pos.x} y={pos.y}
                 textAnchor="middle" dominantBaseline="middle"
                 fontSize={8} fontWeight={600}
-                fill={isHov ? "#F5F2ED" : ai}
+                fill={isHov ? "#F5F2ED" : "var(--color-text-primary)"}
                 fontFamily="JetBrains Mono, monospace"
               >
                 {n.ref}
@@ -483,6 +496,7 @@ export default function FocusedRelationGraph({
         <span style={{ fontSize: 10, color: ai, fontFamily: "Inter, sans-serif" }}>● Zincir</span>
         <span style={{ fontSize: 10, color: ai, opacity: 0.62, fontFamily: "Inter, sans-serif" }}>● İçerik</span>
         <span style={{ fontSize: 10, color: ai, opacity: 0.32, fontFamily: "Inter, sans-serif" }}>┄ Dolaylı</span>
+        <span style={{ fontSize: 10, color: ai, opacity: 0.16, fontFamily: "Inter, sans-serif" }}>┄ Çapraz</span>
       </div>
       <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
         {nodes.length} kayıt · {edges.length} bağlantı

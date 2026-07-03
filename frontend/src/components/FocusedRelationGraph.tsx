@@ -52,9 +52,9 @@ const MAX_SCALE = 3;
 
 const TIER_OPACITY: Record<string, number> = {
   chain: 1,
-  content: 0.62,
-  indirect: 0.32,
-  cross: 0.16,
+  content: 0.7,
+  indirect: 0.5,
+  cross: 0.42,
 };
 
 function entityPath(projectId: string, entityType: string, id: string): string {
@@ -346,21 +346,23 @@ export default function FocusedRelationGraph({
             if (!src || !tgt) return null;
             const isHov = hovered === e.source || hovered === e.target;
             const isChain = e.tier === "chain";
-            const isCross = e.tier === "cross";
+            const weight =
+              e.tier === "chain" ? 2.2
+              : e.tier === "content" ? 1.6
+              : e.tier === "indirect" ? 1.1
+              : 1.0;
+            const dash =
+              e.tier === "indirect" ? "4,3"
+              : e.tier === "cross" ? "1,3"
+              : undefined;
             return (
               <line
                 key={i}
                 x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
                 stroke={ai}
-                strokeWidth={
-                  isHov
-                    ? Math.max(2, e.score * 4)
-                    : isCross
-                    ? 0.6
-                    : Math.max(0.75, e.score * 2.4)
-                }
-                strokeOpacity={TIER_OPACITY[e.tier] * (isHov ? 1 : 0.7)}
-                strokeDasharray={e.tier === "indirect" ? "3,3" : isCross ? "2,4" : undefined}
+                strokeWidth={isHov ? weight + 1.5 : weight}
+                strokeOpacity={isHov ? 1 : TIER_OPACITY[e.tier]}
+                strokeDasharray={dash}
                 strokeLinecap="round"
                 markerEnd={isChain ? "url(#focusArrow)" : undefined}
                 style={{ transition: "stroke-opacity 0.15s ease, stroke-width 0.15s ease" }}
@@ -492,11 +494,28 @@ export default function FocusedRelationGraph({
 
   const legend = (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-      <div style={{ display: "flex", gap: 14 }}>
-        <span style={{ fontSize: 10, color: ai, fontFamily: "Inter, sans-serif" }}>● Zincir</span>
-        <span style={{ fontSize: 10, color: ai, opacity: 0.62, fontFamily: "Inter, sans-serif" }}>● İçerik</span>
-        <span style={{ fontSize: 10, color: ai, opacity: 0.32, fontFamily: "Inter, sans-serif" }}>┄ Dolaylı</span>
-        <span style={{ fontSize: 10, color: ai, opacity: 0.16, fontFamily: "Inter, sans-serif" }}>┄ Çapraz</span>
+      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+        {([
+          { label: "Zincir",  w: 2.2, dash: undefined, op: 1 },
+          { label: "İçerik",  w: 1.6, dash: undefined, op: 0.7 },
+          { label: "Dolaylı", w: 1.1, dash: "4,3",     op: 0.5 },
+          { label: "Çapraz",  w: 1.0, dash: "1,3",     op: 0.42 },
+        ] as const).map((item) => (
+          <span key={item.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <svg width="20" height="6" aria-hidden="true">
+              <line
+                x1="0" y1="3" x2="20" y2="3"
+                stroke={ai} strokeWidth={item.w}
+                strokeOpacity={item.op}
+                strokeDasharray={item.dash}
+                strokeLinecap="round"
+              />
+            </svg>
+            <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
+              {item.label}
+            </span>
+          </span>
+        ))}
       </div>
       <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
         {nodes.length} kayıt · {edges.length} bağlantı

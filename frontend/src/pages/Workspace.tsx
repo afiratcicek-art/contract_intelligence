@@ -349,7 +349,7 @@ export default function Workspace() {
                   fontSize: 11, fontWeight: 500,
                   backgroundColor: "var(--color-alert-red)",
                   color: "var(--color-bg-primary)",
-                  borderRadius: 10,
+                  borderRadius: "50%",
                   padding: "1px 6px",
                   minWidth: 16,
                   textAlign: "center" as const,
@@ -525,7 +525,7 @@ export default function Workspace() {
                     {t("action.newcorrespondence")} ▾
                   </button>
                   {corrDropdown && (
-                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: 100, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
+                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: "var(--z-dropdown)" as unknown as number, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
                       <button onClick={() => { setCorrDropdown(false); navigate(`/projects/${projectId}/workspace/correspondence/new?mode=new`); }}
                         style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
                         {lang === "tr" ? "Yeni Yazışma" : "New Correspondence"}
@@ -622,7 +622,7 @@ export default function Workspace() {
                     {t("action.newrfi")} ▾
                   </button>
                   {rfiDropdown && (
-                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: 100, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
+                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: "var(--z-dropdown)" as unknown as number, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
                       <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=new`); }}
                         style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
                         {lang === "tr" ? "Yeni RFI" : "New RFI"}

@@ -44,7 +44,7 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
     if (payload.value === "pre") {
       return (
         <g transform={`translate(${x},${y})`}>
-          <text x={0} y={0} dy={12} textAnchor="middle" fill={dark ? "#E07060" : "#A93226"} fontSize={9} fontFamily="Inter">
+          <text x={0} y={0} dy={12} textAnchor="middle" fill={dark ? "#E07060" : "#A93226"} fontSize={11} fontFamily="Inter">
             ≤-15g
           </text>
         </g>
@@ -53,7 +53,7 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
     if (payload.value === today) {
       return (
         <g transform={`translate(${x},${y})`}>
-          <text x={0} y={0} dy={12} textAnchor="middle" fill={dark ? "#E07060" : "#A93226"} fontSize={9} fontFamily="Inter">
+          <text x={0} y={0} dy={12} textAnchor="middle" fill={dark ? "#E07060" : "#A93226"} fontSize={11} fontFamily="Inter">
             Bugün
           </text>
         </g>

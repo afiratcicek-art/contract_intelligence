@@ -50,7 +50,7 @@ function HorizontalStrip({
             position: "absolute",
             top: 76,
             left: popupLeft,
-            zIndex: 100,
+            zIndex: "var(--z-dropdown)" as unknown as number,
             background: "var(--color-bg-primary)",
             border: "1px solid var(--color-border-medium)",
             padding: "12px 14px",
@@ -197,7 +197,7 @@ function HorizontalStrip({
                 : "none",
             }} />
             <p style={{
-              fontSize: 9,
+              fontSize: 11,
               fontFamily: "JetBrains Mono, monospace",
               color: "var(--color-text-secondary)",
               margin: "3px 0 1px",
@@ -210,7 +210,7 @@ function HorizontalStrip({
               {ev.label}
             </p>
             <p style={{
-              fontSize: 9,
+              fontSize: 11,
               fontFamily: "Inter, sans-serif",
               color: "var(--color-text-secondary)",
               margin: 0,

@@ -37,7 +37,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               border: "none",
               padding: "10px 24px",
               fontSize: "14px",
-              fontWeight: 600,
+              fontWeight: 500,
               letterSpacing: "0.5px",
               cursor: "pointer",
               borderRadius: 0,

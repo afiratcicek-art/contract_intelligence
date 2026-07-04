@@ -34,7 +34,7 @@ export default function ToastContainer({ toasts, onDismiss }: Props) {
     <div style={{
       position: "fixed", bottom: 24, right: 24,
       display: "flex", flexDirection: "column", gap: 8,
-      zIndex: 2000, maxWidth: 360,
+      zIndex: "var(--z-toast)" as unknown as number, maxWidth: 360,
     }}>
       {toasts.map((t) => {
         const s = TYPE_STYLES[t.type];

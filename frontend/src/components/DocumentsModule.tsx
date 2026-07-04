@@ -261,7 +261,7 @@ export default function DocumentsModule({ projectId }: Props) {
               aria-label="İlişki haritasını gör"
               style={{
                 background: "var(--color-ai-bg)", color: "var(--color-ai)",
-                border: "1px solid var(--color-ai)", borderRadius: 4,
+                border: "1px solid var(--color-ai)", borderRadius: 6,
                 width: 22, height: 22, display: "flex",
                 alignItems: "center", justifyContent: "center",
                 cursor: "pointer", padding: 0, flexShrink: 0,
@@ -381,7 +381,7 @@ export default function DocumentsModule({ projectId }: Props) {
               aria-label="İlişki haritasını gör"
               style={{
                 background: "var(--color-ai-bg)", color: "var(--color-ai)",
-                border: "1px solid var(--color-ai)", borderRadius: 4,
+                border: "1px solid var(--color-ai)", borderRadius: 6,
                 width: 22, height: 22, display: "flex",
                 alignItems: "center", justifyContent: "center",
                 cursor: "pointer", padding: 0, flexShrink: 0,

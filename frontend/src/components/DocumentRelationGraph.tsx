@@ -199,7 +199,7 @@ export default function DocumentRelationGraph({
                   key={`score-${i}`}
                   x={mx} y={my}
                   textAnchor="middle"
-                  fontSize={9}
+                  fontSize={11}
                   fill={textSec}
                   fontFamily="JetBrains Mono, monospace"
                 >
@@ -254,7 +254,7 @@ export default function DocumentRelationGraph({
                   textAnchor="middle"
                   dominantBaseline="middle"
                   dy={12}
-                  fontSize={8}
+                  fontSize={11}
                   fill={isHov ? "var(--color-bg-primary)" : textSec}
                   fontFamily="JetBrains Mono, monospace"
                 >
@@ -263,7 +263,7 @@ export default function DocumentRelationGraph({
                 <text
                   x={pos.x} y={pos.y + r + 11}
                   textAnchor="middle"
-                  fontSize={9}
+                  fontSize={11}
                   fill={textSec}
                   fontFamily="Inter, sans-serif"
                 >

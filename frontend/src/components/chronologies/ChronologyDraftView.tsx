@@ -179,7 +179,7 @@ export default function ChronologyDraftView({
                 position: "absolute", top: "100%", left: 0, right: 0,
                 background: "var(--color-bg-primary)",
                 border: "1px solid var(--color-border-light)",
-                zIndex: 200, maxHeight: 220, overflowY: "auto",
+                zIndex: "var(--z-dropdown)" as unknown as number, maxHeight: 220, overflowY: "auto",
               }}>
                 {filteredDocs.map((doc) => {
                   const already = pendingEvents.some((e) => e.doc.id === doc.id);
@@ -398,7 +398,7 @@ export default function ChronologyDraftView({
                   </span>
                   {pe._isExisting && (
                     <span style={{
-                      marginLeft: 6, fontSize: 9,
+                      marginLeft: 6, fontSize: 11,
                       color: "var(--color-text-secondary)", fontStyle: "italic",
                       fontFamily: "Inter, sans-serif",
                     }}>

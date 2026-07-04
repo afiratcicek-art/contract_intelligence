@@ -443,7 +443,7 @@ export default function RFIDetail() {
 
         {flagOpen && (
           <div
-            style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 24 }}
+            style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "var(--z-modal)" as unknown as number, padding: 24 }}
             onClick={() => !flagSubmitting && setFlagOpen(false)}
           >
             <div

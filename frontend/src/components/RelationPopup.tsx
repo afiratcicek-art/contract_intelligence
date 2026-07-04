@@ -250,7 +250,7 @@ export default function RelationPopup({
         position: "fixed" as const, inset: 0,
         backgroundColor: "rgba(0,0,0,0.45)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 1000, padding: 24,
+        zIndex: "var(--z-modal)" as unknown as number, padding: 24,
       }}
     >
       <div

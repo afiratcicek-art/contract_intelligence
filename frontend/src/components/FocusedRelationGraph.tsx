@@ -417,7 +417,7 @@ export default function FocusedRelationGraph({
               <text
                 x={pos.x} y={pos.y}
                 textAnchor="middle" dominantBaseline="middle"
-                fontSize={8} fontWeight={600}
+                fontSize={11} fontWeight={500}
                 fill={isHov ? "var(--color-bg-primary)" : "var(--color-text-primary)"}
                 fontFamily="JetBrains Mono, monospace"
               >
@@ -449,7 +449,7 @@ export default function FocusedRelationGraph({
           />
           <text
             x={CX} y={CY} textAnchor="middle" dominantBaseline="middle"
-            fontSize={10} fontWeight={600} fill="var(--color-bg-primary)" fontFamily="JetBrains Mono, monospace"
+            fontSize={10} fontWeight={500} fill="var(--color-bg-primary)" fontFamily="JetBrains Mono, monospace"
           >
             {center.ref}
           </text>
@@ -465,10 +465,10 @@ export default function FocusedRelationGraph({
       <button onClick={() => zoomBy(1.2)} aria-label="Yakınlaştır"
         style={{ width: 26, height: 26, background: aiBg, color: ai, border: `1px solid ${ai}`, borderRadius: 6, cursor: "pointer", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
       <button onClick={resetView}
-        style={{ height: 26, padding: "0 10px", background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 6, cursor: "pointer", fontSize: 10, fontFamily: "Inter, sans-serif" }}>Sıfırla</button>
+        style={{ height: 26, padding: "0 10px", background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 0, cursor: "pointer", fontSize: 10, fontFamily: "Inter, sans-serif" }}>Sıfırla</button>
       {!fullscreen && (
         <button onClick={() => setFullscreen(true)} aria-label="Tam ekran" title="Tam ekran"
-          style={{ width: 26, height: 26, background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          style={{ width: 26, height: 26, background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" />
             <path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
@@ -486,7 +486,7 @@ export default function FocusedRelationGraph({
       borderRadius: 6, pointerEvents: "none" as const,
       boxShadow: "0 6px 20px rgba(0,0,0,0.14)",
     }}>
-      <p style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: ai, margin: 0, fontWeight: 600 }}>
+      <p style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: ai, margin: 0, fontWeight: 500 }}>
         {hoveredNode.ref}
       </p>
       <p style={{ fontSize: 12, fontWeight: 500, color: textPrim, margin: "3px 0 0", fontFamily: "Inter, sans-serif" }}>
@@ -647,7 +647,7 @@ export default function FocusedRelationGraph({
           onClick={() => setFullscreen(false)}
           style={{
             position: "fixed" as const, inset: 0, backgroundColor: "rgba(0,0,0,0.6)",
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 24,
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: "var(--z-graph-fullscreen)" as unknown as number, padding: 24,
           }}
         >
           <div

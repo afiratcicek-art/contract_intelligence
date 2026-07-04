@@ -21,7 +21,7 @@ export default function ConfirmModal({
         position: "fixed", inset: 0,
         backgroundColor: "rgba(0,0,0,0.45)",
         display: "flex", alignItems: "center",
-        justifyContent: "center", zIndex: 1500,
+        justifyContent: "center", zIndex: "var(--z-confirm)" as unknown as number,
       }}
     >
       <div

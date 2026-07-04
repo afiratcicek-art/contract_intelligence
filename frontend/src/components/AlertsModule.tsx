@@ -77,7 +77,7 @@ function formatAlertType(type: string): string {
 
 function InfoRow({ label, value, status }: { label: string; value: string; status?: boolean }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
       <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>{label}</span>
       <span
         style={{
@@ -326,10 +326,10 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 background: "var(--color-background-secondary)",
                 border: "0.5px solid var(--color-border-tertiary)",
                 borderRadius: 0,
-                padding: "5px 10px",
+                padding: "8px 10px",
                 cursor: "pointer",
                 marginTop: 8,
-                marginLeft: 6,
+                marginLeft: 8,
                 fontFamily: "Inter, sans-serif",
               }}
             >
@@ -675,7 +675,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                                 ? "0.5px solid var(--color-accent)"
                                 : "0.5px solid var(--color-border-primary)",
                               borderRadius: 0,
-                              padding: "5px 14px",
+                              padding: "8px 14px",
                               fontSize: 12,
                               cursor: "pointer",
                               fontFamily: "Inter, sans-serif",
@@ -736,7 +736,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                             onChange={(e) => setActionDueDate(e.target.value)}
                             style={{
                               width: "100%",
-                              marginTop: 6,
+                              marginTop: 8,
                               border: "0.5px solid var(--color-border-tertiary)",
                               padding: 6,
                               fontSize: 13,

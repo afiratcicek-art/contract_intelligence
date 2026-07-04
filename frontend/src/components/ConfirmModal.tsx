@@ -30,7 +30,7 @@ export default function ConfirmModal({
           background: "var(--color-bg-primary)",
           border: "1px solid var(--color-border-light)",
           borderLeft: "3px solid var(--color-accent)",
-          padding: "24px 28px", maxWidth: 400, width: "100%",
+          padding: "24px 32px", maxWidth: 400, width: "100%",
           fontFamily: "Inter, sans-serif",
         }}
       >
@@ -40,11 +40,11 @@ export default function ConfirmModal({
         }}>
           {message}
         </p>
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
             onClick={onCancel}
             style={{
-              fontSize: 12, padding: "7px 18px",
+              fontSize: 12, padding: "8px 16px",
               background: "none",
               color: "var(--color-text-secondary)",
               border: "1px solid var(--color-border-light)",
@@ -57,7 +57,7 @@ export default function ConfirmModal({
           <button
             onClick={onConfirm}
             style={{
-              fontSize: 12, padding: "7px 18px",
+              fontSize: 12, padding: "8px 16px",
               background: "var(--color-accent)",
               color: "var(--color-bg-primary)",
               border: "1px solid var(--color-accent)",

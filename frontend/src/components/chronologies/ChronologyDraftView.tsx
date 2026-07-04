@@ -166,7 +166,7 @@ export default function ChronologyDraftView({
                 ? "Loading documents..."
                 : "Search RFI or Correspondence..."}
               style={{
-                width: "100%", padding: "9px 14px",
+                width: "100%", padding: "8px 14px",
                 border: "1px solid var(--color-border-light)",
                 background: "var(--color-bg-secondary)",
                 color: "var(--color-text-primary)",
@@ -250,7 +250,7 @@ export default function ChronologyDraftView({
                   type="date" value={manualDate}
                   onChange={(e) => setManualDate(e.target.value)}
                   style={{
-                    width: "100%", padding: "7px 10px",
+                    width: "100%", padding: "8px 10px",
                     border: "1px solid var(--color-border-light)",
                     background: "var(--color-bg-primary)",
                     color: "var(--color-text-primary)",
@@ -266,7 +266,7 @@ export default function ChronologyDraftView({
                   value={manualType}
                   onChange={(e) => setManualType(e.target.value)}
                   style={{
-                    width: "100%", padding: "7px 10px",
+                    width: "100%", padding: "8px 10px",
                     border: "1px solid var(--color-border-light)",
                     background: "var(--color-bg-primary)",
                     color: "var(--color-text-primary)",
@@ -287,7 +287,7 @@ export default function ChronologyDraftView({
               onChange={(e) => setManualSubject(e.target.value)}
               placeholder="Event subject..."
               style={{
-                width: "100%", padding: "7px 10px", marginBottom: 8,
+                width: "100%", padding: "8px 10px", marginBottom: 8,
                 border: "1px solid var(--color-border-light)",
                 background: "var(--color-bg-primary)",
                 color: "var(--color-text-primary)",
@@ -304,7 +304,7 @@ export default function ChronologyDraftView({
               onChange={(e) => setManualNarrative(e.target.value)}
               rows={3} placeholder="Optional narrative..."
               style={{
-                width: "100%", padding: "7px 10px", marginBottom: 8,
+                width: "100%", padding: "8px 10px", marginBottom: 8,
                 border: "1px solid var(--color-border-light)",
                 background: "var(--color-bg-primary)",
                 color: "var(--color-text-primary)",
@@ -399,7 +399,7 @@ export default function ChronologyDraftView({
                   </span>
                   {pe._isExisting && (
                     <span style={{
-                      marginLeft: 6, fontSize: 11,
+                      marginLeft: 8, fontSize: 11,
                       color: "var(--color-text-secondary)", fontStyle: "italic",
                       fontFamily: "Inter, sans-serif",
                     }}>
@@ -519,8 +519,8 @@ export default function ChronologyDraftView({
                   <button
                     onClick={() => requestLlmNarrative(pe)}
                     style={{
-                      display: "flex", alignItems: "center", gap: 5,
-                      fontSize: 11, padding: "5px 12px",
+                      display: "flex", alignItems: "center", gap: 4,
+                      fontSize: 11, padding: "8px 12px",
                       background: "var(--color-ai-bg)",
                       color: "var(--color-ai)",
                       border: "1px solid var(--color-ai)",
@@ -539,7 +539,7 @@ export default function ChronologyDraftView({
                       updatePending(pe.doc.id, { narrativeMode: "manual" })
                     }
                     style={{
-                      fontSize: 11, padding: "5px 12px",
+                      fontSize: 11, padding: "8px 12px",
                       background: "none",
                       color: "var(--color-text-secondary)",
                       border: "1px solid var(--color-border-light)",
@@ -577,7 +577,7 @@ export default function ChronologyDraftView({
                     }
                     disabled={!pe.manualText.trim()}
                     style={{
-                      marginTop: 6, fontSize: 11, padding: "5px 14px",
+                      marginTop: 8, fontSize: 11, padding: "8px 14px",
                       background: pe.manualText.trim()
                         ? "var(--color-success)"
                         : "transparent",

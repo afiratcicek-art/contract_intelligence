@@ -679,7 +679,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       </div>
                       {/* Content */}
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                           <span style={{
                             fontSize: 11,
                             fontWeight: 500,
@@ -765,7 +765,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   display: "flex",
                                   justifyContent: "space-between",
                                   alignItems: "center",
-                                  marginBottom: 6,
+                                  marginBottom: 8,
                                 }}>
                                   <p style={SECTION_LABEL}>Approved Narrative</p>
                                   <button
@@ -810,7 +810,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   }))}
                                   rows={4}
                                   style={{
-                                    width: "100%", fontSize: 12, padding: "7px 10px",
+                                    width: "100%", fontSize: 12, padding: "8px 10px",
                                     border: "1px solid var(--color-border-medium)",
                                     borderRadius: 0, background: "var(--color-bg-primary)",
                                     color: "var(--color-text-primary)",
@@ -818,12 +818,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                     boxSizing: "border-box",
                                   }}
                                 />
-                                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                                   <button
                                     onClick={() => handleApproveModified(ev)}
                                     disabled={approvingId === ev.id}
                                     style={{
-                                      fontSize: 11, padding: "5px 14px",
+                                      fontSize: 11, padding: "8px 14px",
                                       background: ACCENT, color: "var(--color-bg-primary)",
                                       border: "none", borderRadius: 0,
                                       cursor: approvingId === ev.id ? "wait" : "pointer",
@@ -842,7 +842,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                       });
                                     }}
                                     style={{
-                                      fontSize: 11, padding: "5px 12px",
+                                      fontSize: 11, padding: "8px 12px",
                                       background: "none",
                                       color: "var(--color-text-secondary)",
                                       border: "1px solid var(--color-border-light)",
@@ -868,7 +868,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   }))}
                                   rows={3}
                                   style={{
-                                    width: "100%", fontSize: 12, padding: "7px 10px",
+                                    width: "100%", fontSize: 12, padding: "8px 10px",
                                     border: "1px solid var(--color-border-medium)",
                                     borderRadius: 0, background: "var(--color-bg-primary)",
                                     color: "var(--color-text-primary)",
@@ -880,7 +880,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   onClick={() => handleApprove(ev)}
                                   disabled={approvingId === ev.id}
                                   style={{
-                                    marginTop: 6, fontSize: 11, padding: "5px 14px",
+                                    marginTop: 8, fontSize: 11, padding: "8px 14px",
                                     background: ACCENT, color: "var(--color-bg-primary)",
                                     border: "none", borderRadius: 0,
                                     cursor: approvingId === ev.id ? "wait" : "pointer",

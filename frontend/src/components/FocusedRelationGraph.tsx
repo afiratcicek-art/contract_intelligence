@@ -518,7 +518,7 @@ export default function FocusedRelationGraph({
             background: bridgeMode ? "var(--color-accent)" : "none",
             color: bridgeMode ? "var(--color-bg-primary)" : textSec,
             border: `1px solid ${bridgeMode ? "var(--color-accent)" : border}`,
-            padding: "5px 11px", fontSize: 11, fontWeight: 500,
+            padding: "8px 12px", fontSize: 11, fontWeight: 500,
             cursor: "pointer", fontFamily: "Inter, sans-serif",
           }}
         >
@@ -541,7 +541,7 @@ export default function FocusedRelationGraph({
           { label: "Dolaylı", w: 1.1, dash: "4,3",     op: 0.5 },
           { label: "Çapraz",  w: 1.0, dash: "1,3",     op: 0.42 },
         ] as const).map((item) => (
-          <span key={item.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span key={item.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <svg width="20" height="6" aria-hidden="true">
               <line
                 x1="0" y1="3" x2="20" y2="3"
@@ -628,7 +628,7 @@ export default function FocusedRelationGraph({
               background: selectedIds.size > 0 ? "var(--color-accent)" : "transparent",
               color: selectedIds.size > 0 ? "var(--color-bg-primary)" : border,
               border: `1px solid ${selectedIds.size > 0 ? "var(--color-accent)" : border}`,
-              padding: "7px 18px", fontSize: 12, fontWeight: 500,
+              padding: "8px 18px", fontSize: 12, fontWeight: 500,
               cursor: selectedIds.size > 0 ? "pointer" : "not-allowed",
               fontFamily: "Inter, sans-serif",
             }}

@@ -127,7 +127,7 @@ export default function Workspace() {
 
   const inputStyle: React.CSSProperties = {
     background: cardBg, border: `0.5px solid ${border}`, color: textPrimary,
-    fontSize: 11, fontFamily: "Inter, sans-serif", padding: "5px 8px",
+    fontSize: 11, fontFamily: "Inter, sans-serif", padding: "4px 8px",
     borderRadius: 0, outline: "none", height: 28,
   };
 
@@ -228,7 +228,7 @@ export default function Workspace() {
   );
 
   const keywordSearch = (value: string, onChange: (v: string) => void) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, background: cardBg, border: `0.5px solid ${border}`, padding: "5px 10px", maxWidth: 280 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: cardBg, border: `0.5px solid ${border}`, padding: "8px 10px", maxWidth: 280 }}>
       <span style={{ color: textSecondary, fontSize: 13 }}>⌕</span>
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={t("filter.search")} style={{ background: "none", border: "none", outline: "none", fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif", width: "100%" }} />
       {value && <button onClick={() => onChange("")} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
@@ -333,7 +333,7 @@ export default function Workspace() {
                 display: "flex", alignItems: "center",
                 justifyContent: "space-between",
                 width: "100%", textAlign: "left" as const,
-                padding: mod === "general" ? "9px 16px" : "7px 16px",
+                padding: mod === "general" ? "8px 16px" : "8px 16px",
                 fontSize: mod === "general" ? 13 : 12,
                 fontWeight: activeModule === mod ? 500 : 400,
                 fontFamily: "Inter, sans-serif",
@@ -362,7 +362,7 @@ export default function Workspace() {
           <div style={{ height: "0.5px", background: border, margin: "8px 16px" }} />
           <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, padding: "4px 16px" }}>System</div>
           {SIDEBAR_SYS.map((mod) => (
-            <button key={mod} onClick={() => setActiveModule(mod)} style={{ display: "flex", alignItems: "center", padding: "7px 16px", fontSize: 12, fontWeight: activeModule === mod ? 500 : 400, color: activeModule === mod ? textPrimary : textSecondary, background: activeModule === mod ? cardBg : "none", border: "none", borderLeft: activeModule === mod ? `3px solid ${"var(--color-accent)"}` : "3px solid transparent", cursor: "pointer", width: "100%", textAlign: "left", fontFamily: "Inter, sans-serif" }}>
+            <button key={mod} onClick={() => setActiveModule(mod)} style={{ display: "flex", alignItems: "center", padding: "8px 16px", fontSize: 12, fontWeight: activeModule === mod ? 500 : 400, color: activeModule === mod ? textPrimary : textSecondary, background: activeModule === mod ? cardBg : "none", border: "none", borderLeft: activeModule === mod ? `3px solid ${"var(--color-accent)"}` : "3px solid transparent", cursor: "pointer", width: "100%", textAlign: "left", fontFamily: "Inter, sans-serif" }}>
               {MODULE_LABELS[mod]}
             </button>
           ))}
@@ -414,14 +414,14 @@ export default function Workspace() {
                         style={{
                           display: "flex", alignItems: "center",
                           justifyContent: "space-between",
-                          padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+                          padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
                           background: isChild ? "var(--color-bg-primary)" : cardBg,
                           marginBottom: 2, cursor: "pointer",
                           borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "var(--color-accent)"}`,
                         }}
                       >
                         <div>
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
                             {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                             {r.ref}
                             {r.has_response && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>↩</span>}
@@ -460,14 +460,14 @@ export default function Workspace() {
                         style={{
                           display: "flex", alignItems: "center",
                           justifyContent: "space-between",
-                          padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+                          padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
                           background: isChild ? "var(--color-bg-primary)" : cardBg,
                           marginBottom: 2, cursor: "pointer",
                           borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "var(--color-accent)"}`,
                         }}
                       >
                         <div>
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
                             {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                             {r.ref}
                             {r.rfi_type && r.rfi_type !== "original" && (
@@ -500,7 +500,7 @@ export default function Workspace() {
                   <div key={mod} style={{ marginBottom: 20 }}>
                     <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, marginBottom: 8 }}>{label}</div>
                     {group.map((r) => (
-                      <div key={r.id} onClick={() => navigate(generalNavTarget(mod, r.id))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
+                      <div key={r.id} onClick={() => navigate(generalNavTarget(mod, r.id))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: cardBg, marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                         <div>
                           <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>{r.ref}</span>
                           <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
@@ -574,7 +574,7 @@ export default function Workspace() {
                         display: "grid",
                         gridTemplateColumns: "90px 1fr 90px 90px 90px 90px",
                         gap: 8,
-                        padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+                        padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
                         background: isChild ? "var(--color-bg-primary)" : cardBg,
                         marginBottom: 2,
                         cursor: "pointer",
@@ -583,7 +583,7 @@ export default function Workspace() {
                           : `2px solid ${c.status === "overdue" ? "var(--color-alert-red)" : c.status === "open" ? "var(--color-accent)" : c.status === "responded" ? ("var(--color-success)") : "transparent"}`,
                       }}
                     >
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
                         {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                         {c.corr_number}
                         {c.has_response && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>🔗</span>}
@@ -674,7 +674,7 @@ export default function Workspace() {
                         display: "grid",
                         gridTemplateColumns: "90px 1fr 100px 90px 90px 80px",
                         gap: 8,
-                        padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+                        padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
                         background: isChild ? "var(--color-bg-primary)" : cardBg,
                         marginBottom: 2,
                         cursor: "pointer",
@@ -683,7 +683,7 @@ export default function Workspace() {
                           : `2px solid ${r.status === "overdue" ? "var(--color-alert-red)" : r.status === "open" ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "transparent"}`,
                       }}
                     >
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
                         {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                         {r.rfi_number}
                         {r.rfi_type && r.rfi_type !== "original" && (
@@ -733,7 +733,7 @@ export default function Workspace() {
                 <div>
                   {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.title"), width: "1fr" }, { label: t("col.origin"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
                   {filteredChanges.map((c) => (
-                    <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/changes/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${c.status === "open" ? "var(--color-accent)" : "transparent"}` }}>
+                    <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/changes/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px 80px", gap: 8, padding: "8px 12px", background: cardBg, marginBottom: 4, cursor: "pointer", borderLeft: `2px solid ${c.status === "open" ? "var(--color-accent)" : "transparent"}` }}>
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>{c.change_number}</span>
                       <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{c.title}</p>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{c.origin}</span>
@@ -760,7 +760,7 @@ export default function Workspace() {
                 <div>
                   {listHeader([{ label: t("col.title"), width: "1fr" }, { label: t("col.category"), width: "100px" }, { label: t("col.duedate"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
                   {filteredDeliverables.map((d) => (
-                    <div key={d.id} onClick={() => navigate(`/projects/${projectId}/workspace/deliverables/${d.id}`)} style={{ display: "grid", gridTemplateColumns: "1fr 100px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${d.status === "in_progress" ? "var(--color-accent)" : "transparent"}` }}>
+                    <div key={d.id} onClick={() => navigate(`/projects/${projectId}/workspace/deliverables/${d.id}`)} style={{ display: "grid", gridTemplateColumns: "1fr 100px 90px 80px", gap: 8, padding: "8px 12px", background: cardBg, marginBottom: 4, cursor: "pointer", borderLeft: `2px solid ${d.status === "in_progress" ? "var(--color-accent)" : "transparent"}` }}>
                       <div><p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{d.title}</p>{d.is_pre_completion && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>{t("state.precompletion")}</span>}</div>
                       <span style={{ fontSize: 11, color: textSecondary }}>{d.category ?? "—"}</span>
                       <span style={{ fontSize: 11, color: d.due_date && d.due_date < today ? "var(--color-alert-red)" : textSecondary }}>{d.due_date ?? "—"}</span>

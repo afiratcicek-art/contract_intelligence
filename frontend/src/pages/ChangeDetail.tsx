@@ -152,7 +152,7 @@ export default function ChangeDetail() {
 
   const field = (label: string, value: string | number | null | undefined, mono = false) => (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 13, color: value !== null && value !== undefined ? textPrimary : textSecond, fontFamily: mono ? "JetBrains Mono, monospace" : "Inter, sans-serif", fontStyle: value !== null && value !== undefined ? "normal" : "italic" }}>
         {value ?? "—"}
       </div>
@@ -203,7 +203,7 @@ export default function ChangeDetail() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
-            <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, marginBottom: 6, letterSpacing: "0.05em" }}>{change.change_number}</div>
+            <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, marginBottom: 8, letterSpacing: "0.05em" }}>{change.change_number}</div>
             <h1 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, fontWeight: 500, color: textPrimary, margin: 0, lineHeight: 1.3 }}>{change.title}</h1>
           </div>
           <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 8, flexShrink: 0, marginLeft: 24 }}>
@@ -233,7 +233,7 @@ export default function ChangeDetail() {
             <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
               {lang === "tr" ? "Maliyet Etkisi" : "Cost Impact"}
             </div>
-            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 4 }}>
               {lang === "tr" ? "Durum" : "Status"}
             </div>
             <div style={{ fontSize: 12, color: textPrimary, marginBottom: 10 }}>{change.cost_impact_status.replace("_", " ")}</div>
@@ -245,7 +245,7 @@ export default function ChangeDetail() {
             <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
               {lang === "tr" ? "Süre Etkisi" : "Time Impact"}
             </div>
-            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 4 }}>
               {lang === "tr" ? "Durum" : "Status"}
             </div>
             <div style={{ fontSize: 12, color: textPrimary, marginBottom: 10 }}>{change.time_impact_status.replace("_", " ")}</div>
@@ -318,7 +318,7 @@ export default function ChangeDetail() {
 
                     {/* Bağlı belgeler */}
                     {event.documents && event.documents.length > 0 && (
-                      <div style={{ display: "flex", flexDirection: "column" as const, gap: 3, marginTop: 4 }}>
+                      <div style={{ display: "flex", flexDirection: "column" as const, gap: 4, marginTop: 4 }}>
                         {event.documents.map((doc) => {
                           if (doc.link_type === "correspondence" && doc.correspondences) {
                             return (
@@ -367,7 +367,7 @@ export default function ChangeDetail() {
             {change.linked_correspondences.map((lc) => (
               <div key={lc.id}
                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${lc.correspondences?.id}`)}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: cardBg, marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                 <div>
                   <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond }}>{lc.correspondences?.corr_number}</span>
                   <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{lc.correspondences?.subject}</p>

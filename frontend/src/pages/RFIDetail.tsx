@@ -223,7 +223,7 @@ export default function RFIDetail() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, letterSpacing: "0.05em" }}>{rfi.rfi_number}</span>
               {typeBadge(rfi.rfi_type)}
             </div>
@@ -320,7 +320,7 @@ export default function RFIDetail() {
                           key={i}
                           style={{
                             fontSize: 11,
-                            padding: "2px 7px",
+                            padding: "2px 8px",
                             background: bg,
                             border: `0.5px solid ${border}`,
                             color: textSecond,
@@ -424,7 +424,7 @@ export default function RFIDetail() {
               color: "var(--color-ai)",
               border: "1px solid var(--color-ai)",
               borderRadius: 6,
-              padding: "9px 18px",
+              padding: "8px 18px",
               fontSize: 11, fontWeight: 500,
               letterSpacing: "0.04em",
               display: "flex", alignItems: "center", gap: 6,
@@ -460,7 +460,7 @@ export default function RFIDetail() {
               </p>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                   {lang === "tr" ? "Açıklama *" : "Narrative *"}
                 </label>
                 <textarea
@@ -474,7 +474,7 @@ export default function RFIDetail() {
 
               {noticeConfigs.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                     {lang === "tr" ? "Potansiyel Sözleşme Maddesi (Opsiyonel)" : "Potential Contractual Trigger (Optional)"}
                   </label>
                   <select
@@ -492,7 +492,7 @@ export default function RFIDetail() {
 
               {docs.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                     {lang === "tr" ? "İlgili Belgeler (Opsiyonel)" : "Related Documents (Optional)"}
                   </label>
                   <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: "var(--color-bg-primary)" }}>
@@ -517,7 +517,7 @@ export default function RFIDetail() {
               )}
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                   {lang === "tr" ? "Yeni Dosya Ekle (Opsiyonel)" : "Add New File (Optional)"}
                 </label>
                 <input
@@ -529,7 +529,7 @@ export default function RFIDetail() {
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                   {lang === "tr" ? "Bildir" : "Notify"}
                 </label>
                 <select

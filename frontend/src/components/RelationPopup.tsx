@@ -94,7 +94,7 @@ export default function RelationPopup({
   };
 
   const renderRow = (item: RelationItem, color: string, isChild = false) => {
-    const pad     = isChild ? "9px 12px 9px 26px" : "10px 12px";
+    const pad     = isChild ? "8px 12px 8px 26px" : "10px 12px";
     const checked = selectedIds.has(item.id);
     if (bridgeMode) {
       return (
@@ -105,7 +105,7 @@ export default function RelationPopup({
           onClick={() => toggleId(item.id)}
           style={{
             display: "flex", alignItems: "center", gap: 10,
-            padding: pad, marginBottom: 6, cursor: "pointer",
+            padding: pad, marginBottom: 8, cursor: "pointer",
             background: isChild ? bg : "var(--color-bg-secondary)",
             borderTop: `1px solid ${checked ? accent : border}`,
             borderRight: `1px solid ${checked ? accent : border}`,
@@ -132,7 +132,7 @@ export default function RelationPopup({
             <span style={{
               fontFamily: "JetBrains Mono, monospace",
               fontSize: 11, color: textS,
-              display: "flex", alignItems: "center", gap: 3,
+              display: "flex", alignItems: "center", gap: 4,
             }}>
               {isChild && <span style={{ color, marginRight: 2 }}>└</span>}
               {item.ref}
@@ -151,7 +151,7 @@ export default function RelationPopup({
         style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           width: "100%", textAlign: "left" as const,
-          padding: pad, marginBottom: 6,
+          padding: pad, marginBottom: 8,
           background: isChild ? bg : "var(--color-bg-secondary)",
           border: `1px solid ${border}`,
           borderLeft: `2px solid ${color}`,
@@ -162,7 +162,7 @@ export default function RelationPopup({
           <span style={{
             fontFamily: "JetBrains Mono, monospace",
             fontSize: 11, color: textS,
-            display: "flex", alignItems: "center", gap: 3,
+            display: "flex", alignItems: "center", gap: 4,
           }}>
             {isChild && <span style={{ color, marginRight: 2 }}>└</span>}
             {item.ref}
@@ -192,7 +192,7 @@ export default function RelationPopup({
           <div style={{
             fontSize: 11, fontWeight: 500, color: textS,
             textTransform: "uppercase" as const,
-            letterSpacing: "0.06em", marginBottom: 6,
+            letterSpacing: "0.06em", marginBottom: 8,
             fontFamily: "Inter, sans-serif",
           }}>
             {title}
@@ -230,7 +230,7 @@ export default function RelationPopup({
         <div style={{
           fontSize: 11, fontWeight: 500, color: textS,
           textTransform: "uppercase" as const,
-          letterSpacing: "0.06em", marginBottom: 6,
+          letterSpacing: "0.06em", marginBottom: 8,
           fontFamily: "Inter, sans-serif",
         }}>
           {title}
@@ -317,7 +317,7 @@ export default function RelationPopup({
                         justifyContent: "center", gap: 6,
                         background: "var(--color-ai-bg)", color: "var(--color-ai)",
                         border: "1px solid var(--color-ai)",
-                        padding: "9px 14px", fontSize: 12, fontWeight: 500,
+                        padding: "8px 14px", fontSize: 12, fontWeight: 500,
                         cursor: "pointer", fontFamily: "Inter, sans-serif",
                       }}
                     >
@@ -333,7 +333,7 @@ export default function RelationPopup({
                       background: bridgeMode ? accent : "var(--color-bg-secondary)",
                       color: bridgeMode ? "var(--color-bg-primary)" : accentText,
                       border: `1px solid ${accent}`,
-                      padding: "9px 14px", fontSize: 12, fontWeight: 500,
+                      padding: "8px 14px", fontSize: 12, fontWeight: 500,
                       cursor: "pointer", fontFamily: "Inter, sans-serif",
                     }}
                   >
@@ -345,7 +345,7 @@ export default function RelationPopup({
                 {bridgeMode && (
                   <div style={{
                     display: "flex", alignItems: "center", gap: 10,
-                    padding: "9px 12px",
+                    padding: "8px 12px",
                     borderTop: `1px solid ${accent}`,
                     borderRight: `1px solid ${accent}`,
                     borderBottom: `1px solid ${accent}`,
@@ -356,7 +356,7 @@ export default function RelationPopup({
                       role="checkbox"
                       aria-checked={allSelected}
                       onClick={handleSelectAll}
-                      style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", flexShrink: 0 }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flexShrink: 0 }}
                     >
                       <div style={{
                       width: 14, height: 14,

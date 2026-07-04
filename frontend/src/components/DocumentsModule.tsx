@@ -213,7 +213,7 @@ export default function DocumentsModule({ projectId }: Props) {
           style={{
             display: "flex", alignItems: "center",
             justifyContent: "space-between",
-            padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+            padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
             background: isChild ? bg : cardBg,
             marginBottom: 2, cursor: "pointer",
             borderLeft: `2px solid ${
@@ -226,7 +226,7 @@ export default function DocumentsModule({ projectId }: Props) {
           <div>
             <span style={{
               fontFamily: "JetBrains Mono, monospace", fontSize: 11,
-              color: textSecond, display: "flex", alignItems: "center", gap: 3,
+              color: textSecond, display: "flex", alignItems: "center", gap: 4,
             }}>
               {isChild && (
                 <span style={{ color: accentText, marginRight: 2 }}>└</span>
@@ -320,7 +320,7 @@ export default function DocumentsModule({ projectId }: Props) {
           style={{
             display: "flex", alignItems: "center",
             justifyContent: "space-between",
-            padding: isChild ? "7px 12px 7px 28px" : "9px 12px",
+            padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
             background: isChild ? bg : cardBg,
             marginBottom: 2, cursor: "pointer",
             borderLeft: `2px solid ${
@@ -333,7 +333,7 @@ export default function DocumentsModule({ projectId }: Props) {
           <div>
             <span style={{
               fontFamily: "JetBrains Mono, monospace", fontSize: 11,
-              color: textSecond, display: "flex", alignItems: "center", gap: 3,
+              color: textSecond, display: "flex", alignItems: "center", gap: 4,
             }}>
               {isChild && (
                 <span style={{ color: accentText, marginRight: 2 }}>└</span>
@@ -480,7 +480,7 @@ export default function DocumentsModule({ projectId }: Props) {
             opacity: focusId ? 0.5 : 1,
             cursor: focusId ? "not-allowed" : "text",
             width: "100%", boxSizing: "border-box" as const,
-            padding: "9px 36px 9px 12px",
+            padding: "8px 36px 8px 12px",
             background: cardBg, border: `1px solid ${border}`,
             borderRadius: 0, fontSize: 13, color: textPrimary,
             fontFamily: "Inter, sans-serif", outline: "none",

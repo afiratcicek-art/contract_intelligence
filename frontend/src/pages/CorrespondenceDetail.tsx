@@ -335,7 +335,7 @@ export default function CorrespondenceDetail() {
                   .map((kw, i) => (
                     <span key={i} style={{
                       fontSize: 11,
-                      padding: "2px 7px",
+                      padding: "2px 8px",
                       background: bg,
                       border: `0.5px solid ${border}`,
                       color: textSecond,
@@ -368,7 +368,7 @@ export default function CorrespondenceDetail() {
               <div
                 key={child.id}
                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${child.id}`)}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${child.has_response ? textSecond : "var(--color-accent)"}`, cursor: "pointer" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: cardBg, marginBottom: 4, borderLeft: `2px solid ${child.has_response ? textSecond : "var(--color-accent)"}`, cursor: "pointer" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)" }}>{child.corr_number}</span>
@@ -448,7 +448,7 @@ export default function CorrespondenceDetail() {
               color: "var(--color-ai)",
               border: "1px solid var(--color-ai)",
               borderRadius: 6,
-              padding: "9px 18px",
+              padding: "8px 18px",
               fontSize: 11, fontWeight: 500,
               letterSpacing: "0.04em",
               display: "flex", alignItems: "center", gap: 6,
@@ -486,7 +486,7 @@ export default function CorrespondenceDetail() {
             </p>
 
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                 {lang === "tr" ? "Açıklama *" : "Narrative *"}
               </label>
               <textarea
@@ -500,7 +500,7 @@ export default function CorrespondenceDetail() {
 
             {noticeConfigs.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                   {lang === "tr" ? "Potansiyel Sözleşme Maddesi (Opsiyonel)" : "Potential Contractual Trigger (Optional)"}
                 </label>
                 <select
@@ -518,7 +518,7 @@ export default function CorrespondenceDetail() {
 
             {docs.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                   {lang === "tr" ? "İlgili Belgeler (Opsiyonel)" : "Related Documents (Optional)"}
                 </label>
                 <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: "var(--color-bg-primary)" }}>
@@ -547,7 +547,7 @@ export default function CorrespondenceDetail() {
             )}
 
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                 {lang === "tr" ? "Yeni Dosya Ekle (Opsiyonel)" : "Add New File (Optional)"}
               </label>
               <input
@@ -559,7 +559,7 @@ export default function CorrespondenceDetail() {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                 {lang === "tr" ? "Bildir" : "Notify"}
               </label>
               <select

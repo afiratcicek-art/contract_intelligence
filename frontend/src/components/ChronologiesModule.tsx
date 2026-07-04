@@ -14,6 +14,8 @@ import {
   fetchLinkableDocuments,
   type LinkableDoc,
 } from "../services/api";
+import { useToastContext } from "../context/ToastContext";
+import ConfirmModal from "./ConfirmModal";
 
 interface ChronologiesModuleProps {
   projectId: string;
@@ -300,8 +302,28 @@ function HorizontalStrip({
 export default function ChronologiesModule({ projectId }: ChronologiesModuleProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToastContext();
   const bridgeModeOpenedRef = useRef(false);
   const bridgeFilledRef     = useRef(false);
+
+  // ── Confirm modal state (TB-21) ──────────────────────────────
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const confirmCallbackRef = useRef<(() => void) | null>(null);
+  const openConfirm = (msg: string, onOk: () => void) => {
+    setConfirmMessage(msg);
+    confirmCallbackRef.current = onOk;
+    setConfirmOpen(true);
+  };
+  const handleConfirmOk = () => {
+    setConfirmOpen(false);
+    confirmCallbackRef.current?.();
+    confirmCallbackRef.current = null;
+  };
+  const handleConfirmCancel = () => {
+    setConfirmOpen(false);
+    confirmCallbackRef.current = null;
+  };
 
   // ── List & selection state ──────────────────────────────────
   const [chronologies, setChronologies] = useState<Chronology[]>([]);
@@ -438,7 +460,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         fetchChronology(projectId, selectedId).then(setSelected).catch(() => {});
         setEditingNarrative((prev) => { const n = { ...prev }; delete n[event.id]; return n; });
       })
-      .catch((err) => window.alert(err.message))
+      .catch((err) => showToast(err.message, "error"))
       .finally(() => setApprovingId(null));
   };
 
@@ -512,13 +534,14 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
     // Until that endpoint is built, we fall back to manual mode.
     // TB: implement narrative-preview endpoint (lightweight, no DB write).
     updatePending(pe.doc.id, { narrativeMode: "manual" });
-    window.alert(
-      "LLM narrative preview is coming soon. Please write the narrative manually for now."
+    showToast(
+      "LLM narrative preview is coming soon. Please write the narrative manually for now.",
+      "info"
     );
   };
 
   const handleSaveChronology = async () => {
-    if (!createTitle.trim()) { window.alert("Please enter a title."); return; }
+    if (!createTitle.trim()) { showToast("Please enter a title.", "warning"); return; }
     setSavingChronology(true);
     try {
       const created = await createChronology(projectId, {
@@ -554,7 +577,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         : typeof err === "object" && err !== null && "detail" in err
         ? String((err as Record<string, unknown>).detail)
         : "Save failed. Please try again.";
-      window.alert(msg);
+      showToast(msg, "error");
     } finally {
       setSavingChronology(false);
     }
@@ -717,7 +740,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Save failed.";
-      window.alert(msg);
+      showToast(msg, "error");
     } finally {
       setSavingEdit(false);
     }
@@ -754,21 +777,22 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
   };
 
   // Inactivate event (soft delete with audit)
-  const handleInactivate = async (eventId: string) => {
+  const handleInactivate = (eventId: string) => {
     if (!selectedId) return;
-    if (!window.confirm("Remove this event from the chronology? This action is logged.")) return;
-    setInactivatingId(eventId);
-    try {
-      await inactivateChronologyEvent(
-        projectId, selectedId, eventId,
-        "Removed by user via chronology editor"
-      );
-      await fetchChronology(projectId, selectedId).then(setSelected);
-    } catch (err: unknown) {
-      window.alert(err instanceof Error ? err.message : "Failed to remove event.");
-    } finally {
-      setInactivatingId(null);
-    }
+    openConfirm("Remove this event from the chronology? This action is logged.", async () => {
+      setInactivatingId(eventId);
+      try {
+        await inactivateChronologyEvent(
+          projectId, selectedId, eventId,
+          "Removed by user via chronology editor"
+        );
+        await fetchChronology(projectId, selectedId).then(setSelected);
+      } catch (err: unknown) {
+        showToast(err instanceof Error ? err.message : "Failed to remove event.", "error");
+      } finally {
+        setInactivatingId(null);
+      }
+    });
   };
 
   // Approve modified narrative (edit existing approved narrative)
@@ -785,7 +809,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         const n = { ...prev }; delete n[ev.id]; return n;
       });
     } catch (err: unknown) {
-      window.alert(err instanceof Error ? err.message : "Failed to update narrative.");
+      showToast(err instanceof Error ? err.message : "Failed to update narrative.", "error");
     } finally {
       setApprovingId(null);
     }
@@ -1390,24 +1414,26 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                             <button
                               onClick={() => {
                                 if (pe._isExisting) {
-                                  if (window.confirm(
-                                    "Remove this event? This action is logged."
-                                  )) {
-                                    inactivateChronologyEvent(
-                                      projectId,
-                                      selectedId!,
-                                      pe.doc.id,
-                                      "Removed via chronology editor"
-                                    )
-                                      .then(() => removeFromTimeline(pe.doc.id))
-                                      .catch((err: unknown) => {
-                                        window.alert(
-                                          err instanceof Error
-                                            ? err.message
-                                            : "Failed."
-                                        );
-                                      });
-                                  }
+                                  openConfirm(
+                                    "Remove this event? This action is logged.",
+                                    () => {
+                                      inactivateChronologyEvent(
+                                        projectId,
+                                        selectedId!,
+                                        pe.doc.id,
+                                        "Removed via chronology editor"
+                                      )
+                                        .then(() => removeFromTimeline(pe.doc.id))
+                                        .catch((err: unknown) => {
+                                          showToast(
+                                            err instanceof Error
+                                              ? err.message
+                                              : "Failed.",
+                                            "error"
+                                          );
+                                        });
+                                    }
+                                  );
                                 } else {
                                   removeFromTimeline(pe.doc.id);
                                 }
@@ -2524,6 +2550,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
           </>
         )}
       </div>
+      <ConfirmModal
+        open={confirmOpen}
+        message={confirmMessage}
+        onConfirm={handleConfirmOk}
+        onCancel={handleConfirmCancel}
+      />
     </div>
   );
 }

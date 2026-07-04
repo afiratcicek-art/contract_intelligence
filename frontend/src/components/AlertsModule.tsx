@@ -10,6 +10,7 @@ import {
   markAlertAsRead,
   fetchReadAlertIds,
 } from "../services/api";
+import { useToastContext } from "../context/ToastContext";
 
 interface AlertsModuleProps {
   projectId: string;
@@ -95,6 +96,7 @@ function InfoRow({ label, value, status }: { label: string; value: string; statu
 
 export default function AlertsModule({ projectId }: AlertsModuleProps) {
   const navigate = useNavigate();
+  const { showToast } = useToastContext();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -212,7 +214,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
         setActionRole("");
         setActionDueDate("");
       })
-      .catch((err) => window.alert(err.message))
+      .catch((err) => showToast(err.message, "error"))
       .finally(() => setSubmitting(false));
   };
 

@@ -3,7 +3,7 @@ from uuid import UUID
 import logging
 from backend.database import get_authed_db, get_admin_client
 from backend.core.security import get_current_user
-from backend.core.dependencies import verify_project_access, require_cm_role
+from backend.core.dependencies import verify_project_access, require_cm_role, invalidate_access_cache
 from backend.core.exceptions import NotFoundError
 from backend.core.cache import cache_get, cache_set, cache_delete, cache_delete_prefix
 from backend.models.project import (
@@ -148,6 +148,7 @@ def add_member(
         user_id=access["user"]["id"], project_id=str(project_id),
         new_value={"user_id": data.get("user_id"), "project_role": data.get("project_role")},
     )
+    invalidate_access_cache(data.get("user_id", ""), str(project_id))
     return result.data[0]
 
 
@@ -174,6 +175,9 @@ def update_member(
         user_id=access["user"]["id"], project_id=str(project_id),
         new_value=data,
     )
+    invalidate_access_cache(str(user_id), str(project_id))
+    if "project_role" in data:
+        cache_delete_prefix(f"perm:{str(project_id)}:")
     return result.data[0] if result.data else {}
 
 

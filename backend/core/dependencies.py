@@ -4,12 +4,22 @@ from fastapi import Depends
 from backend.database import get_authed_db
 from backend.core.security import get_current_user
 from backend.core.exceptions import NotFoundError, ForbiddenError
-from backend.core.cache import cache_get, cache_set
+from backend.core.cache import cache_get, cache_set, cache_delete, cache_delete_prefix
 
 _PERM_CACHE_TTL = 300  # 5 minutes
 
 def _perm_cache_key(project_id: str, role: str, entity: str, permission: str) -> str:
     return f"perm:{project_id}:{role}:{entity}:{permission}"
+
+_ACCESS_CACHE_TTL = 30  # seconds — conservative; membership revocation takes effect within this window
+
+
+def invalidate_access_cache(user_id: str, project_id: str) -> None:
+    """Call on ANY membership mutation (add, update, remove).
+    Wired to: projects.py add_member() + update_member().
+    """
+    cache_delete(f"access:{user_id}:{project_id}")
+
 
 def verify_project_access(
     project_id: UUID,
@@ -17,9 +27,25 @@ def verify_project_access(
 ) -> dict:
     """Proje erişim kontrolü: tenant izolasyonu + üyelik.
     projects ve project_members sorguları paralel çalışır.
+    Sonuç 30s cache'lenir (TB-20). JWT-scoped db client ASLA cache'lenmez.
     """
-    db = get_authed_db(current_user["_meta"]["token"])
     project_id_str = str(project_id)
+    user_id = current_user["id"]
+
+    # Cache check (TB-20) — only member data, NEVER the db client
+    _cache_key = f"access:{user_id}:{project_id_str}"
+    _cached = cache_get(_cache_key)
+    if _cached is not None:
+        db = get_authed_db(current_user["_meta"]["token"])
+        return {
+            "user": current_user,
+            "member": _cached["member"],
+            "project_id": project_id_str,
+            "db": db,
+        }
+
+    # Cache miss — run 2 parallel Supabase queries
+    db = get_authed_db(current_user["_meta"]["token"])
 
     def fetch_project():
         try:
@@ -37,14 +63,13 @@ def verify_project_access(
             return db.table("project_members") \
                 .select("*") \
                 .eq("project_id", project_id_str) \
-                .eq("user_id", current_user["id"]) \
+                .eq("user_id", user_id) \
                 .eq("is_active", True) \
                 .single() \
                 .execute()
         except Exception:
             return None
 
-    # Paralel sorgular — ~120ms kazanım
     with ThreadPoolExecutor(max_workers=2) as executor:
         f_project = executor.submit(fetch_project)
         f_member = executor.submit(fetch_member)
@@ -57,6 +82,8 @@ def verify_project_access(
         raise NotFoundError()
     if not member_resp or not member_resp.data:
         raise NotFoundError()
+
+    cache_set(_cache_key, {"member": member_resp.data}, _ACCESS_CACHE_TTL)
 
     return {
         "user": current_user,

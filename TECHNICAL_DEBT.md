@@ -221,3 +221,17 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   satır tasarruf. ÖNKOŞUL: pytest smoke test suite kurulmalı
   (gate→blocked→cache→analysis sırası korunduğunu doğrulamak için).
   Risk: Orta. Durum: Açık — test altyapısı sonrası
+
+---
+
+## Delete Workflow
+
+- **TB-23**: Hatalı kayıt silme — iş kuralı + teknik implementasyon.
+  Kural: Sadece draft/taslak statüsündeki kayıtlar silinebilir.
+  Yayımlanmış/onaylanmış kayıtlar silinemez (forensic arşiv prensibi).
+  Yetki: CM veya kaydı oluşturan DCC.
+  Audit: Her silme işlemi loglanır.
+  Kapsam: correspondences (endpoint yok), rfis (endpoint var, deleted_by
+  kolonu eksik, frontend yok), pdf_document (endpoint yok).
+  Önkoşul: deleted_by kolonunun migration ile eklenmesi.
+  Stats etkisi: is_deleted=FALSE filtresi zaten mevcut — stats tutarlı kalır.

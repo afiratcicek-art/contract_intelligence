@@ -26,7 +26,7 @@ from typing import Optional
 
 import anthropic
 
-from backend.core.sanitizer import sanitize_contract_text, sanitize_medium, sanitize_short
+from backend.core.sanitizer import sanitize_contract_text, sanitize_medium, sanitize_short  # noqa: F401 — sanitize_contract_text is TB-5 prep, activated when API key is configured
 from backend.database import get_admin_client
 from backend.services.audit_service import AuditService
 

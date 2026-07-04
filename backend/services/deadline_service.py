@@ -143,7 +143,8 @@ class DeadlineService:
                 .execute()
             )
             project_config = cfg.data or {}
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("calendar_config not found for project %s, using defaults: %s", project_id, exc)
             project_config = {}
 
         cal = (

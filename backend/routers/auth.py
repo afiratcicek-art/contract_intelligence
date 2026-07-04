@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from backend.database import get_db, get_admin_client
@@ -5,6 +7,8 @@ from backend.core.cache import cache_delete
 from backend.core.security import get_current_user
 from backend.core.limiter import limiter
 from backend.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -45,8 +49,8 @@ def login(request: Request, response: Response, body: LoginRequest, db=Depends(g
                 .execute()
             )
             full_name = profile.data.get("full_name", "") if profile.data else ""
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("profile fetch failed (non-blocking, full_name defaults to ''): %s", exc)
 
         # httpOnly cookie — JavaScript erişimi yok
         response.set_cookie(
@@ -79,8 +83,8 @@ def logout(request: Request, response: Response, db=Depends(get_db)):
         cache_delete(cache_key)
     try:
         db.auth.sign_out()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("sign_out failed (non-blocking, cookie will be cleared regardless): %s", exc)
     response.delete_cookie(
         key=_COOKIE_NAME,
         path="/",

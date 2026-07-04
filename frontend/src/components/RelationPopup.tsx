@@ -111,7 +111,9 @@ export default function RelationPopup({
             display: "flex", alignItems: "center", gap: 10,
             padding: pad, marginBottom: 6, cursor: "pointer",
             background: isChild ? bg : "var(--color-bg-secondary)",
-            border: `1px solid ${checked ? accent : border}`,
+            borderTop: `1px solid ${checked ? accent : border}`,
+            borderRight: `1px solid ${checked ? accent : border}`,
+            borderBottom: `1px solid ${checked ? accent : border}`,
             borderLeft: `2px solid ${checked ? accent : color}`,
             fontFamily: "Inter, sans-serif",
           }}
@@ -348,7 +350,9 @@ export default function RelationPopup({
                   <div style={{
                     display: "flex", alignItems: "center", gap: 10,
                     padding: "9px 12px",
-                    border: `1px solid ${accent}`,
+                    borderTop: `1px solid ${accent}`,
+                    borderRight: `1px solid ${accent}`,
+                    borderBottom: `1px solid ${accent}`,
                     borderLeft: `2px solid ${accent}`,
                     background: "var(--color-bg-secondary)",
                   }}>

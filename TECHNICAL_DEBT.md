@@ -211,3 +211,13 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
        consistency. Current dev is single-worker.
   Must be implemented in an isolated, well-tested change —
   auth-layer edits must never be mixed into unrelated commits.
+
+---
+
+## Backend refactor / AI service
+
+- **TB-22**: C-04: claude_service `_execute_pipeline` refactor — 4 public
+  method aynı 7 adımı tekrarlıyor; `_execute_pipeline()` helper ile ~150
+  satır tasarruf. ÖNKOŞUL: pytest smoke test suite kurulmalı
+  (gate→blocked→cache→analysis sırası korunduğunu doğrulamak için).
+  Risk: Orta. Durum: Açık — test altyapısı sonrası

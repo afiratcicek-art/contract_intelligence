@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useDebounce } from "../hooks/useDebounce";
 import { api } from "../services/api";
 import DocumentRelationGraph from "./DocumentRelationGraph";
 import FocusedRelationGraph from "./FocusedRelationGraph";
@@ -48,6 +49,7 @@ export default function DocumentsModule({ projectId }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery]     = useState("");
+  const debouncedQuery = useDebounce(query, 400);
 
   /* ── Focus mode ────────────────────────────────────────
      Driven by ?focus_type=correspondence|rfi&focus_id=...
@@ -87,7 +89,6 @@ export default function DocumentsModule({ projectId }: Props) {
 
   const [results, setResults] = useState<DocSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* Design tokens — consistent with rest of app */
   const bg          = "var(--color-bg-primary)";
@@ -160,16 +161,18 @@ export default function DocumentsModule({ projectId }: Props) {
     [projectId]
   );
 
+  useEffect(() => {
+    if (!debouncedQuery.trim()) {
+      setResults([]);
+      return;
+    }
+    doSearch(debouncedQuery);
+  }, [debouncedQuery, doSearch]);
+
   const handleInput = (val: string) => {
     setQuery(val);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!val.trim()) { setResults([]); return; }
-    debounceRef.current = setTimeout(() => doSearch(val), 400);
+    if (!val.trim()) setResults([]);
   };
-
-  useEffect(() => () => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-  }, []);
 
   /* ── Status pill ─────────────────────────────────────── */
   const statusPill = (status: string) => {

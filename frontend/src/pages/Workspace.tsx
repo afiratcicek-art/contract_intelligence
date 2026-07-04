@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useDebounce } from "../hooks/useDebounce";
 import { api } from "../services/api";
 import ThemeToggle from "../components/ThemeToggle";
 import { getAuth, clearAuth } from "../store/auth";
@@ -70,6 +71,7 @@ export default function Workspace() {
   const [projectName, setProjectName] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 400);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [genModFilter, setGenModFilter] = useState("");
@@ -82,6 +84,7 @@ export default function Workspace() {
   const [alertCount, setAlertCount] = useState<number>(0);
   const [corrLoading, setCorrLoading] = useState(false);
   const [corrKeyword, setCorrKeyword] = useState("");
+  const debouncedCorrKeyword = useDebounce(corrKeyword, corrKeyword.trim() ? 400 : 0);
   const [corrStatus, setCorrStatus] = useState("");
   const [corrDir, setCorrDir] = useState("");
   const [corrDateFrom, setCorrDateFrom] = useState("");
@@ -91,6 +94,7 @@ export default function Workspace() {
   const [rfis, setRfis] = useState<RFIItem[]>([]);
   const [rfiLoading, setRfiLoading] = useState(false);
   const [rfiKeyword, setRfiKeyword] = useState("");
+  const debouncedRfiKeyword = useDebounce(rfiKeyword, rfiKeyword.trim() ? 400 : 0);
   const [rfiStatus, setRfiStatus] = useState("");
   const [rfiDiscipline, setRfiDiscipline] = useState("");
   const [rfiDateFrom, setRfiDateFrom] = useState("");
@@ -150,48 +154,38 @@ export default function Workspace() {
     finally { setSearching(false); }
   }, [projectId]);
 
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleSearchDebounced = useCallback((q: string) => {
-    // Update input immediately — no lag while typing.
-    // Only the API call is debounced.
-    setSearchQuery(q);
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => handleSearch(q), 400);
-  }, [handleSearch]);
+  useEffect(() => {
+    setSearchQuery("");
+  }, [projectId]);
 
-  useEffect(() => { if (projectId) handleSearch(""); }, [projectId, handleSearch]);
+  useEffect(() => {
+    if (!projectId) return;
+    handleSearch(debouncedSearchQuery);
+  }, [projectId, debouncedSearchQuery, handleSearch]);
 
   // Debounced backend search — replaces client-side filtering.
-  const corrSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (activeModule !== "correspondence") return;
-    if (corrSearchDebounceRef.current) clearTimeout(corrSearchDebounceRef.current);
-    corrSearchDebounceRef.current = setTimeout(() => {
-      setCorrLoading(true);
-      let url = `/projects/${projectId}/correspondences?limit=100`;
-      if (corrStatus) url += `&status=${corrStatus}`;
-      if (corrDir) url += `&direction=${corrDir}`;
-      if (corrKeyword.trim()) url += `&q=${encodeURIComponent(corrKeyword.trim())}`;
-      api.get<CorrItem[]>(url).then(setCorrs).catch(() => setCorrs([])).finally(() => setCorrLoading(false));
-    }, corrKeyword.trim() ? 400 : 0);
-  }, [activeModule, projectId, corrStatus, corrDir, corrKeyword]);
+    setCorrLoading(true);
+    let url = `/projects/${projectId}/correspondences?limit=100`;
+    if (corrStatus) url += `&status=${corrStatus}`;
+    if (corrDir) url += `&direction=${corrDir}`;
+    if (debouncedCorrKeyword.trim()) url += `&q=${encodeURIComponent(debouncedCorrKeyword.trim())}`;
+    api.get<CorrItem[]>(url).then(setCorrs).catch(() => setCorrs([])).finally(() => setCorrLoading(false));
+  }, [activeModule, projectId, corrStatus, corrDir, debouncedCorrKeyword]);
 
   // Debounced backend search — replaces client-side filtering.
   // q present → chain-aware RPC (search_rfi_chains).
   // q absent → standard list with status/discipline filters.
-  const rfiSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (activeModule !== "rfis") return;
-    if (rfiSearchDebounceRef.current) clearTimeout(rfiSearchDebounceRef.current);
-    rfiSearchDebounceRef.current = setTimeout(() => {
-      setRfiLoading(true);
-      let url = `/projects/${projectId}/rfis?limit=100`;
-      if (rfiStatus) url += `&status=${rfiStatus}`;
-      if (rfiDiscipline) url += `&discipline=${rfiDiscipline}`;
-      if (rfiKeyword.trim()) url += `&q=${encodeURIComponent(rfiKeyword.trim())}`;
-      api.get<RFIItem[]>(url).then(setRfis).catch(() => setRfis([])).finally(() => setRfiLoading(false));
-    }, rfiKeyword.trim() ? 400 : 0);
-  }, [activeModule, projectId, rfiStatus, rfiDiscipline, rfiKeyword]);
+    setRfiLoading(true);
+    let url = `/projects/${projectId}/rfis?limit=100`;
+    if (rfiStatus) url += `&status=${rfiStatus}`;
+    if (rfiDiscipline) url += `&discipline=${rfiDiscipline}`;
+    if (debouncedRfiKeyword.trim()) url += `&q=${encodeURIComponent(debouncedRfiKeyword.trim())}`;
+    api.get<RFIItem[]>(url).then(setRfis).catch(() => setRfis([])).finally(() => setRfiLoading(false));
+  }, [activeModule, projectId, rfiStatus, rfiDiscipline, debouncedRfiKeyword]);
 
   useEffect(() => {
     if (activeModule !== "changes") return;
@@ -382,7 +376,7 @@ export default function Workspace() {
               {moduleHeader(t("general.title"))}
               <div style={{ display: "flex", alignItems: "center", gap: 8, background: cardBg, border: "1px solid var(--color-border-light)", padding: "10px 14px", maxWidth: 560, marginBottom: 16 }}>
                 <span style={{ color: textSecondary, fontSize: 16 }}>⌕</span>
-                <input value={searchQuery} onChange={(e) => handleSearchDebounced(e.target.value)} placeholder={t("general.placeholder")} style={{ background: "none", border: "none", outline: "none", fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", width: "100%" }} />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t("general.placeholder")} style={{ background: "none", border: "none", outline: "none", fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", width: "100%" }} />
                 {searching && <span style={{ fontSize: 11, color: textSecondary }}>{t("general.searching")}</span>}
                 {searchQuery && <button onClick={() => { setSearchQuery(""); handleSearch(""); }} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
               </div>

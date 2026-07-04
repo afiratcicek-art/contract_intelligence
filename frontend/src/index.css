@@ -11,6 +11,13 @@
 ──────────────────────────────────────────────────────── */
 
 :root {
+  /* z-index scale (TB-21 ConfirmModal=1500, FocusedGraph fullscreen=1100) */
+  --z-dropdown: 100;
+  --z-modal: 1000;
+  --z-graph-fullscreen: 1100;
+  --z-confirm: 1500;
+  --z-toast: 2000;
+
   /* Backgrounds */
   --color-bg-primary:   #F5F2ED;
   --color-bg-secondary: #E7E3DC;
@@ -109,6 +116,9 @@ html.dark {
 }
 
 @layer base {
+  body {
+    font-family: Inter, sans-serif;
+  }
   html {
     background-color: #F5F2ED;
     color: #1C1917;

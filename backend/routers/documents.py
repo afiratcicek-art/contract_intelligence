@@ -461,13 +461,49 @@ def get_document_stats(
     # Manual chronology events count
     manual_res = (
         admin_db.table("chronology_events")
-        .select("id, chronologies!inner(project_id)")
+        .select("id, event_type, chronologies!inner(project_id)")
         .eq("chronologies.project_id", p_id)
         .eq("is_active", True)
         .is_("document_ref_id", "null")
         .execute()
     )
     manual_count = len(manual_res.data or [])
+
+    # By chronology event type (manual only — rfi/correspondence excluded)
+    EXCLUDED_TYPES = {"rfi", "correspondence"}
+    by_chronology_type: dict = {}
+    for row in (manual_res.data or []):
+        et = row.get("event_type") or "other"
+        if et not in EXCLUDED_TYPES:
+            by_chronology_type[et] = by_chronology_type.get(et, 0) + 1
+
+    # Contract documents (pdf_document entity_type = 'contract_document')
+    contract_res = (
+        admin_db.table("pdf_document")
+        .select("id", count="exact")
+        .eq("project_id", p_id)
+        .eq("entity_type", "contract_document")
+        .execute()
+    )
+    contract_doc_count = contract_res.count or 0
+
+    # Changes — agreed / disputed / under_review
+    changes_res = (
+        admin_db.table("changes")
+        .select("status")
+        .eq("project_id", p_id)
+        .eq("is_deleted", False)
+        .in_("status", ["agreed", "disputed",
+                        "impact_submitted", "under_negotiation"])
+        .execute()
+    )
+    changes_rows = changes_res.data or []
+    changes_approved = sum(1 for r in changes_rows if r["status"] == "agreed")
+    changes_under_review = sum(
+        1 for r in changes_rows
+        if r["status"] in ("impact_submitted", "under_negotiation")
+    )
+    changes_disputed = sum(1 for r in changes_rows if r["status"] == "disputed")
 
     # Top 5 keywords (project_keyword_stats tablosundan)
     kw_res = (
@@ -503,6 +539,12 @@ def get_document_stats(
         "by_doc_type": by_doc_type,
         "top_keywords": top_keywords,
         "top_locations": top_locations,
+        "by_chronology_type": by_chronology_type,
+        "contract_doc_count": contract_doc_count,
+        "changes_approved": changes_approved,
+        "changes_under_review": changes_under_review,
+        "changes_disputed": changes_disputed,
+        "other_amendments_count": 0,  # TB-25: no entity yet
     }
 
     # ── 4. Cache'e yaz (admin client — RLS bypass) ─────────────────────────

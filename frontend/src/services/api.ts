@@ -220,7 +220,13 @@ export interface DocumentStats {
   manual_count:      number;
   by_corr_type:      Record<string, number>;
   by_rfi_discipline: Record<string, number>;
-  by_doc_type:       Record<string, number>;
+  by_doc_type:              Record<string, number>;
+  by_chronology_type?:      Record<string, number>;
+  contract_doc_count?:      number;
+  changes_approved?:        number;
+  changes_under_review?:    number;
+  changes_disputed?:        number;
+  other_amendments_count?:  number;
   top_keywords:      string[];
   top_locations:     string[];
 }

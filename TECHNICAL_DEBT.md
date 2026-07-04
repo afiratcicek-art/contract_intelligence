@@ -235,3 +235,16 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   kolonu eksik, frontend yok), pdf_document (endpoint yok).
   Önkoşul: deleted_by kolonunun migration ile eklenmesi.
   Stats etkisi: is_deleted=FALSE filtresi zaten mevcut — stats tutarlı kalır.
+
+---
+
+## Other Amendments
+
+- **TB-25**: "Other Amendments" kategorisi — Contract & Amendments stats
+  panelinde gösteriliyor ancak henüz ayrı bir entity/tablo yok.
+  Örnek senaryo: gelen bir mektup ile doküman kontrol yönetimi
+  değiştirilmiş olabilir — bu resmi olarak amendment teşkil eder
+  ama change workflow'u gerektirmez.
+  Tasarım gereksinimi: ayrı amendment entity + tablo + workflow
+  (Changes sekmesi tasarımı ile birlikte ele alınacak).
+  Stats'ta şimdilik count=0 gösterilir.

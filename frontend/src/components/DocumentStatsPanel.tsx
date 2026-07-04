@@ -1,224 +1,336 @@
 /**
- * DocumentStatsPanel — Documents modülü istatistik paneli (migration 026)
+ * DocumentStatsPanel — Documents modülü istatistik paneli.
  *
- * Gösterir: toplam kayıt, CORR alt tipleri, RFI disiplinleri,
- *           top 5 keyword, top 5 lokasyon.
- * Her chip tıklanabilir → onFilter(type, value) callback ile
- * DocumentsModule arama/filtre state'ini tetikler.
+ * 4 ana kategori:
+ *   YAZIŞMALAR   — CORR alt tipleri (tıklanabilir filtre)
+ *   RFI LAR      — disiplinler (tıklanabilir filtre)
+ *   CONTRACT &
+ *   AMENDMENTS   — contract_doc + changes (approved/under_review/disputed)
+ *                  + Other Amendments (TB-25, count=0 şimdilik)
+ *   DİĞER        — kronoloji bağımsız kayıtlar
+ *   BELGELER       (rfi/correspondence hariç manual event'ler)
+ *
+ * Keyword + lokasyon chip'leri altta gösterilir.
+ *
+ * TB-24: Yeni belge kaynakları eklendiğinde migration 026 +
+ *        GET /documents/stats güncellenmeli.
+ * TB-25: Other Amendments — henüz entity yok, count=0.
  *
  * Design: borderRadius 0, var(--color-accent-text), 8px grid.
- * AI elementleri yok — stats deterministic veri.
  */
+import type { CSSProperties } from "react";
 import type { DocumentStats } from "../services/api";
 
-const CORR_TYPE_LABELS: Record<string, string> = {
-  notice:             "Notice",
-  instruction:        "Instruction",
-  letter:             "Letter",
-  claim:              "Claim",
-  vo:                 "Variation Order",
-  email_instruction:  "Email Instruction",
-  response:           "Response",
-  other:              "Other",
-};
+// ── Sabit alt tip listeleri ────────────────────────────────────────────────
 
-const RFI_DISCIPLINE_LABELS: Record<string, string> = {
-  Structural:    "Structural",
-  MEP:           "MEP",
-  Architectural: "Architectural",
-  Civil:         "Civil",
-  Other:         "Other",
-};
+const CORR_TYPES: Array<{ key: string; label: string }> = [
+  { key: "letter",           label: "Letter"           },
+  { key: "email",            label: "Email"            },
+  { key: "notice",           label: "Notice"           },
+  { key: "instruction",      label: "Instruction"      },
+  { key: "certificate",      label: "Certificate"      },
+  { key: "report",           label: "Report"           },
+  { key: "request",          label: "Request"          },
+  { key: "other",            label: "Other"            },
+];
+
+const RFI_DISCIPLINES: Array<{ key: string; label: string }> = [
+  { key: "Civil",         label: "Civil"         },
+  { key: "Architectural", label: "Architectural" },
+  { key: "Structural",    label: "Structural"    },
+  { key: "Mechanical",    label: "Mechanical"    },
+  { key: "Electrical",    label: "Electrical"    },
+  { key: "Plumbing",      label: "Plumbing"      },
+  { key: "Other",         label: "Other"         },
+];
+
+// Kronoloji bağımsız kayıtlar — rfi + correspondence hariç
+// TB-24: Yeni kayıt tipleri eklendiğinde burası güncellenecek
+const CHRONOLOGY_INDEPENDENT_TYPES: Array<{ key: string; label: string }> = [
+  { key: "notice",        label: "Notice"                 },
+  { key: "submission",    label: "Submission"             },
+  { key: "response",      label: "Response"               },
+  { key: "meeting",       label: "Meeting / MOM"          },
+  { key: "inspection",    label: "Inspection (WIR/MIR)"  },
+  { key: "work_permit",   label: "Work Permit"            },
+  { key: "status_change", label: "Status Change"          },
+  { key: "other",         label: "Diğer"                  },
+];
+
+// ── Props ─────────────────────────────────────────────────────────────────
 
 interface Props {
   stats: DocumentStats;
-  onFilter: (filterType: "corrType" | "rfiDiscipline" | "keyword" | "location", value: string) => void;
+  onFilter: (
+    filterType: "corrType" | "rfiDiscipline" | "keyword" | "location",
+    value: string
+  ) => void;
   activeFilter: { type: string; value: string } | null;
 }
+
+// ── Styles ────────────────────────────────────────────────────────────────
+
+const SECTION_LABEL: CSSProperties = {
+  fontSize: 11, fontWeight: 500,
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  color: "var(--color-text-secondary)",
+  fontFamily: "Inter, sans-serif",
+  marginBottom: 6,
+};
+
+const SUB_SECTION_LABEL: CSSProperties = {
+  fontSize: 10, fontWeight: 500,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  color: "var(--color-text-secondary)",
+  fontFamily: "Inter, sans-serif",
+  marginTop: 10,
+  marginBottom: 4,
+};
+
+// ── Component ─────────────────────────────────────────────────────────────
 
 export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Props) {
   const isActive = (type: string, value: string) =>
     activeFilter?.type === type && activeFilter?.value === value;
 
-  const chipStyle = (type: string, value: string) => ({
-    display: "inline-flex", alignItems: "center", gap: 6,
-    padding: "6px 12px",
-    border: isActive(type, value)
-      ? "1px solid var(--color-accent)"
-      : "1px solid var(--color-border-light)",
-    background: isActive(type, value)
-      ? "var(--color-accent)"
-      : "var(--color-bg-secondary)",
-    color: isActive(type, value)
-      ? "var(--color-bg-primary)"
-      : "var(--color-accent-text)",
-    fontSize: 11, fontWeight: 500,
-    fontFamily: "Inter, sans-serif",
-    cursor: "pointer",
-    borderRadius: 0,
-    transition: "all 150ms ease-out",
-  } as const);
+  // Tıklanabilir alt satır (CORR/RFI için)
+  const filterRow = (
+    label: string,
+    count: number,
+    filterType: "corrType" | "rfiDiscipline",
+    key: string
+  ) => {
+    const active = isActive(filterType, key);
+    return (
+      <button
+        key={key}
+        onClick={() => onFilter(filterType, key)}
+        style={{
+          display: "flex", justifyContent: "space-between",
+          alignItems: "center", width: "100%",
+          padding: "4px 0", background: "none", border: "none",
+          borderBottom: "1px solid var(--color-border-light)",
+          cursor: "pointer", textAlign: "left",
+          fontFamily: "Inter, sans-serif",
+        }}
+      >
+        <span style={{
+          fontSize: 11,
+          color: active ? "var(--color-accent)" : count > 0
+            ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+          fontWeight: active ? 500 : 400,
+        }}>
+          {label}
+        </span>
+        <span style={{
+          fontSize: 11,
+          fontFamily: "JetBrains Mono, monospace",
+          color: active ? "var(--color-accent)" : count > 0
+            ? "var(--color-accent-text)" : "var(--color-text-secondary)",
+          fontWeight: active ? 500 : 400,
+          minWidth: 20, textAlign: "right",
+        }}>
+          {count}
+        </span>
+      </button>
+    );
+  };
 
-  const countBadge = (n: number) => (
-    <span style={{
-      fontSize: 10, fontWeight: 500,
-      color: "var(--color-text-secondary)",
-      fontFamily: "JetBrains Mono, monospace",
-    }}>
-      {n}
-    </span>
+  // Salt bilgi satırı (Contract & Amendments + Diğer Belgeler için)
+  const infoRow = (label: string, count: number, italic = false) => (
+    <div
+      key={label}
+      style={{
+        display: "flex", justifyContent: "space-between",
+        alignItems: "center", padding: "4px 0",
+        borderBottom: "1px solid var(--color-border-light)",
+      }}
+    >
+      <span style={{
+        fontSize: 11, fontStyle: italic ? "italic" : "normal",
+        color: count > 0 ? "var(--color-text-primary)"
+          : "var(--color-text-secondary)",
+        fontFamily: "Inter, sans-serif",
+      }}>
+        {label}
+      </span>
+      <span style={{
+        fontSize: 11,
+        fontFamily: "JetBrains Mono, monospace",
+        color: count > 0 ? "var(--color-accent-text)"
+          : "var(--color-text-secondary)",
+        minWidth: 20, textAlign: "right",
+      }}>
+        {count}
+      </span>
+    </div>
   );
 
-  const sectionLabel = {
-    fontSize: 11, fontWeight: 500,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.08em",
-    color: "var(--color-text-secondary)",
-    fontFamily: "Inter, sans-serif",
-    marginBottom: 8,
-  };
+  // Ana kart
+  const card = (
+    label: string,
+    count: number,
+    accentLeft: boolean,
+    children: React.ReactNode
+  ) => (
+    <div style={{
+      padding: "16px 20px",
+      border: "1px solid var(--color-border-light)",
+      borderLeft: `3px solid ${accentLeft
+        ? "var(--color-accent)"
+        : "var(--color-border-medium)"}`,
+      background: "var(--color-bg-secondary)",
+      display: "flex", flexDirection: "column", gap: 12,
+    }}>
+      <div>
+        <p style={{
+          fontFamily: "JetBrains Mono, monospace",
+          fontSize: 28, fontWeight: 500,
+          color: "var(--color-accent-text)", margin: "0 0 4px",
+        }}>
+          {count}
+        </p>
+        <p style={{
+          ...SECTION_LABEL, margin: 0,
+        }}>
+          {label}
+        </p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {children}
+      </div>
+    </div>
+  );
+
+  // Contract & Amendments toplam
+  const contractTotal =
+    (stats.contract_doc_count ?? 0) +
+    (stats.changes_approved ?? 0) +
+    (stats.changes_under_review ?? 0) +
+    (stats.changes_disputed ?? 0) +
+    (stats.other_amendments_count ?? 0);
+
+  // Diğer Belgeler toplam
+  const otherTotal = stats.manual_count;
 
   return (
     <div style={{ padding: "24px 32px" }}>
 
-      {/* ── Toplam sayaçlar ── */}
+      {/* ── Toplam sayaç ── */}
       <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: 16, marginBottom: 32,
+        padding: "12px 20px", marginBottom: 24,
+        border: "1px solid var(--color-border-light)",
+        borderLeft: "3px solid var(--color-accent)",
+        background: "var(--color-bg-secondary)",
+        display: "inline-flex", alignItems: "baseline", gap: 8,
       }}>
-        {[
-          { label: "Toplam Kayıt",  value: stats.total_count },
-          { label: "Yazışmalar",    value: stats.corr_count  },
-          { label: "RFI'lar",       value: stats.rfi_count   },
-          { label: "Belgeler",      value: stats.pdf_count   },
-        ].map(({ label, value }) => (
-          <div key={label} style={{
-            padding: "16px 20px",
-            border: "1px solid var(--color-border-light)",
-            borderLeft: "3px solid var(--color-accent)",
-            background: "var(--color-bg-secondary)",
-          }}>
-            <p style={{
-              fontFamily: "JetBrains Mono, monospace",
-              fontSize: 28, fontWeight: 500,
-              color: "var(--color-accent-text)",
-              margin: "0 0 4px",
-            }}>
-              {value}
-            </p>
-            <p style={{
-              fontSize: 11, fontWeight: 500,
-              textTransform: "uppercase", letterSpacing: "0.08em",
-              color: "var(--color-text-secondary)",
-              fontFamily: "Inter, sans-serif", margin: 0,
-            }}>
-              {label}
-            </p>
-          </div>
-        ))}
+        <span style={{
+          fontFamily: "JetBrains Mono, monospace",
+          fontSize: 32, fontWeight: 500,
+          color: "var(--color-accent-text)",
+        }}>
+          {stats.total_count}
+        </span>
+        <span style={{ ...SECTION_LABEL, margin: 0 }}>
+          Toplam Kayıt
+        </span>
       </div>
 
-      {/* ── Filtre bölümleri ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+      {/* ── 4 Ana kart ── */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr 1fr",
+        gap: 16, marginBottom: 32,
+      }}>
 
-        {/* Sol: CORR tipleri + RFI disiplinleri */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {/* YAZIŞMALAR */}
+        {card("Yazışmalar", stats.corr_count, true,
+          CORR_TYPES.map(({ key, label }) =>
+            filterRow(label, stats.by_corr_type[key] ?? 0, "corrType", key)
+          )
+        )}
 
-          {/* CORR alt tipleri */}
-          {Object.keys(stats.by_corr_type).length > 0 && (
-            <div>
-              <p style={sectionLabel}>Yazışma Tipi</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {Object.entries(stats.by_corr_type)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([type, count]) => (
-                    <button
-                      key={type}
-                      onClick={() => onFilter("corrType", type)}
-                      style={chipStyle("corrType", type)}
-                    >
-                      {CORR_TYPE_LABELS[type] ?? type}
-                      {" "}{countBadge(count)}
-                    </button>
-                  ))}
-              </div>
-            </div>
-          )}
+        {/* RFI'LAR */}
+        {card("RFI'lar", stats.rfi_count, true,
+          RFI_DISCIPLINES.map(({ key, label }) =>
+            filterRow(label, stats.by_rfi_discipline[key] ?? 0, "rfiDiscipline", key)
+          )
+        )}
 
-          {/* RFI disiplinleri */}
-          {Object.keys(stats.by_rfi_discipline).length > 0 && (
-            <div>
-              <p style={sectionLabel}>RFI Disiplini</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {Object.entries(stats.by_rfi_discipline)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([disc, count]) => (
-                    <button
-                      key={disc}
-                      onClick={() => onFilter("rfiDiscipline", disc)}
-                      style={chipStyle("rfiDiscipline", disc)}
-                    >
-                      {RFI_DISCIPLINE_LABELS[disc] ?? disc}
-                      {" "}{countBadge(count)}
-                    </button>
-                  ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* CONTRACT & AMENDMENTS */}
+        {card("Contract & Amendments", contractTotal, true, <>
+          {infoRow("Sözleşmeler", stats.contract_doc_count ?? 0)}
+          <p style={SUB_SECTION_LABEL}>Değişiklikler</p>
+          {infoRow("Approved",      stats.changes_approved      ?? 0)}
+          {infoRow("Under Review",  stats.changes_under_review  ?? 0)}
+          {infoRow("Disputed",      stats.changes_disputed      ?? 0)}
+          {/* TB-25: Other Amendments — henüz entity yok */}
+          {infoRow("Other Amendments", stats.other_amendments_count ?? 0, true)}
+        </>)}
 
-        {/* Sağ: Keywords + Lokasyonlar */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {/* DİĞER BELGELER */}
+        {card("Diğer Belgeler", otherTotal, false,
+          CHRONOLOGY_INDEPENDENT_TYPES.map(({ key, label }) =>
+            infoRow(label, stats.by_chronology_type?.[key] ?? 0)
+          )
+        )}
+      </div>
 
-          {/* Top 5 keywords */}
+      {/* ── Keyword + Lokasyon chip'leri ── */}
+      {(stats.top_keywords.length > 0 || stats.top_locations.length > 0) && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
           {stats.top_keywords.length > 0 && (
             <div>
-              <p style={sectionLabel}>Sık Kullanılan Anahtar Kelimeler</p>
+              <p style={SECTION_LABEL}>Sık Kullanılan Anahtar Kelimeler</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {stats.top_keywords.map((kw) => (
-                  <button
-                    key={kw}
-                    onClick={() => onFilter("keyword", kw)}
-                    style={chipStyle("keyword", kw)}
-                  >
+                  <button key={kw} onClick={() => onFilter("keyword", kw)}
+                    style={{
+                      padding: "6px 12px", borderRadius: 0,
+                      border: isActive("keyword", kw)
+                        ? "1px solid var(--color-accent)"
+                        : "1px solid var(--color-border-light)",
+                      background: isActive("keyword", kw)
+                        ? "var(--color-accent)" : "var(--color-bg-secondary)",
+                      color: isActive("keyword", kw)
+                        ? "var(--color-bg-primary)" : "var(--color-accent-text)",
+                      fontSize: 11, fontWeight: 500,
+                      fontFamily: "Inter, sans-serif", cursor: "pointer",
+                    }}>
                     {kw}
                   </button>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Top 5 lokasyonlar */}
           {stats.top_locations.length > 0 && (
             <div>
-              <p style={sectionLabel}>Lokasyonlar</p>
+              <p style={SECTION_LABEL}>Lokasyonlar</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {stats.top_locations.map((loc) => (
-                  <button
-                    key={loc}
-                    onClick={() => onFilter("location", loc)}
-                    style={chipStyle("location", loc)}
-                  >
+                  <button key={loc} onClick={() => onFilter("location", loc)}
+                    style={{
+                      padding: "6px 12px", borderRadius: 0,
+                      border: isActive("location", loc)
+                        ? "1px solid var(--color-accent)"
+                        : "1px solid var(--color-border-light)",
+                      background: isActive("location", loc)
+                        ? "var(--color-accent)" : "var(--color-bg-secondary)",
+                      color: isActive("location", loc)
+                        ? "var(--color-bg-primary)" : "var(--color-accent-text)",
+                      fontSize: 11, fontWeight: 500,
+                      fontFamily: "Inter, sans-serif", cursor: "pointer",
+                    }}>
                     {loc}
                   </button>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Veri yok durumu */}
-          {stats.top_keywords.length === 0 && stats.top_locations.length === 0 && (
-            <p style={{
-              fontSize: 12, fontStyle: "italic",
-              color: "var(--color-text-secondary)",
-              fontFamily: "Inter, sans-serif",
-            }}>
-              Anahtar kelime ve lokasyon verisi henüz mevcut değil.
-            </p>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

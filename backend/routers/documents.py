@@ -374,6 +374,148 @@ def _content_neighbors(
 
 
 # ════════════════════════════════════════════════════
+# GET /stats — project document statistics (cached)
+# ════════════════════════════════════════════════════
+
+@router.get("/stats", status_code=200)
+def get_document_stats(
+    project_id: str,
+    access=Depends(verify_project_access),
+):
+    """Proje doküman istatistiklerini döner.
+
+    Önce project_document_stats cache'ini kontrol eder (TTL: 30 saniye).
+    Cache yoksa veya eskiyse aggregate hesaplar, cache'e yazar ve döner.
+    Kaynak: correspondences, rfis, pdf_document, chronology_events.
+    Write: admin client (service_role — RLS bypass by design).
+    Read:  JWT client (RLS enforced — project member only).
+    """
+    admin_db = get_admin_client()
+    jwt_db = access["db"]
+    p_id = str(project_id)
+    TTL_SECS = 30   # 30 saniye
+
+    # ── 1. Cache kontrolü ──────────────────────────────────────────────────
+    cache_res = (
+        jwt_db.table("project_document_stats")
+        .select("stats_json, updated_at")
+        .eq("project_id", p_id)
+        .limit(1)
+        .execute()
+    )
+
+    if cache_res.data:
+        row = cache_res.data[0]
+        updated_at = datetime.fromisoformat(
+            row["updated_at"].replace("Z", "+00:00")
+        )
+        age = (datetime.now(timezone.utc) - updated_at).total_seconds()
+        if age < TTL_SECS:
+            return row["stats_json"]
+
+    # ── 2. Aggregate hesapla ───────────────────────────────────────────────
+    # Correspondence count + by type
+    corr_res = (
+        admin_db.table("correspondences")
+        .select("type")
+        .eq("project_id", p_id)
+        .eq("is_deleted", False)
+        .execute()
+    )
+    corr_rows = corr_res.data or []
+    corr_count = len(corr_rows)
+    by_corr_type: dict = {}
+    for row in corr_rows:
+        t = row.get("type") or "other"
+        by_corr_type[t] = by_corr_type.get(t, 0) + 1
+
+    # RFI count + by discipline
+    rfi_res = (
+        admin_db.table("rfis")
+        .select("discipline")
+        .eq("project_id", p_id)
+        .eq("is_deleted", False)
+        .execute()
+    )
+    rfi_rows = rfi_res.data or []
+    rfi_count = len(rfi_rows)
+    by_rfi_discipline: dict = {}
+    for row in rfi_rows:
+        d = row.get("discipline") or "Other"
+        by_rfi_discipline[d] = by_rfi_discipline.get(d, 0) + 1
+
+    # PDF count + by doc_type
+    pdf_res = (
+        admin_db.table("pdf_document")
+        .select("doc_type")
+        .eq("project_id", p_id)
+        .execute()
+    )
+    pdf_rows = pdf_res.data or []
+    pdf_count = len(pdf_rows)
+    by_doc_type: dict = {}
+    for row in pdf_rows:
+        dt = row.get("doc_type") or "other"
+        by_doc_type[dt] = by_doc_type.get(dt, 0) + 1
+
+    # Manual chronology events count
+    manual_res = (
+        admin_db.table("chronology_events")
+        .select("id, chronologies!inner(project_id)")
+        .eq("chronologies.project_id", p_id)
+        .eq("is_active", True)
+        .is_("document_ref_id", "null")
+        .execute()
+    )
+    manual_count = len(manual_res.data or [])
+
+    # Top 5 keywords (project_keyword_stats tablosundan)
+    kw_res = (
+        jwt_db.table("project_keyword_stats")
+        .select("keyword, count")
+        .eq("project_id", p_id)
+        .order("count", desc=True)
+        .limit(5)
+        .execute()
+    )
+    top_keywords = [r["keyword"] for r in (kw_res.data or [])]
+
+    # Top 5 locations (project_location_stats tablosundan)
+    loc_res = (
+        jwt_db.table("project_location_stats")
+        .select("location, count")
+        .eq("project_id", p_id)
+        .order("count", desc=True)
+        .limit(5)
+        .execute()
+    )
+    top_locations = [r["location"] for r in (loc_res.data or [])]
+
+    # ── 3. Sonuç ──────────────────────────────────────────────────────────
+    stats = {
+        "total_count": corr_count + rfi_count + pdf_count + manual_count,
+        "corr_count": corr_count,
+        "rfi_count": rfi_count,
+        "pdf_count": pdf_count,
+        "manual_count": manual_count,
+        "by_corr_type": by_corr_type,
+        "by_rfi_discipline": by_rfi_discipline,
+        "by_doc_type": by_doc_type,
+        "top_keywords": top_keywords,
+        "top_locations": top_locations,
+    }
+
+    # ── 4. Cache'e yaz (admin client — RLS bypass) ─────────────────────────
+    admin_db.table("project_document_stats").upsert({
+        "project_id": p_id,
+        "stats_json": stats,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).execute()
+
+    return stats
+
+
+# ════════════════════════════════════════════════════
 # GET /all-relations — full project graph (existing UI)
 # ════════════════════════════════════════════════════
 

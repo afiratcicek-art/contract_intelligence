@@ -1,6 +1,5 @@
 import logging
 from typing import Optional
-from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 

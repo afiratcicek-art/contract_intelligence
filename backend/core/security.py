@@ -1,9 +1,12 @@
 import hmac
 import hashlib
+import logging
 from fastapi import Request
 from backend.database import get_anon_client, get_admin_client
 from backend.core.exceptions import UnauthorizedError, ForbiddenError
-from backend.core.cache import cache_get, cache_set, cache_delete
+from backend.core.cache import cache_get, cache_set
+
+logger = logging.getLogger(__name__)
 
 _AUTH_CACHE_TTL = 60  # seconds
 
@@ -57,7 +60,8 @@ def get_current_user(request: Request) -> dict:
 
     except (UnauthorizedError, ForbiddenError):
         raise
-    except Exception:
+    except Exception as exc:
+        logger.debug("get_current_user auth failed: %s", exc)
         raise UnauthorizedError()
 
 
@@ -76,5 +80,6 @@ def verify_whatsapp_webhook(
             digestmod=hashlib.sha256,
         ).hexdigest()
         return hmac.compare_digest(f"sha256={expected}", signature)
-    except Exception:
+    except Exception as exc:
+        logger.debug("verify_whatsapp_webhook failed: %s", exc)
         return False

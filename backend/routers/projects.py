@@ -4,12 +4,11 @@ import logging
 from backend.database import get_authed_db, get_admin_client
 from backend.core.security import get_current_user
 from backend.core.dependencies import verify_project_access, require_cm_role, invalidate_access_cache
-from backend.core.exceptions import NotFoundError
 from backend.core.cache import cache_get, cache_set, cache_delete, cache_delete_prefix
 from backend.models.project import (
-    ProjectCreate, ProjectUpdate, ProjectResponse,
-    ProjectMemberAdd, ProjectMemberUpdate, ProjectMemberResponse,
-    ProjectPartyCreate, ProjectPartyResponse,
+    ProjectCreate, ProjectUpdate,
+    ProjectMemberAdd, ProjectMemberUpdate,
+    ProjectPartyCreate,
 )
 from backend.repositories.project_repository import ProjectRepository
 from backend.services.audit_service import AuditService
@@ -479,7 +478,6 @@ def get_upcoming_deadlines(
         return _cached
     from datetime import date, timedelta
     db = access["db"]
-    user_id = access["user"]["id"]
     today = date.today()
     end = today + timedelta(days=15)
     results = []

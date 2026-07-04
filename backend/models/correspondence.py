@@ -1,8 +1,8 @@
 from pydantic import BaseModel, field_validator
-from typing import Optional, List
+from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
-from backend.models.common import Direction, DayType, DeadlineSource, ContractualStatus, PMApprovalStatus
+from backend.models.common import Direction, DayType, DeadlineSource, ContractualStatus
 from backend.core.sanitizer import sanitize_short, sanitize_medium, sanitize_long, sanitize_content
 
 

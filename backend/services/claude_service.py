@@ -282,7 +282,8 @@ class ClaudeService:
                 intent=gate_dict.get("intent", ""),
                 simple_lookup_answer=gate_dict.get("simple_lookup_answer"),
             )
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("gate_check failed unexpectedly: %s", exc)
             return GateResult(blocked=True)
 
     def _extract_gate_json(self, text: str) -> dict:
@@ -292,7 +293,8 @@ class ClaudeService:
             if "injection_detected" not in data:
                 return {"injection_detected": True}
             return data
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("injection_scan failed unexpectedly: %s", exc)
             return {"injection_detected": True}
 
     def _handle_gate_block(
@@ -318,8 +320,8 @@ class ClaudeService:
                 project_id=project_id,
                 note=f"Gate block reason: {reason}",
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("audit_log write failed (non-blocking): %s", exc)
         return GateBlockedResult()
 
     def _run_analysis_layer(
@@ -400,8 +402,8 @@ class ClaudeService:
                         project_id=project_id,
                         note="Prohibited language corrected",
                     )
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("post_processor audit failed (non-blocking): %s", exc)
         return ". ".join(sentences)
 
     def _calculate_confidence(self) -> float:
@@ -470,8 +472,8 @@ class ClaudeService:
                 "answer": answer,
                 "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
             }).execute()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("cache_write failed (non-blocking): %s", exc)
 
     def _resolve_gate_block(
         self,

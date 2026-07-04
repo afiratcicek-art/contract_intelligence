@@ -895,7 +895,6 @@ def approve_metadata(
     metadata_status remains 'done'; metadata_source set to 'mixed'
     if user corrections differ from Haiku output.
     """
-    db = access["db"]
     user_id = str(access["user"]["id"])
 
     # Verify document belongs to project

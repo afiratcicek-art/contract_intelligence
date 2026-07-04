@@ -1,10 +1,13 @@
 from uuid import UUID
 from concurrent.futures import ThreadPoolExecutor
+import logging
 from fastapi import Depends
 from backend.database import get_authed_db
 from backend.core.security import get_current_user
 from backend.core.exceptions import NotFoundError, ForbiddenError
-from backend.core.cache import cache_get, cache_set, cache_delete, cache_delete_prefix
+from backend.core.cache import cache_get, cache_set, cache_delete
+
+logger = logging.getLogger(__name__)
 
 _PERM_CACHE_TTL = 300  # 5 minutes
 
@@ -55,7 +58,8 @@ def verify_project_access(
                 .eq("is_deleted", False) \
                 .single() \
                 .execute()
-        except Exception:
+        except Exception as exc:
+            logger.debug("fetch_project failed: %s", exc)
             return None
 
     def fetch_member():
@@ -67,7 +71,8 @@ def verify_project_access(
                 .eq("is_active", True) \
                 .single() \
                 .execute()
-        except Exception:
+        except Exception as exc:
+            logger.debug("fetch_member failed: %s", exc)
             return None
 
     with ThreadPoolExecutor(max_workers=2) as executor:

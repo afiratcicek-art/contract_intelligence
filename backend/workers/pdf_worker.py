@@ -68,8 +68,6 @@ def process_one(record: dict) -> None:
     user_id = record["created_by"]
     storage_path = record["storage_path"]
     filename = record["original_filename"]
-    entity_type = record["entity_type"]
-    entity_id = record["entity_id"]
 
     admin = get_admin_client()
 

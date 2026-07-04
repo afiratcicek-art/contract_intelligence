@@ -2,7 +2,7 @@ from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
-from backend.models.common import DayType, DeadlineSource
+from backend.models.common import DayType
 from backend.core.sanitizer import sanitize_short, sanitize_medium, sanitize_long
 
 

@@ -1,8 +1,8 @@
 ﻿import { useState, useCallback, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "../hooks/useDebounce";
-import { api } from "../services/api";
-import DocumentRelationGraph from "./DocumentRelationGraph";
+import { api, fetchDocumentStats, type DocumentStats } from "../services/api";
+import DocumentStatsPanel from "./DocumentStatsPanel";
 import FocusedRelationGraph from "./FocusedRelationGraph";
 
 /* ── Local types ───────────────────────────────────────────
@@ -89,6 +89,17 @@ export default function DocumentsModule({ projectId }: Props) {
 
   const [results, setResults] = useState<DocSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState<DocumentStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<{ type: string; value: string } | null>(null);
+
+  useEffect(() => {
+    setStatsLoading(true);
+    fetchDocumentStats(projectId)
+      .then(setStats)
+      .catch(() => setStats(null))
+      .finally(() => setStatsLoading(false));
+  }, [projectId]);
 
   /* Design tokens — consistent with rest of app */
   const bg          = "var(--color-bg-primary)";
@@ -172,7 +183,20 @@ export default function DocumentsModule({ projectId }: Props) {
 
   const handleInput = (val: string) => {
     setQuery(val);
-    if (!val.trim()) setResults([]);
+    if (!val.trim()) {
+      setResults([]);
+      setActiveFilter(null);
+    } else if (activeFilter && val !== activeFilter.value) {
+      setActiveFilter(null);
+    }
+  };
+
+  const handleFilter = (
+    filterType: "corrType" | "rfiDiscipline" | "keyword" | "location",
+    value: string,
+  ) => {
+    setActiveFilter({ type: filterType, value });
+    setQuery(value);
   };
 
   /* ── Status pill ─────────────────────────────────────── */
@@ -488,7 +512,7 @@ export default function DocumentsModule({ projectId }: Props) {
         />
         {query && (
           <button
-            onClick={() => { setQuery(""); setResults([]); }}
+            onClick={() => { setQuery(""); setResults([]); setActiveFilter(null); }}
             style={{
               position: "absolute" as const, right: 10, top: "50%",
               transform: "translateY(-50%)",
@@ -517,13 +541,18 @@ export default function DocumentsModule({ projectId }: Props) {
         </p>
       )}
 
-      {!query.trim() && (
-        <p style={{
-          fontSize: 12, color: textSecond, fontStyle: "italic",
-          fontFamily: "Inter, sans-serif",
-        }}>
-          Proje belgelerini aramak için yazmaya başlayın.
+      {!query.trim() && !focusId && statsLoading && (
+        <p style={{ fontSize: 12, color: textSecond, fontFamily: "Inter, sans-serif" }}>
+          İstatistikler yükleniyor...
         </p>
+      )}
+
+      {!query.trim() && !focusId && !statsLoading && stats && (
+        <DocumentStatsPanel
+          stats={stats}
+          onFilter={handleFilter}
+          activeFilter={activeFilter}
+        />
       )}
 
       {/* Results — Correspondence + RFI sections */}
@@ -534,18 +563,12 @@ export default function DocumentsModule({ projectId }: Props) {
         </div>
       )}
 
-      {/* ── Document Relationship Graph ──────────────────────
-          Feeds from GET /all-relations (computed live from
-          correspondence/rfi cards — no document_relations table).
-          Empty state handled inside component. */}
-      {focusId && focusType ? (
+      {focusId && focusType && (
         <FocusedRelationGraph
           projectId={projectId}
           entityType={focusType}
           entityId={focusId}
         />
-      ) : (
-        <DocumentRelationGraph projectId={projectId} />
       )}
 
     </div>

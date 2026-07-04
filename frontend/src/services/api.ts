@@ -212,6 +212,25 @@ export async function fetchLinkableDocuments(
   );
 }
 
+export interface DocumentStats {
+  total_count:       number;
+  corr_count:        number;
+  rfi_count:         number;
+  pdf_count:         number;
+  manual_count:      number;
+  by_corr_type:      Record<string, number>;
+  by_rfi_discipline: Record<string, number>;
+  by_doc_type:       Record<string, number>;
+  top_keywords:      string[];
+  top_locations:     string[];
+}
+
+export async function fetchDocumentStats(
+  projectId: string
+): Promise<DocumentStats> {
+  return api.get(`/projects/${projectId}/documents/stats`);
+}
+
 export async function updateChronology(
   projectId: string,
   chronologyId: string,

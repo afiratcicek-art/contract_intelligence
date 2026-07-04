@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+﻿import { lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 const ActivityChart = lazy(() => import("../components/ActivityChart"));
 import { useProjectDetail, useProjectTabs, useOverviewActivity, useUpcomingDeadlines, useOverdue } from "../hooks/useProjectDetail";
@@ -302,7 +302,7 @@ export default function ProjectDetail() {
                     <button
                       onClick={() => navigate(`/projects/${projectId}/workspace`)}
                       className="text-xs shrink-0 ml-2"
-                      style={{ color: "var(--color-accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}
+                      style={{ color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}
                     >
                       {t("overview.workspace")}
                     </button>
@@ -527,7 +527,7 @@ export default function ProjectDetail() {
                     <button
                       onClick={() => navigate(`/projects/${projectId}/workspace?module=alerts`)}
                       className="text-xs shrink-0 ml-2"
-                      style={{ color: "var(--color-accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif" }}
+                      style={{ color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif" }}
                     >
                       Review →
                     </button>

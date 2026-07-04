@@ -210,7 +210,7 @@ export default function RFIDetail() {
             <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginRight: 4 }}>{lang === "tr" ? "Zincir:" : "Chain:"}</span>
             {chain.ancestors.map((a, idx) => (
               <span key={a.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${a.id}`)} style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)", cursor: "pointer", textDecoration: "underline" }}>{a.rfi_number}</span>
+                <span onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${a.id}`)} style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)", cursor: "pointer", textDecoration: "underline" }}>{a.rfi_number}</span>
                 <span style={{ fontSize: 11, color: textSecond }}>{RFI_TYPE_LABELS[a.rfi_type]?.[lang as "en" | "tr"] ?? a.rfi_type}</span>
                 {idx < chain.ancestors.length - 1 && <span style={{ fontSize: 11, color: textSecond }}>→</span>}
               </span>
@@ -251,7 +251,7 @@ export default function RFIDetail() {
                 </button>
               )}
               <button onClick={() => navigate(`/projects/${projectId}/workspace/rfis/new?mode=revision&parent_id=${rfi.id}&parent_number=${rfi.rfi_number}`)}
-                style={{ backgroundColor: "transparent", color: "var(--color-accent)", border: `1px solid ${"var(--color-accent)"}`, padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}>
+                style={{ backgroundColor: "transparent", color: "var(--color-accent-text)", border: `1px solid ${"var(--color-accent)"}`, padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}>
                 {lang === "tr" ? "↺ Revize Ekle" : "↺ Add Revision"}
               </button>
             </div>
@@ -377,7 +377,7 @@ export default function RFIDetail() {
                     style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer", background: "var(--color-bg-primary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)" }}>{child.rfi_number}</span>
+                        <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)" }}>{child.rfi_number}</span>
                         {typeBadge(child.rfi_type)}
                       </div>
                       <div style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{child.subject}</div>
@@ -408,7 +408,7 @@ export default function RFIDetail() {
 
         <div style={{ marginTop: 32, paddingTop: 16, borderTop: `0.5px solid ${border}` }}>
           <button onClick={() => navigate(`/projects/${projectId}/workspace?module=rfis`)}
-            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
+            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent-text)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
             {lang === "tr" ? "← RFI Listesine Dön" : "← Back to RFIs"}
           </button>
         </div>

@@ -1,4 +1,4 @@
-import { useTheme } from "../context/ThemeContext";
+﻿import { useTheme } from "../context/ThemeContext";
 
 export default function ThemeToggle() {
   const { dark, toggle } = useTheme();
@@ -8,7 +8,7 @@ export default function ThemeToggle() {
       onClick={toggle}
       aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
       className="flex items-center justify-center w-8 h-8 transition-opacity hover:opacity-80"
-      style={{ color: "var(--color-accent)" }}
+      style={{ color: "var(--color-accent-text)" }}
     >
       {dark ? (
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

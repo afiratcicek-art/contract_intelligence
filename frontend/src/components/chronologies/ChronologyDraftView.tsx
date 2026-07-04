@@ -13,7 +13,8 @@ import HorizontalStrip from "./HorizontalStrip";
 import { toPendingStripEvents } from "./mappers";
 import type { PendingEvent, usePendingEvents } from "./usePendingEvents";
 
-const ACCENT = "var(--color-accent)";
+const ACCENT      = "var(--color-accent)";      // bg, border, stroke
+const ACCENT_TEXT = "var(--color-accent-text)"; // color only — WCAG AA
 const SECTION_LABEL = {
   fontSize: 11,
   textTransform: "uppercase" as const,
@@ -130,7 +131,7 @@ export default function ChronologyDraftView({
         <div style={{ marginBottom: 20 }}>
           <p style={SECTION_LABEL}>
             CHRONOLOGY TITLE{isCreate && (
-              <span style={{ color: ACCENT }}> *</span>
+              <span style={{ color: ACCENT_TEXT }}> *</span>
             )}
           </p>
           <input

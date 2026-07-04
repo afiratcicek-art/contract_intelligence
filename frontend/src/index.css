@@ -29,6 +29,7 @@
 
   /* Accent */
   --color-accent: #6B5D3F;
+  --color-accent-text: #5C5038;
 
   /* Borders */
   --color-border-light:  #E8E4DE;
@@ -78,6 +79,7 @@ html.dark {
 
   /* Accent */
   --color-accent: #A0714A;
+  --color-accent-text: #A0714A;
 
   /* Borders */
   --color-border-light:  #3A3D45;

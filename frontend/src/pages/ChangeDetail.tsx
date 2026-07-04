@@ -301,11 +301,11 @@ export default function ChangeDetail() {
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, whiteSpace: "nowrap" as const }}>
                         {event.event_date}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: event.is_key_event ? "var(--color-accent)" : textSecond }}>
+                      <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: event.is_key_event ? "var(--color-accent-text)" : textSecond }}>
                         {EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}
                       </span>
                       {event.is_key_event && (
-                        <span style={{ fontSize: 11, fontWeight: 500, color: "var(--color-accent)", border: `0.5px solid ${"var(--color-accent)"}`, padding: "1px 5px", letterSpacing: "0.05em" }}>KEY</span>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: "var(--color-accent-text)", border: `0.5px solid ${"var(--color-accent)"}`, padding: "1px 5px", letterSpacing: "0.05em" }}>KEY</span>
                       )}
                     </div>
 
@@ -326,7 +326,7 @@ export default function ChangeDetail() {
                                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${doc.correspondence_id}`)}
                                 style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
                                 <span style={{ fontSize: 11, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)", textDecoration: "underline" }}>
+                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)", textDecoration: "underline" }}>
                                   {doc.correspondences.corr_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.correspondences.subject}</span>
@@ -340,7 +340,7 @@ export default function ChangeDetail() {
                                 onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${doc.rfi_id}`)}
                                 style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
                                 <span style={{ fontSize: 11, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)", textDecoration: "underline" }}>
+                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)", textDecoration: "underline" }}>
                                   {doc.rfis.rfi_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.rfis.subject}</span>
@@ -382,7 +382,7 @@ export default function ChangeDetail() {
         {/* Geri */}
         <div style={{ paddingTop: 16, borderTop: `0.5px solid ${border}` }}>
           <button onClick={() => navigate(`/projects/${projectId}/workspace?module=changes`)}
-            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
+            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent-text)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
             {lang === "tr" ? "← Changes Listesine Dön" : "← Back to Changes"}
           </button>
         </div>

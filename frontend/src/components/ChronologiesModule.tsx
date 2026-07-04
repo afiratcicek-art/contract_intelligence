@@ -27,7 +27,8 @@ interface ChronologiesModuleProps {
   projectId: string;
 }
 
-const ACCENT = "var(--color-accent)";
+const ACCENT      = "var(--color-accent)";      // bg, border, stroke
+const ACCENT_TEXT = "var(--color-accent-text)"; // color only — WCAG AA
 
 const SECTION_LABEL: CSSProperties = {
   fontSize: 11,
@@ -459,7 +460,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
               onClick={() => setCreateMode(true)}
               style={{
                 fontSize: 11,
-                color: ACCENT,
+                color: ACCENT_TEXT,
                 background: "none",
                 border: `0.5px solid ${ACCENT}`,
                 borderRadius: 0,
@@ -690,12 +691,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                             {MANUAL_EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type}
                           </span>
                           {ev.is_key_event && (
-                            <span style={{ fontSize: 11, color: ACCENT, fontFamily: "Inter, sans-serif" }}>● KEY</span>
+                            <span style={{ fontSize: 11, color: ACCENT_TEXT, fontFamily: "Inter, sans-serif" }}>● KEY</span>
                           )}
                           {ev.document_ref_id && ev.document_ref_type && (
                             <button
                               onClick={() => navigateToDoc(ev.document_ref_type!, ev.document_ref_id!)}
-                              style={{ fontSize: 11, color: ACCENT, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", padding: 0 }}
+                              style={{ fontSize: 11, color: ACCENT_TEXT, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", padding: 0 }}
                             >
                               → View
                             </button>
@@ -707,7 +708,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                             title={expandedNarrativeId === ev.id ? "Hide narrative" : "Show narrative"}
                             style={{
                               fontSize: 11,
-                              color: "var(--color-accent)",
+                              color: "var(--color-accent-text)",
                               background: "none",
                               border: "none",
                               cursor: "pointer",
@@ -906,7 +907,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   onClick={() => enterEditModeForEvent(ev.id)}
                                   style={{
                                     fontSize: 11,
-                                    color: ACCENT,
+                                    color: ACCENT_TEXT,
                                     background: "none",
                                     border: "none",
                                     cursor: "pointer",

@@ -97,6 +97,7 @@ export default function DocumentsModule({ projectId }: Props) {
   const textPrimary = "var(--color-text-primary)";
   const textSecond  = "var(--color-text-secondary)";
   const accent      = "var(--color-accent)";
+  const accentText  = "var(--color-accent-text)";
 
   /* ── Navigation ─────────────────────────────────────────
      Local mirror of Workspace.tsx generalNavTarget.
@@ -228,11 +229,11 @@ export default function DocumentsModule({ projectId }: Props) {
               color: textSecond, display: "flex", alignItems: "center", gap: 3,
             }}>
               {isChild && (
-                <span style={{ color: accent, marginRight: 2 }}>└</span>
+                <span style={{ color: accentText, marginRight: 2 }}>└</span>
               )}
               {r.ref}
               {r.has_response && (
-                <span style={{ fontSize: 11, color: accent }}>↩</span>
+                <span style={{ fontSize: 11, color: accentText }}>↩</span>
               )}
             </span>
             <p style={{
@@ -335,7 +336,7 @@ export default function DocumentsModule({ projectId }: Props) {
               color: textSecond, display: "flex", alignItems: "center", gap: 3,
             }}>
               {isChild && (
-                <span style={{ color: accent, marginRight: 2 }}>└</span>
+                <span style={{ color: accentText, marginRight: 2 }}>└</span>
               )}
               {r.ref}
               {r.rfi_type && r.rfi_type !== "original" && (

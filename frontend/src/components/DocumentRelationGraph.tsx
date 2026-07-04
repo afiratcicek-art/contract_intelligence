@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { entityPath } from "../utils/entityPath";
@@ -88,6 +88,7 @@ export default function DocumentRelationGraph({
   const textPrim = "var(--color-text-primary)";
   const textSec  = "var(--color-text-secondary)";
   const accent   = "var(--color-accent)";
+  const accentText = "var(--color-accent-text)";
 
   useEffect(() => {
     setLoading(true);
@@ -306,7 +307,7 @@ export default function DocumentRelationGraph({
               </p>
             )}
             <p style={{
-              fontSize: 11, color: accent,
+              fontSize: 11, color: accentText,
               margin: "3px 0 0", fontFamily: "Inter, sans-serif",
             }}>
               Tıkla → detaya git
@@ -322,7 +323,7 @@ export default function DocumentRelationGraph({
         <span style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
           C = Yazışma · R = RFI
         </span>
-        <span style={{ fontSize: 11, color: accent, fontFamily: "Inter, sans-serif" }}>
+        <span style={{ fontSize: 11, color: accentText, fontFamily: "Inter, sans-serif" }}>
           ── Zincir
         </span>
         <span style={{ fontSize: 11, color: "var(--color-success)", fontFamily: "Inter, sans-serif" }}>

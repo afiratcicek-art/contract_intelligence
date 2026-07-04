@@ -231,7 +231,7 @@ export default function CorrespondenceDetail() {
               <span key={b.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span
                   onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${b.id}`)}
-                  style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)", cursor: "pointer", textDecoration: "underline" }}
+                  style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)", cursor: "pointer", textDecoration: "underline" }}
                 >
                   {b.corr_number}
                 </span>
@@ -294,7 +294,7 @@ export default function CorrespondenceDetail() {
             </button>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/new?mode=followup&parent_id=${corr.id}&parent_number=${corr.corr_number}`)}
-              style={{ backgroundColor: "transparent", color: "var(--color-accent)", border: `1px solid ${"var(--color-accent)"}`, padding: "6px 12px", fontSize: 11, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
+              style={{ backgroundColor: "transparent", color: "var(--color-accent-text)", border: `1px solid ${"var(--color-accent)"}`, padding: "6px 12px", fontSize: 11, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
             >
               {lang === "tr" ? "+ Followup Ekle" : "+ Add Followup"}
             </button>
@@ -371,7 +371,7 @@ export default function CorrespondenceDetail() {
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${child.has_response ? textSecond : "var(--color-accent)"}`, cursor: "pointer" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)" }}>{child.corr_number}</span>
+                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)" }}>{child.corr_number}</span>
                   {directionPill(child.direction)}
                   <span style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{child.subject}</span>
                 </div>
@@ -418,7 +418,7 @@ export default function CorrespondenceDetail() {
                       alert(lang === "tr" ? "İndirme linki oluşturulamadı." : "Could not generate download link.");
                     }
                   }}
-                  style={{ fontSize: 11, color: "var(--color-accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif" }}
+                  style={{ fontSize: 11, color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif" }}
                 >
                   {lang === "tr" ? "İndir →" : "Download →"}
                 </button>
@@ -431,7 +431,7 @@ export default function CorrespondenceDetail() {
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: `0.5px solid ${border}` }}>
           <button
             onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}
-            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}
+            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent-text)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}
           >
             {lang === "tr" ? "← Yazışma Listesine Dön" : "← Back to Correspondence"}
           </button>

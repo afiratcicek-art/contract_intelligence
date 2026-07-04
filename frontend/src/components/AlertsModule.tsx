@@ -16,7 +16,8 @@ interface AlertsModuleProps {
   projectId: string;
 }
 
-const ACCENT = "var(--color-accent)";
+const ACCENT      = "var(--color-accent)";      // bg, border, stroke
+const ACCENT_TEXT = "var(--color-accent-text)"; // color only — WCAG AA
 
 const PRIORITY_BORDER: Record<string, string> = {
   critical: "var(--color-priority-critical)",
@@ -35,7 +36,7 @@ const PRIORITY_BADGE: Record<string, { bg: string; color: string }> = {
   },
   normal: {
     bg: "var(--color-background-tertiary)",
-    color: "var(--color-accent)",
+    color: "var(--color-accent-text)",
   },
 };
 
@@ -81,7 +82,7 @@ function InfoRow({ label, value, status }: { label: string; value: string; statu
       <span
         style={{
           fontSize: 11,
-          color: status ? ACCENT : "var(--color-text-primary)",
+          color: status ? ACCENT_TEXT : "var(--color-text-primary)",
           fontWeight: 500,
           fontFamily: "Inter, sans-serif",
           textAlign: "left",
@@ -291,7 +292,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               alignItems: "center",
               gap: 4,
               fontSize: 11,
-              color: ACCENT,
+              color: ACCENT_TEXT,
               background: "none",
               border: `0.5px solid ${ACCENT}`,
               borderRadius: 0,
@@ -538,7 +539,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 borderBottom: "none",
                 cursor: "pointer",
                 fontSize: 12,
-                color: ACCENT,
+                color: ACCENT_TEXT,
                 paddingTop: 8,
                 paddingBottom: 8,
                 paddingLeft: 16,
@@ -607,7 +608,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                           <i
                             className="ti ti-notes"
                             aria-hidden="true"
-                            style={{ fontSize: 13, marginRight: 4, color: ACCENT, flexShrink: 0 }}
+                            style={{ fontSize: 13, marginRight: 4, color: ACCENT_TEXT, flexShrink: 0 }}
                           />
                           <span>{action.note} — {formatDate(action.created_at)}</span>
                         </>
@@ -617,7 +618,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                           <i
                             className="ti ti-user"
                             aria-hidden="true"
-                            style={{ fontSize: 13, marginRight: 4, color: ACCENT, flexShrink: 0 }}
+                            style={{ fontSize: 13, marginRight: 4, color: ACCENT_TEXT, flexShrink: 0 }}
                           />
                           <span>
                             {action.assigned_to_role ?? "User"}

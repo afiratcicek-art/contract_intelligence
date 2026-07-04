@@ -422,9 +422,9 @@ export default function Workspace() {
                       >
                         <div>
                           <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
-                            {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
+                            {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                             {r.ref}
-                            {r.has_response && <span style={{ fontSize: 11, color: "var(--color-accent)" }}>↩</span>}
+                            {r.has_response && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>↩</span>}
                           </span>
                           <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
                           <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
@@ -468,7 +468,7 @@ export default function Workspace() {
                       >
                         <div>
                           <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
-                            {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
+                            {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                             {r.ref}
                             {r.rfi_type && r.rfi_type !== "original" && (
                               <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? "var(--color-success-bg)" : "var(--color-bg-secondary)", color: r.rfi_type === "response" ? "var(--color-success)" : "var(--color-text-secondary)", textTransform: "uppercase" as const }}>
@@ -584,9 +584,9 @@ export default function Workspace() {
                       }}
                     >
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
-                        {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
+                        {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                         {c.corr_number}
-                        {c.has_response && <span style={{ fontSize: 11, color: "var(--color-accent)" }}>🔗</span>}
+                        {c.has_response && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>🔗</span>}
                       </span>
                       <div>
                         <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, margin: 0 }}>{c.subject}</p>
@@ -684,7 +684,7 @@ export default function Workspace() {
                       }}
                     >
                       <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
-                        {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
+                        {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                         {r.rfi_number}
                         {r.rfi_type && r.rfi_type !== "original" && (
                           <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? "var(--color-success-bg)" : "var(--color-bg-secondary)", color: r.rfi_type === "response" ? "var(--color-success)" : "var(--color-text-secondary)", textTransform: "uppercase" as const }}>
@@ -761,7 +761,7 @@ export default function Workspace() {
                   {listHeader([{ label: t("col.title"), width: "1fr" }, { label: t("col.category"), width: "100px" }, { label: t("col.duedate"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
                   {filteredDeliverables.map((d) => (
                     <div key={d.id} onClick={() => navigate(`/projects/${projectId}/workspace/deliverables/${d.id}`)} style={{ display: "grid", gridTemplateColumns: "1fr 100px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${d.status === "in_progress" ? "var(--color-accent)" : "transparent"}` }}>
-                      <div><p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{d.title}</p>{d.is_pre_completion && <span style={{ fontSize: 11, color: "var(--color-accent)" }}>{t("state.precompletion")}</span>}</div>
+                      <div><p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{d.title}</p>{d.is_pre_completion && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>{t("state.precompletion")}</span>}</div>
                       <span style={{ fontSize: 11, color: textSecondary }}>{d.category ?? "—"}</span>
                       <span style={{ fontSize: 11, color: d.due_date && d.due_date < today ? "var(--color-alert-red)" : textSecondary }}>{d.due_date ?? "—"}</span>
                       {statusPill(d.status)}

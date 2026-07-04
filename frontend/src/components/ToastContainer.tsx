@@ -18,7 +18,7 @@ const TYPE_STYLES: Record<ToastType, { border: string; color: string; bg: string
   },
   info: {
     border: "var(--color-accent)",
-    color:  "var(--color-accent)",
+    color:  "var(--color-accent-text)",
     bg:     "var(--color-bg-secondary)",
   },
 };

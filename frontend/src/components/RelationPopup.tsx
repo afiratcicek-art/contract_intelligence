@@ -42,6 +42,7 @@ export default function RelationPopup({
   const textP   = "var(--color-text-primary)";
   const textS   = "var(--color-text-secondary)";
   const accent  = "var(--color-accent)";
+  const accentText = "var(--color-accent-text)";
 
   useEffect(() => {
     setLoading(true);
@@ -330,7 +331,7 @@ export default function RelationPopup({
                       display: "flex", alignItems: "center",
                       justifyContent: "center",
                       background: bridgeMode ? accent : "var(--color-bg-secondary)",
-                      color: bridgeMode ? "var(--color-bg-primary)" : accent,
+                      color: bridgeMode ? "var(--color-bg-primary)" : accentText,
                       border: `1px solid ${accent}`,
                       padding: "9px 14px", fontSize: 12, fontWeight: 500,
                       cursor: "pointer", fontFamily: "Inter, sans-serif",

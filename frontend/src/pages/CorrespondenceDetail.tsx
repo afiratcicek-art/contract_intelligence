@@ -43,6 +43,7 @@ interface CorrDetail {
   created_at: string;
   breadcrumb: BreadcrumbItem[];
   children: ChildCorr[];
+  keywords?: string[];
 }
 
 interface Document {
@@ -325,14 +326,15 @@ export default function CorrespondenceDetail() {
               </p>
             </div>
           )}
-          {docs.some(d => d.keywords && d.keywords.length > 0) && (
+          {((corr.keywords && corr.keywords.length > 0) ||
+            docs.some(d => d.keywords && d.keywords.length > 0)) && (
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>{lang === "tr" ? "ANAHTAR KELİMELER" : "KEYWORDS"}</label>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginTop: 4 }}>
-                {docs
-                  .flatMap(d => d.keywords || [])
-                  .filter((kw, i, arr) => arr.indexOf(kw) === i)
-                  .map((kw, i) => (
+                {[...new Set([
+                  ...(corr.keywords || []),
+                  ...docs.flatMap(d => d.keywords || []),
+                ])].map((kw, i) => (
                     <span key={i} style={{
                       fontSize: 11,
                       padding: "2px 8px",

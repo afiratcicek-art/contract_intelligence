@@ -54,6 +54,7 @@ interface RFIDetail {
   updated_at: string;
   linked_correspondences: LinkedCorr[];
   chain: RFIChain;
+  keywords?: string[];
 }
 
 interface DeadlineInfo {
@@ -299,7 +300,8 @@ export default function RFIDetail() {
                   </p>
                 </div>
               )}
-              {docs.length > 0 && docs.some(d => d.keywords && d.keywords.length > 0) && (
+              {((rfi.keywords && rfi.keywords.length > 0) ||
+                (docs.length > 0 && docs.some(d => d.keywords && d.keywords.length > 0))) && (
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: `0.5px solid ${border}` }}>
                   <div style={{
                     fontSize: 11,
@@ -312,10 +314,10 @@ export default function RFIDetail() {
                     {lang === "tr" ? "Anahtar Kelimeler" : "Keywords"}
                   </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
-                    {docs
-                      .flatMap(d => d.keywords || [])
-                      .filter((kw, i, arr) => arr.indexOf(kw) === i)
-                      .map((kw, i) => (
+                    {[...new Set([
+                      ...(rfi.keywords || []),
+                      ...docs.flatMap(d => d.keywords || []),
+                    ])].map((kw, i) => (
                         <span
                           key={i}
                           style={{

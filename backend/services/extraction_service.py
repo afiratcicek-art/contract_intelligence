@@ -26,7 +26,7 @@ from typing import Optional
 
 import anthropic
 
-from backend.core.sanitizer import sanitize_medium, sanitize_short
+from backend.core.sanitizer import sanitize_contract_text, sanitize_medium, sanitize_short
 from backend.database import get_admin_client
 from backend.services.audit_service import AuditService
 
@@ -204,7 +204,8 @@ class ExtractionService:
         Uncomment the implementation block below to activate.
         """
         # TODO (TB-5): Uncomment when ANTHROPIC_API_KEY configured
-        # truncated = text[:_TEXT_LIMIT]
+        # safe_text = sanitize_contract_text(text)  # TD-003: strip injection patterns
+        # truncated = safe_text[:_TEXT_LIMIT]
         # for attempt in range(1, _MAX_RETRIES + 1):
         #     try:
         #         response = self._client.messages.create(

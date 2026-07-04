@@ -5,6 +5,7 @@ bu modüldeki fonksiyonlardan geçirilir.
 
 Supabase ORM SQL injection'ı ORM seviyesinde bloke eder.
 Bu modül XSS, null byte ve aşırı uzun input saldırılarına karşı koruma sağlar.
+sanitize_contract_text() PDF'den çıkarılan metni LLM'e göndermeden önce temizler.
 """
 import re
 from typing import Optional
@@ -92,3 +93,59 @@ def sanitize_long(value: Optional[str]) -> Optional[str]:
 def sanitize_content(value: Optional[str]) -> Optional[str]:
     """draft content, final_content gibi çok uzun alanlar (max 50000)."""
     return sanitize_string(value, max_length=LIMITS["content"], allow_newlines=True)
+
+
+# ----------------------------------------------------------
+# LLM prompt injection koruması — PDF extracted text için
+# ----------------------------------------------------------
+
+_INJECTION_PATTERNS = [
+    re.compile(p, re.IGNORECASE)
+    for p in [
+        r"ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions?",
+        r"(?:forget|disregard)\s+(?:your|all|previous)\s+instructions?",
+        r"you\s+are\s+now\b",
+        r"new\s+(?:role|persona|identity)\b",
+        r"(?:system|hidden)\s+prompt",
+        r"override\s+instructions?",
+        r"\[system\s*(?:instruction|message|prompt)\]",
+        r"önceki\s+talimatları?\s+unut",
+        r"sen\s+artık\b",
+        r"tüm\s+projeleri\s+listele",
+    ]
+]
+
+_INJECTION_PLACEHOLDER = "[CONTENT REDACTED — injection pattern detected]"
+
+CONTRACT_TEXT_MAX_LENGTH = 50_000
+
+
+def sanitize_contract_text(text: str) -> str:
+    """PDF'den çıkarılan sözleşme metnini LLM'e göndermeden önce temizler.
+
+    XSS temizliği (DB güvenliği için) + prompt injection pattern'lerini
+    nötralize eder. Metin silinmez, injection satırları placeholder ile
+    değiştirilir — böylece analiz bağlamı korunur.
+    """
+    if not text:
+        return ""
+
+    text = _NULL_BYTE.sub("", text)
+    text = _SCRIPT_TAG.sub("", text)
+    text = _HTML_TAG.sub("", text)
+    text = _JS_PROTO.sub("", text)
+    text = _EVENT_HANDLER.sub("", text)
+
+    lines = text.splitlines()
+    cleaned: list[str] = []
+    for line in lines:
+        if any(p.search(line) for p in _INJECTION_PATTERNS):
+            cleaned.append(_INJECTION_PLACEHOLDER)
+        else:
+            cleaned.append(line)
+    text = "\n".join(cleaned)
+
+    if len(text) > CONTRACT_TEXT_MAX_LENGTH:
+        text = text[:CONTRACT_TEXT_MAX_LENGTH]
+
+    return text.strip()

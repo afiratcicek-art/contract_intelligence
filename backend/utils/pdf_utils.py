@@ -164,19 +164,30 @@ def classify_pages(pdf_bytes: bytes) -> DocumentQuality:
     )
 
 
+_SCRIPT_TAG    = re.compile(r"<script[\s\S]*?>[\s\S]*?</script>", re.IGNORECASE)
+_HTML_TAG      = re.compile(r"<[^>]+>")
+_JS_PROTO      = re.compile(r"javascript\s*:", re.IGNORECASE)
+_EVENT_HANDLER = re.compile(r"\bon\w+\s*=", re.IGNORECASE)
+
+
 def clean_extracted_text(raw_text: str) -> str:
     """
     PyMuPDF veya Tesseract'tan gelen ham metni temizler.
-    - Aşırı boşluk ve satır sonlarını normalize eder
     - Null byte ve kontrol karakterlerini kaldırır
-    - sanitizer.py'nin sanitize_user_input() ile zincirlenmez:
-      bu fonksiyon PDF metnini temizler, kullanıcı girdisi değil
+    - XSS pattern'lerini temizler (script, html, js proto, event handler)
+    - Aşırı boşluk ve satır sonlarını normalize eder
     """
     if not raw_text:
         return ""
 
     text = raw_text.replace("\x00", "")
     text = re.sub(r"[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
+
+    text = _SCRIPT_TAG.sub("", text)
+    text = _HTML_TAG.sub("", text)
+    text = _JS_PROTO.sub("", text)
+    text = _EVENT_HANDLER.sub("", text)
+
     text = re.sub(r"\n{3,}", "\n\n", text)
     lines = [line.strip() for line in text.splitlines()]
     text = "\n".join(lines)

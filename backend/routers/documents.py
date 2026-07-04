@@ -24,7 +24,7 @@ from backend.core.limiter import limiter
 from backend.database import get_admin_client
 from backend.services.permission_service import PermissionService
 from backend.utils.file_handler import upload_document, delete_document, get_signed_url
-from backend.utils.pdf_utils import validate_document_bytes
+from backend.utils.pdf_utils import validate_document_bytes, scan_for_virus
 from fastapi import BackgroundTasks
 from backend.models.document import (
     DocumentMetadataUpdate,
@@ -121,6 +121,14 @@ def upload_pdf(
         validate_document_bytes(file_bytes, filename)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+    # ClamAV virüs taraması (TD-003)
+    try:
+        scan_for_virus(file_bytes, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
     # Storage'a yükle
     try:

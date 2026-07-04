@@ -31,12 +31,15 @@ Karma içerikli PDF'lerde (0.25 <= quality_score < 0.75) PyMuPDF fallback devrey
 ---
 
 ## TD-003 — PDF Metin Injection Taraması
-**Konum:** `backend/services/pdf_pipeline_service.py` → `process()` — ADIM 4 sonrası
-**Durum:** Yapılmadı
-**Sorun:** PDF'den çıkarılan metin doğrudan Claude API'ye gönderilecek.
-Kötü niyetli bir PDF prompt injection içerebilir.
-**Çözüm:** clean_extracted_text() sonrası LLM injection pattern taraması ekle.
-**Ne zaman:** Claude entegrasyonu başlamadan önce — zorunlu.
+**Konum:** `backend/core/sanitizer.py`, `backend/services/claude_service.py`, `backend/utils/pdf_utils.py`, `backend/routers/documents.py`
+**Durum:** KAPATILDI (0c6abba, 2026-07-04)
+**Çözüm (uygulanan):**
+  1. `sanitize_contract_text()` — 10 injection pattern (TR+EN) + XSS strip, satır bazlı redaction
+  2. `claude_service.py` — `analyze_clause()` + `generate_what_if_scenario()` contract_text sanitize edildi
+  3. Gate system prompt — contract_excerpt injection taraması eklendi
+  4. `scan_for_virus()` upload endpoint'e bağlandı (ClamAV)
+  5. `clean_extracted_text()` XSS pattern'leri eklendi
+  6. `extraction_service.py` TB-5 aktivasyonu için hazırlandı
 
 ---
 
@@ -51,11 +54,10 @@ Production deployment'ta sistem paketi olarak kurulması gerekiyor.
 ---
 
 ## TD-005 — Dependency CVE Taraması
-**Konum:** `requirements.txt`
-**Durum:** Yapılmadı
-**Sorun:** Mevcut bağımlılıklarda bilinen güvenlik açığı olabilir.
-**Çözüm:** `pip audit` veya `safety check` çalıştır, kritik CVE'leri kapat.
-**Ne zaman:** Production deployment öncesi.
+**Konum:** `requirements.txt`, `frontend/package.json`
+**Durum:** KAPATILDI (2026-07-04)
+**Sonuç:** pip-audit + npm audit: 0 CVE bulundu. starlette CVE-2026-48710 pin zaten mevcut.
+**Periyodik:** Production CI'da pip-audit + npm audit adımı eklenmeli.
 
 ---
 

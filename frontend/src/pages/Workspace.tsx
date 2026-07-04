@@ -218,7 +218,7 @@ export default function Workspace() {
   };
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
-    <button key={label} onClick={onClick} style={{ padding: "4px 10px", border: `0.5px solid ${active ? "var(--color-accent)" : border}`, fontSize: 11, color: active ? "#F5F2ED" : textSecondary, background: active ? "var(--color-accent)" : cardBg, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+    <button key={label} onClick={onClick} style={{ padding: "4px 10px", border: `0.5px solid ${active ? "var(--color-accent)" : border}`, fontSize: 11, color: active ? "var(--color-bg-primary)" : textSecondary, background: active ? "var(--color-accent)" : cardBg, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
       {label}
     </button>
   );
@@ -248,7 +248,7 @@ export default function Workspace() {
   const moduleHeader = (title: string, onNew?: () => void, newLabel?: string) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
       <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>{title}</div>
-      {onNew && <button onClick={onNew} style={{ background: "var(--color-accent)", color: "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>{newLabel}</button>}
+      {onNew && <button onClick={onNew} style={{ background: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>{newLabel}</button>}
     </div>
   );
 
@@ -354,7 +354,7 @@ export default function Workspace() {
                 <span style={{
                   fontSize: 11, fontWeight: 500,
                   backgroundColor: "var(--color-alert-red)",
-                  color: "#F5F2ED",
+                  color: "var(--color-bg-primary)",
                   borderRadius: 10,
                   padding: "1px 6px",
                   minWidth: 16,
@@ -527,7 +527,7 @@ export default function Workspace() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
                 <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>Correspondence</div>
                 <div style={{ position: "relative" as const }}>
-                  <button onClick={() => setCorrDropdown(!corrDropdown)} style={{ background: "var(--color-accent)", color: "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                  <button onClick={() => setCorrDropdown(!corrDropdown)} style={{ background: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
                     {t("action.newcorrespondence")} ▾
                   </button>
                   {corrDropdown && (
@@ -624,7 +624,7 @@ export default function Workspace() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
                 <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>RFIs</div>
                 <div style={{ position: "relative" as const }}>
-                  <button onClick={() => setRfiDropdown(!rfiDropdown)} style={{ background: "var(--color-accent)", color: "#F5F2ED", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                  <button onClick={() => setRfiDropdown(!rfiDropdown)} style={{ background: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
                     {t("action.newrfi")} ▾
                   </button>
                   {rfiDropdown && (

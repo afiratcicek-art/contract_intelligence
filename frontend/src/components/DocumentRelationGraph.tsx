@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import { entityPath } from "../utils/entityPath";
 
 /* ── Types ─────────────────────────────────────────────────
    Shape mirrors GET /all-relations response
@@ -62,17 +63,6 @@ function shortSubject(subject: string, max = 16): string {
   return subject.slice(0, max - 1) + "…";
 }
 
-function entityPath(
-  projectId: string,
-  entityType: string,
-  id: string
-): string {
-  if (entityType === "correspondence")
-    return `/projects/${projectId}/workspace/correspondence/${id}`;
-  if (entityType === "rfi")
-    return `/projects/${projectId}/workspace/rfis/${id}`;
-  return `/projects/${projectId}/workspace`;
-}
 
 /** Edge layer → stroke color + label. */
 function layerStyle(layer: string, accent: string): { color: string; label: string } {
@@ -254,7 +244,7 @@ export default function DocumentRelationGraph({
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fontSize={10} fontWeight={500}
-                  fill={isHov ? "#F5F2ED" : accent}
+                  fill={isHov ? "var(--color-bg-primary)" : accent}
                   fontFamily="Inter, sans-serif"
                 >
                   {entityLabel(node.entity_type)}
@@ -265,7 +255,7 @@ export default function DocumentRelationGraph({
                   dominantBaseline="middle"
                   dy={12}
                   fontSize={8}
-                  fill={isHov ? "#F5F2ED" : textSec}
+                  fill={isHov ? "var(--color-bg-primary)" : textSec}
                   fontFamily="JetBrains Mono, monospace"
                 >
                   {node.ref}

@@ -952,7 +952,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                     onClick={handleSaveEdit}
                     disabled={savingEdit}
                     style={{
-                      background: ACCENT, color: "#F5F2ED",
+                      background: ACCENT, color: "var(--color-bg-primary)",
                       border: "none", padding: "8px 20px",
                       fontSize: 12, fontWeight: 500,
                       cursor: savingEdit ? "not-allowed" : "pointer",
@@ -1190,7 +1190,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       alignSelf: "flex-start", fontSize: 11, padding: "6px 16px",
                       background: manualDate && manualSubject.trim()
                         ? ACCENT : "var(--color-border-medium)",
-                      color: "#F5F2ED", border: "none", borderRadius: 0,
+                      color: "var(--color-bg-primary)", border: "none", borderRadius: 0,
                       cursor: manualDate && manualSubject.trim()
                         ? "pointer" : "not-allowed",
                       fontFamily: "Inter, sans-serif",
@@ -1429,15 +1429,22 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               <button
                                 onClick={() => requestLlmNarrative(pe)}
                                 style={{
+                                  display: "flex", alignItems: "center", gap: 5,
                                   fontSize: 11, padding: "5px 12px",
-                                  background: ACCENT, color: "var(--color-bg-primary)",
-                                  border: `1px solid ${ACCENT}`, borderRadius: 0,
+                                  background: "var(--color-ai-bg)",
+                                  color: "var(--color-ai)",
+                                  border: "1px solid var(--color-ai)",
+                                  borderRadius: 6,
                                   fontWeight: 500,
                                   cursor: "pointer",
                                   fontFamily: "Inter, sans-serif",
                                 }}
                               >
-                                ✦ Request LLM Narrative
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                  stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                  <path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 7 7c0 2.5-1.5 4.5-3 6l-1 1H9l-1-1C6.5 13.5 5 11.5 5 9a7 7 0 0 1 7-7z"/>
+                                </svg>
+                                LLM Narrative
                               </button>
                               <button
                                 onClick={() => updatePending(pe.doc.id, {
@@ -1493,7 +1500,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   background: pe.manualText.trim()
                                     ? "var(--color-success)"
                                     : "var(--color-border-medium)",
-                                  color: "#F5F2ED", border: "none",
+                                  color: "var(--color-bg-primary)", border: "none",
                                   borderRadius: 0,
                                   cursor: pe.manualText.trim()
                                     ? "pointer" : "not-allowed",
@@ -1594,7 +1601,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                   disabled={savingChronology || !createTitle.trim()}
                   style={{
                     background: createTitle.trim() ? ACCENT : "var(--color-border-medium)",
-                    color: "#F5F2ED",
+                    color: "var(--color-bg-primary)",
                     border: "none",
                     padding: "8px 20px",
                     fontSize: 12,
@@ -1854,7 +1861,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       padding: "6px 16px",
                       background: manualDate && manualSubject.trim()
                         ? ACCENT : "var(--color-border-medium)",
-                      color: "#F5F2ED",
+                      color: "var(--color-bg-primary)",
                       border: "none",
                       borderRadius: 0,
                       cursor: manualDate && manualSubject.trim()
@@ -1979,18 +1986,23 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                           <button
                             onClick={() => requestLlmNarrative(pe)}
                             style={{
+                              display: "flex", alignItems: "center", gap: 5,
                               fontSize: 11,
                               padding: "5px 12px",
-                              background: ACCENT,
-                              color: "var(--color-bg-primary)",
-                              border: `1px solid ${ACCENT}`,
-                              borderRadius: 0,
+                              background: "var(--color-ai-bg)",
+                              color: "var(--color-ai)",
+                              border: "1px solid var(--color-ai)",
+                              borderRadius: 6,
                               fontWeight: 500,
                               cursor: "pointer",
                               fontFamily: "Inter, sans-serif",
                             }}
                           >
-                            ✦ Request LLM Narrative
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                              stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                              <path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 7 7c0 2.5-1.5 4.5-3 6l-1 1H9l-1-1C6.5 13.5 5 11.5 5 9a7 7 0 0 1 7-7z"/>
+                            </svg>
+                            LLM Narrative
                           </button>
                           <button
                             onClick={() => updatePending(pe.doc.id, { narrativeMode: "manual" })}
@@ -2046,7 +2058,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               fontSize: 11,
                               padding: "5px 14px",
                               background: "var(--color-success)",
-                              color: "#F5F2ED",
+                              color: "var(--color-bg-primary)",
                               border: "none",
                               borderRadius: 0,
                               cursor: "pointer",
@@ -2087,7 +2099,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               fontSize: 11,
                               padding: "5px 14px",
                               background: pe.manualText.trim() ? "var(--color-success)" : "var(--color-border-medium)",
-                              color: "#F5F2ED",
+                              color: "var(--color-bg-primary)",
                               border: "none",
                               borderRadius: 0,
                               cursor: pe.manualText.trim() ? "pointer" : "not-allowed",
@@ -2188,7 +2200,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                     style={{
                       fontSize: 12,
                       background: ACCENT,
-                      color: "#F5F2ED",
+                      color: "var(--color-bg-primary)",
                       border: "none",
                       borderRadius: 0,
                       padding: "8px 16px",
@@ -2405,7 +2417,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                     disabled={approvingId === ev.id}
                                     style={{
                                       fontSize: 11, padding: "5px 14px",
-                                      background: ACCENT, color: "#F5F2ED",
+                                      background: ACCENT, color: "var(--color-bg-primary)",
                                       border: "none", borderRadius: 0,
                                       cursor: approvingId === ev.id ? "wait" : "pointer",
                                       fontFamily: "Inter, sans-serif",
@@ -2462,7 +2474,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   disabled={approvingId === ev.id}
                                   style={{
                                     marginTop: 6, fontSize: 11, padding: "5px 14px",
-                                    background: ACCENT, color: "#F5F2ED",
+                                    background: ACCENT, color: "var(--color-bg-primary)",
                                     border: "none", borderRadius: 0,
                                     cursor: approvingId === ev.id ? "wait" : "pointer",
                                     fontFamily: "Inter, sans-serif",

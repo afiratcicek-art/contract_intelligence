@@ -641,7 +641,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                     style={{
                       marginTop: 8,
                       background: ACCENT,
-                      color: "#F5F2ED",
+                      color: "var(--color-bg-primary)",
                       padding: "6px 12px",
                       border: "none",
                       borderRadius: 0,
@@ -666,7 +666,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                                 ? "var(--color-accent)"
                                 : "var(--color-bg-secondary)",
                               color: actionType === type
-                                ? "#F5F2ED"
+                                ? "var(--color-bg-primary)"
                                 : "var(--color-text-primary)",
                               border: actionType === type
                                 ? "0.5px solid var(--color-accent)"
@@ -753,7 +753,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                           disabled={submitting}
                           style={{
                             background: ACCENT,
-                            color: "#F5F2ED",
+                            color: "var(--color-bg-primary)",
                             padding: "6px 14px",
                             border: "none",
                             borderRadius: 0,

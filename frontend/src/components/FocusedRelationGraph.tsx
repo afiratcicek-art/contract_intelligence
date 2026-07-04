@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import { entityPath } from "../utils/entityPath";
 
 interface FocusNode {
   id: string;
@@ -56,12 +57,6 @@ const TIER_OPACITY: Record<string, number> = {
   indirect: 0.5,
   cross: 0.42,
 };
-
-function entityPath(projectId: string, entityType: string, id: string): string {
-  if (entityType === "correspondence")
-    return `/projects/${projectId}/workspace/correspondence/${id}`;
-  return `/projects/${projectId}/workspace/rfis/${id}`;
-}
 
 interface LaidOutNode { x: number; y: number; r: number; }
 
@@ -423,7 +418,7 @@ export default function FocusedRelationGraph({
                 x={pos.x} y={pos.y}
                 textAnchor="middle" dominantBaseline="middle"
                 fontSize={8} fontWeight={600}
-                fill={isHov ? "#F5F2ED" : "var(--color-text-primary)"}
+                fill={isHov ? "var(--color-bg-primary)" : "var(--color-text-primary)"}
                 fontFamily="JetBrains Mono, monospace"
               >
                 {n.ref}
@@ -454,7 +449,7 @@ export default function FocusedRelationGraph({
           />
           <text
             x={CX} y={CY} textAnchor="middle" dominantBaseline="middle"
-            fontSize={10} fontWeight={600} fill="#F5F2ED" fontFamily="JetBrains Mono, monospace"
+            fontSize={10} fontWeight={600} fill="var(--color-bg-primary)" fontFamily="JetBrains Mono, monospace"
           >
             {center.ref}
           </text>

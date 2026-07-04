@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import { entityPath } from "../utils/entityPath";
 
 interface RelationItem {
   id: string;
@@ -22,12 +23,6 @@ interface Props {
   entityType: "correspondence" | "rfi";
   entityId:   string;
   onClose: () => void;
-}
-
-function entityPath(projectId: string, item: RelationItem): string {
-  if (item.entity_type === "correspondence")
-    return `/projects/${projectId}/workspace/correspondence/${item.id}`;
-  return `/projects/${projectId}/workspace/rfis/${item.id}`;
 }
 
 export default function RelationPopup({
@@ -84,7 +79,7 @@ export default function RelationPopup({
 
   const goTo = (item: RelationItem) => {
     onClose();
-    navigate(entityPath(projectId, item));
+    navigate(entityPath(projectId, item.entity_type, item.id));
   };
 
   const goToGraph = () => {

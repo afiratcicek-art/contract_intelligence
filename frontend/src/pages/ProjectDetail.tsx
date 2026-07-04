@@ -162,7 +162,7 @@ export default function ProjectDetail() {
                 onClick={() => navigate(`/projects/${project.id}/workspace`)}
                 style={{
                   backgroundColor: "var(--color-accent)",
-                  color: "#F5F2ED",
+                  color: "var(--color-bg-primary)",
                   border: "none",
                   padding: "8px 16px",
                   fontSize: "12px",

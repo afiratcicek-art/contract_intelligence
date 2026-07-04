@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { getAuth, clearAuth } from "../store/auth";
@@ -144,7 +144,7 @@ export default function ChangeDetail() {
   const statusPill = (status: string) => {
     const c = STATUS_COLORS[status] ?? { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" };
     return (
-      <span style={{ background: c.bg, color: c.text, fontSize: 10, fontWeight: 500, padding: "3px 8px", textTransform: "uppercase" as const, letterSpacing: "0.06em", whiteSpace: "nowrap" as const }}>
+      <span style={{ background: c.bg, color: c.text, fontSize: 11, fontWeight: 500, padding: "3px 8px", textTransform: "uppercase" as const, letterSpacing: "0.06em", whiteSpace: "nowrap" as const }}>
         {status.replace("_", " ")}
       </span>
     );
@@ -152,7 +152,7 @@ export default function ChangeDetail() {
 
   const field = (label: string, value: string | number | null | undefined, mono = false) => (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 3 }}>{label}</div>
       <div style={{ fontSize: 13, color: value !== null && value !== undefined ? textPrimary : textSecond, fontFamily: mono ? "JetBrains Mono, monospace" : "Inter, sans-serif", fontStyle: value !== null && value !== undefined ? "normal" : "italic" }}>
         {value ?? "—"}
       </div>
@@ -219,7 +219,7 @@ export default function ChangeDetail() {
         {/* Künye kartı */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24 }}>
           <div style={{ background: cardBg, padding: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
               {lang === "tr" ? "Genel" : "General"}
             </div>
             {field(lang === "tr" ? "Kaynak" : "Origin", ORIGIN_LABELS[change.origin] ?? change.origin)}
@@ -230,10 +230,10 @@ export default function ChangeDetail() {
           </div>
 
           <div style={{ background: cardBg, padding: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
               {lang === "tr" ? "Maliyet Etkisi" : "Cost Impact"}
             </div>
-            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
               {lang === "tr" ? "Durum" : "Status"}
             </div>
             <div style={{ fontSize: 12, color: textPrimary, marginBottom: 10 }}>{change.cost_impact_status.replace("_", " ")}</div>
@@ -242,10 +242,10 @@ export default function ChangeDetail() {
           </div>
 
           <div style={{ background: cardBg, padding: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
               {lang === "tr" ? "Süre Etkisi" : "Time Impact"}
             </div>
-            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: textSecond, marginBottom: 3 }}>
               {lang === "tr" ? "Durum" : "Status"}
             </div>
             <div style={{ fontSize: 12, color: textPrimary, marginBottom: 10 }}>{change.time_impact_status.replace("_", " ")}</div>
@@ -257,7 +257,7 @@ export default function ChangeDetail() {
         {/* Description */}
         {change.description && (
           <div style={{ background: cardBg, padding: 16, marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 10, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>{lang === "tr" ? "Açıklama" : "Description"}</div>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 10, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>{lang === "tr" ? "Açıklama" : "Description"}</div>
             <p style={{ fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" as const }}>{change.description}</p>
           </div>
         )}
@@ -265,7 +265,7 @@ export default function ChangeDetail() {
         {/* Chronology — vertical timeline */}
         {chronology && chronology.events.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 16 }}>
               {lang === "tr" ? "Olaylar Kronolojisi" : "Chronology of Events"}
             </div>
 
@@ -298,7 +298,7 @@ export default function ChangeDetail() {
 
                     {/* Tarih + Type */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecond, whiteSpace: "nowrap" as const }}>
+                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, whiteSpace: "nowrap" as const }}>
                         {event.event_date}
                       </span>
                       <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: event.is_key_event ? "var(--color-accent)" : textSecond }}>
@@ -326,7 +326,7 @@ export default function ChangeDetail() {
                                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${doc.correspondence_id}`)}
                                 style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
                                 <span style={{ fontSize: 11, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--color-accent)", textDecoration: "underline" }}>
+                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)", textDecoration: "underline" }}>
                                   {doc.correspondences.corr_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.correspondences.subject}</span>
@@ -340,7 +340,7 @@ export default function ChangeDetail() {
                                 onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${doc.rfi_id}`)}
                                 style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
                                 <span style={{ fontSize: 11, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--color-accent)", textDecoration: "underline" }}>
+                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)", textDecoration: "underline" }}>
                                   {doc.rfis.rfi_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.rfis.subject}</span>
@@ -361,7 +361,7 @@ export default function ChangeDetail() {
         {/* Linked Correspondences */}
         {change.linked_correspondences && change.linked_correspondences.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12 }}>
               {lang === "tr" ? `Bağlı Yazışmalar (${change.linked_correspondences.length})` : `Linked Correspondences (${change.linked_correspondences.length})`}
             </div>
             {change.linked_correspondences.map((lc) => (
@@ -369,9 +369,9 @@ export default function ChangeDetail() {
                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${lc.correspondences?.id}`)}
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                 <div>
-                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecond }}>{lc.correspondences?.corr_number}</span>
+                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond }}>{lc.correspondences?.corr_number}</span>
                   <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{lc.correspondences?.subject}</p>
-                  <p style={{ fontSize: 10, color: textSecond, marginTop: 1 }}>{lc.correspondences?.correspondence_date?.slice(0, 10)}</p>
+                  <p style={{ fontSize: 11, color: textSecond, marginTop: 1 }}>{lc.correspondences?.correspondence_date?.slice(0, 10)}</p>
                 </div>
                 {statusPill(lc.correspondences?.status ?? "")}
               </div>

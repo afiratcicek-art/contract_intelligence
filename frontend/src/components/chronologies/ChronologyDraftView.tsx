@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ChronologyDraftView — shared JSX for create + edit mode (C-01 extract)
  *
  * Receives usePendingEvents return as "pending" prop — hook owned by module.
@@ -201,7 +201,7 @@ export default function ChronologyDraftView({
                     >
                       <span style={{
                         fontFamily: "JetBrains Mono, monospace",
-                        fontSize: 10, color: "var(--color-text-secondary)",
+                        fontSize: 11, color: "var(--color-text-secondary)",
                       }}>
                         {doc.ref_number}
                       </span>
@@ -384,13 +384,13 @@ export default function ChronologyDraftView({
                 <div>
                   <span style={{
                     fontFamily: "JetBrains Mono, monospace",
-                    fontSize: 10, color: "var(--color-text-secondary)",
+                    fontSize: 11, color: "var(--color-text-secondary)",
                   }}>
                     {pe.doc.ref_number}
                   </span>
                   {" "}
                   <span style={{
-                    fontSize: 10, textTransform: "uppercase",
+                    fontSize: 11, textTransform: "uppercase",
                     color: "var(--color-text-secondary)",
                     fontFamily: "Inter, sans-serif",
                   }}>
@@ -612,7 +612,7 @@ export default function ChronologyDraftView({
                       })
                     }
                     style={{
-                      marginLeft: 12, fontSize: 10, background: "none",
+                      marginLeft: 12, fontSize: 11, background: "none",
                       border: "none", cursor: "pointer",
                       color: "var(--color-text-secondary)",
                     }}

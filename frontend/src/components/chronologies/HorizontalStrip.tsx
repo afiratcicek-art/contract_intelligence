@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 
 export interface StripEvent {
   id: string;
@@ -70,7 +70,7 @@ function HorizontalStrip({
             marginBottom: 8,
           }}>
             <p style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 500,
               textTransform: "uppercase",
               letterSpacing: "0.08em",

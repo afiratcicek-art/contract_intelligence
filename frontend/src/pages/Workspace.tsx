@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "../hooks/useDebounce";
 import { api } from "../services/api";
@@ -208,7 +208,7 @@ export default function Workspace() {
 
   const statusPill = (status: string) => {
     const c = STATUS_COLORS[status] ?? { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" };
-    return <span style={{ background: c.bg, color: c.text, fontSize: 10, fontWeight: 500, padding: "2px 6px", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{status}</span>;
+    return <span style={{ background: c.bg, color: c.text, fontSize: 11, fontWeight: 500, padding: "2px 6px", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{status}</span>;
   };
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
@@ -219,9 +219,9 @@ export default function Workspace() {
 
   const dateRange = (label: string, from: string, to: string, onFrom: (v: string) => void, onTo: (v: string) => void) => (
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <span style={{ fontSize: 10, color: textSecondary, whiteSpace: "nowrap" }}>{label}:</span>
+      <span style={{ fontSize: 11, color: textSecondary, whiteSpace: "nowrap" }}>{label}:</span>
       <input type="date" value={from} onChange={(e) => onFrom(e.target.value)} style={inputStyle} />
-      <span style={{ fontSize: 10, color: textSecondary }}>—</span>
+      <span style={{ fontSize: 11, color: textSecondary }}>—</span>
       <input type="date" value={to} onChange={(e) => onTo(e.target.value)} style={inputStyle} />
       {(from || to) && <button onClick={() => { onFrom(""); onTo(""); }} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
     </div>
@@ -247,7 +247,7 @@ export default function Workspace() {
   );
 
   const listHeader = (cols: { label: string; width: string }[]) => (
-    <div style={{ display: "grid", gridTemplateColumns: cols.map(c => c.width).join(" "), gap: 8, padding: "6px 12px", fontSize: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: textSecondary, borderBottom: `0.5px solid ${border}` }}>
+    <div style={{ display: "grid", gridTemplateColumns: cols.map(c => c.width).join(" "), gap: 8, padding: "6px 12px", fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: textSecondary, borderBottom: `0.5px solid ${border}` }}>
       {cols.map(c => <span key={c.label}>{c.label}</span>)}
     </div>
   );
@@ -321,7 +321,7 @@ export default function Workspace() {
         <aside style={{ width: 200, backgroundColor: bg, borderRight: `0.5px solid ${border}`, padding: "16px 0", flexShrink: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "0 16px 12px", borderBottom: `0.5px solid ${border}`, marginBottom: 8 }}>
             <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 12, color: textPrimary, fontWeight: 500, lineHeight: 1.3 }}>{projectName}</div>
-            <div style={{ fontSize: 10, color: textSecondary, marginTop: 2 }}>{t("nav.workspace")}</div>
+            <div style={{ fontSize: 11, color: textSecondary, marginTop: 2 }}>{t("nav.workspace")}</div>
           </div>
           {SIDEBAR_MAIN.map((mod) => (
             <button
@@ -421,13 +421,13 @@ export default function Workspace() {
                         }}
                       >
                         <div>
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
                             {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
                             {r.ref}
                             {r.has_response && <span style={{ fontSize: 11, color: "var(--color-accent)" }}>↩</span>}
                           </span>
                           <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
-                          <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{r.date}</p>
+                          <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
                         </div>
                         {statusPill(r.status)}
                       </div>
@@ -467,7 +467,7 @@ export default function Workspace() {
                         }}
                       >
                         <div>
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
+                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 3 }}>
                             {isChild && <span style={{ color: "var(--color-accent)", marginRight: 2 }}>└</span>}
                             {r.ref}
                             {r.rfi_type && r.rfi_type !== "original" && (
@@ -477,10 +477,10 @@ export default function Workspace() {
                             )}
                           </span>
                           <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
-                          <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{r.date}</p>
+                          <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
                         </div>
                         {r.rfi_type === "response"
-                          ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                          ? <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
                           : statusPill(r.status)}
                       </div>
                       {(rfiSChildMap.get(r.id) ?? []).map(child => renderRfiRow(child, true))}
@@ -502,9 +502,9 @@ export default function Workspace() {
                     {group.map((r) => (
                       <div key={r.id} onClick={() => navigate(generalNavTarget(mod, r.id))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                         <div>
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary }}>{r.ref}</span>
+                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>{r.ref}</span>
                           <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
-                          <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{r.date}</p>
+                          <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
                         </div>
                         {statusPill(r.status)}
                       </div>
@@ -590,7 +590,7 @@ export default function Workspace() {
                       </span>
                       <div>
                         <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, margin: 0 }}>{c.subject}</p>
-                        <p style={{ fontSize: 10, color: textSecondary, marginTop: 1 }}>{c.type}</p>
+                        <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{c.type}</p>
                       </div>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const }}>{c.direction}</span>
                       <span style={{ fontSize: 11, color: textSecondary }}>{c.correspondence_date?.slice(0, 10)}</span>
@@ -697,7 +697,7 @@ export default function Workspace() {
                       <span style={{ fontSize: 11, color: textSecondary }}>{r.submitted_date?.slice(0, 10)}</span>
                       <span style={{ fontSize: 11, color: r.response_due_date && r.response_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{r.response_due_date?.slice(0, 10) ?? "—"}</span>
                       {r.rfi_type === "response"
-                        ? <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                        ? <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
                         : statusPill(r.status)}
                     </div>
                     {(rfiChildMap.get(r.id) ?? []).map(child => rfiRow(child, true))}
@@ -734,7 +734,7 @@ export default function Workspace() {
                   {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.title"), width: "1fr" }, { label: t("col.origin"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
                   {filteredChanges.map((c) => (
                     <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/changes/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px 80px", gap: 8, padding: "9px 12px", background: cardBg, marginBottom: 3, cursor: "pointer", borderLeft: `2px solid ${c.status === "open" ? "var(--color-accent)" : "transparent"}` }}>
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textSecondary }}>{c.change_number}</span>
+                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>{c.change_number}</span>
                       <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{c.title}</p>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{c.origin}</span>
                       <span style={{ fontSize: 11, color: textSecondary, whiteSpace: "nowrap" }}>{c.created_at?.slice(0, 10)}</span>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { entityPath } from "../utils/entityPath";
@@ -130,7 +130,7 @@ export default function RelationPopup({
           <div style={{ flex: 1 }}>
             <span style={{
               fontFamily: "JetBrains Mono, monospace",
-              fontSize: 10, color: textS,
+              fontSize: 11, color: textS,
               display: "flex", alignItems: "center", gap: 3,
             }}>
               {isChild && <span style={{ color, marginRight: 2 }}>└</span>}
@@ -160,7 +160,7 @@ export default function RelationPopup({
         <div>
           <span style={{
             fontFamily: "JetBrains Mono, monospace",
-            fontSize: 10, color: textS,
+            fontSize: 11, color: textS,
             display: "flex", alignItems: "center", gap: 3,
           }}>
             {isChild && <span style={{ color, marginRight: 2 }}>└</span>}
@@ -170,7 +170,7 @@ export default function RelationPopup({
             {item.subject}
           </p>
         </div>
-        <span style={{ fontSize: 10, color: textS }}>
+        <span style={{ fontSize: 11, color: textS }}>
           {item.score.toFixed(2)}
         </span>
       </button>

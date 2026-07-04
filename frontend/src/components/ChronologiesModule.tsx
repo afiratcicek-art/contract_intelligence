@@ -680,7 +680,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                           <span style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: 500,
                             textTransform: "uppercase",
                             letterSpacing: "0.06em",
@@ -690,12 +690,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                             {MANUAL_EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type}
                           </span>
                           {ev.is_key_event && (
-                            <span style={{ fontSize: 10, color: ACCENT, fontFamily: "Inter, sans-serif" }}>● KEY</span>
+                            <span style={{ fontSize: 11, color: ACCENT, fontFamily: "Inter, sans-serif" }}>● KEY</span>
                           )}
                           {ev.document_ref_id && ev.document_ref_type && (
                             <button
                               onClick={() => navigateToDoc(ev.document_ref_type!, ev.document_ref_id!)}
-                              style={{ fontSize: 10, color: ACCENT, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", padding: 0 }}
+                              style={{ fontSize: 11, color: ACCENT, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", padding: 0 }}
                             >
                               → View
                             </button>
@@ -776,7 +776,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                       }));
                                     }}
                                     style={{
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       color: "var(--color-text-secondary)",
                                       background: "none", border: "none",
                                       cursor: "pointer",

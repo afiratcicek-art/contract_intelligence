@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
@@ -106,7 +106,7 @@ export default function NewCorrespondence() {
   };
 
   const labelStyle = {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 500 as const,
     textTransform: "uppercase" as const,
     letterSpacing: "0.08em",
@@ -417,7 +417,7 @@ export default function NewCorrespondence() {
                     {selectedFiles.map((file, idx) => (
                       <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", backgroundColor: cardBg, borderLeft: `2px solid ${"var(--color-accent)"}` }}>
                         <span style={{ fontSize: 12, color: textPrimary, flex: 1 }}>{file.name}</span>
-                        <span style={{ fontSize: 10, color: textSecondary }}>{(file.size / 1024).toFixed(0)} KB</span>
+                        <span style={{ fontSize: 11, color: textSecondary }}>{(file.size / 1024).toFixed(0)} KB</span>
                         <button
                           onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))}
                           style={{ background: "none", border: "none", color: textSecondary, cursor: "pointer", fontSize: 14, padding: 0 }}

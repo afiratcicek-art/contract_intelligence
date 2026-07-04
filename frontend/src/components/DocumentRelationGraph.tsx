@@ -148,7 +148,7 @@ export default function DocumentRelationGraph({
       }}>
         Belge İlişki Grafiği
         <span style={{
-          marginLeft: 8, fontSize: 10,
+          marginLeft: 8, fontSize: 11,
           color: textSec, fontWeight: 400,
           textTransform: "none" as const,
         }}>
@@ -239,6 +239,7 @@ export default function DocumentRelationGraph({
                   stroke={accent}
                   strokeWidth={isHov ? 0 : 1.5}
                 />
+                {/* fontSize={10}: SVG node geometric constraint — do not increase */}
                 <text
                   x={pos.x} y={pos.y - 4}
                   textAnchor="middle"
@@ -291,21 +292,21 @@ export default function DocumentRelationGraph({
               {hoveredNode.ref} — {hoveredNode.subject}
             </p>
             <p style={{
-              fontSize: 10, color: textSec,
+              fontSize: 11, color: textSec,
               margin: "3px 0 0", fontFamily: "Inter, sans-serif",
             }}>
               Durum: {hoveredNode.status}
             </p>
             {(hoveredNode.keywords ?? []).length > 0 && (
               <p style={{
-                fontSize: 10, color: textSec,
+                fontSize: 11, color: textSec,
                 margin: "3px 0 0", fontFamily: "Inter, sans-serif",
               }}>
                 🏷 {hoveredNode.keywords.slice(0, 4).join(", ")}
               </p>
             )}
             <p style={{
-              fontSize: 10, color: accent,
+              fontSize: 11, color: accent,
               margin: "3px 0 0", fontFamily: "Inter, sans-serif",
             }}>
               Tıkla → detaya git
@@ -318,16 +319,16 @@ export default function DocumentRelationGraph({
         display: "flex", gap: 16, marginTop: 8,
         alignItems: "center", flexWrap: "wrap" as const,
       }}>
-        <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
+        <span style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
           C = Yazışma · R = RFI
         </span>
-        <span style={{ fontSize: 10, color: accent, fontFamily: "Inter, sans-serif" }}>
+        <span style={{ fontSize: 11, color: accent, fontFamily: "Inter, sans-serif" }}>
           ── Zincir
         </span>
-        <span style={{ fontSize: 10, color: "var(--color-success)", fontFamily: "Inter, sans-serif" }}>
+        <span style={{ fontSize: 11, color: "var(--color-success)", fontFamily: "Inter, sans-serif" }}>
           ── Kardeş
         </span>
-        <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
+        <span style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
           ── İçerik
         </span>
       </div>

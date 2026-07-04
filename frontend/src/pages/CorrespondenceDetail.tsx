@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
@@ -163,7 +163,7 @@ export default function CorrespondenceDetail() {
 
   const directionPill = (direction: string) => (
     <span style={{
-      fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const,
+      fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,
       letterSpacing: "0.04em", padding: "2px 8px",
       backgroundColor: direction === "incoming" ? "var(--color-success-bg)" : "var(--color-warning-bg)",
       color: direction === "incoming" ? "var(--color-success)" : "var(--color-warning)",
@@ -224,24 +224,24 @@ export default function CorrespondenceDetail() {
         {/* Parent zinciri breadcrumb */}
         {corr.breadcrumb && corr.breadcrumb.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 16, padding: "8px 12px", backgroundColor: cardBg, borderLeft: `2px solid ${"var(--color-accent)"}` }}>
-            <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginRight: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginRight: 4 }}>
               {lang === "tr" ? "Zincir:" : "Chain:"}
             </span>
             {corr.breadcrumb.map((b, idx) => (
               <span key={b.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span
                   onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${b.id}`)}
-                  style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--color-accent)", cursor: "pointer", textDecoration: "underline" }}
+                  style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)", cursor: "pointer", textDecoration: "underline" }}
                 >
                   {b.corr_number}
                 </span>
                 {idx < corr.breadcrumb.length - 1 && (
-                  <span style={{ fontSize: 10, color: textSecond }}>→</span>
+                  <span style={{ fontSize: 11, color: textSecond }}>→</span>
                 )}
               </span>
             ))}
-            <span style={{ fontSize: 10, color: textSecond }}>→</span>
-            <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: textPrimary, fontWeight: 500 }}>{corr.corr_number}</span>
+            <span style={{ fontSize: 11, color: textSecond }}>→</span>
+            <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textPrimary, fontWeight: 500 }}>{corr.corr_number}</span>
           </div>
         )}
 
@@ -269,10 +269,10 @@ export default function CorrespondenceDetail() {
             <h1 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, lineHeight: 1.3, marginBottom: 8 }}>{corr.subject}</h1>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               {directionPill(corr.direction)}
-              <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.type}</span>
-              <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.status}</span>
+              <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.type}</span>
+              <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.status}</span>
               {corr.parent_id && (
-                <span style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" }}>
+                <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" }}>
                   🔗 {lang === "tr" ? "Zincirde" : "In Chain"}
                 </span>
               )}
@@ -334,7 +334,7 @@ export default function CorrespondenceDetail() {
                   .filter((kw, i, arr) => arr.indexOf(kw) === i)
                   .map((kw, i) => (
                     <span key={i} style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       padding: "2px 7px",
                       background: bg,
                       border: `0.5px solid ${border}`,
@@ -361,7 +361,7 @@ export default function CorrespondenceDetail() {
         {/* Children — bu yazışmaya verilen yanıtlar */}
         {corr.children && corr.children.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 10 }}>
               {lang === "tr" ? `Yanıtlar / Followuplar (${corr.children.length})` : `Responses / Followups (${corr.children.length})`}
             </div>
             {corr.children.map((child) => (
@@ -371,7 +371,7 @@ export default function CorrespondenceDetail() {
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: cardBg, marginBottom: 3, borderLeft: `2px solid ${child.has_response ? textSecond : "var(--color-accent)"}`, cursor: "pointer" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "var(--color-accent)" }}>{child.corr_number}</span>
+                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent)" }}>{child.corr_number}</span>
                   {directionPill(child.direction)}
                   <span style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{child.subject}</span>
                 </div>
@@ -381,7 +381,7 @@ export default function CorrespondenceDetail() {
                       {lang === "tr" ? "yanıtlandı" : "responded"}
                     </span>
                   )}
-                  <span style={{ fontSize: 10, color: textSecond }}>{child.correspondence_date?.slice(0, 10)}</span>
+                  <span style={{ fontSize: 11, color: textSecond }}>{child.correspondence_date?.slice(0, 10)}</span>
                 </div>
               </div>
             ))}
@@ -400,7 +400,7 @@ export default function CorrespondenceDetail() {
               <div key={doc.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `0.5px solid ${border}` }}>
                 <div>
                   <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{doc.original_filename}</p>
-                  <p style={{ fontSize: 10, color: textSecond, marginTop: 2 }}>
+                  <p style={{ fontSize: 11, color: textSecond, marginTop: 2 }}>
                     {(doc.file_size_bytes / 1024).toFixed(0)} KB
                     {parseStatusLabel(doc.parse_status, lang) && (
                       <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif" }}>
@@ -486,7 +486,7 @@ export default function CorrespondenceDetail() {
             </p>
 
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                 {lang === "tr" ? "Açıklama *" : "Narrative *"}
               </label>
               <textarea
@@ -500,7 +500,7 @@ export default function CorrespondenceDetail() {
 
             {noticeConfigs.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                   {lang === "tr" ? "Potansiyel Sözleşme Maddesi (Opsiyonel)" : "Potential Contractual Trigger (Optional)"}
                 </label>
                 <select
@@ -518,7 +518,7 @@ export default function CorrespondenceDetail() {
 
             {docs.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                   {lang === "tr" ? "İlgili Belgeler (Opsiyonel)" : "Related Documents (Optional)"}
                 </label>
                 <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: "var(--color-bg-primary)" }}>
@@ -547,7 +547,7 @@ export default function CorrespondenceDetail() {
             )}
 
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                 {lang === "tr" ? "Yeni Dosya Ekle (Opsiyonel)" : "Add New File (Optional)"}
               </label>
               <input
@@ -559,7 +559,7 @@ export default function CorrespondenceDetail() {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 6 }}>
                 {lang === "tr" ? "Bildir" : "Notify"}
               </label>
               <select

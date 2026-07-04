@@ -447,6 +447,7 @@ export default function FocusedRelationGraph({
             fill={ai} stroke={ai} strokeWidth={2}
             style={{ transition: "r 0.15s ease" }}
           />
+          {/* fontSize={10}: SVG node geometric constraint — node circle radius bound, do not increase */}
           <text
             x={CX} y={CY} textAnchor="middle" dominantBaseline="middle"
             fontSize={10} fontWeight={500} fill="var(--color-bg-primary)" fontFamily="JetBrains Mono, monospace"
@@ -465,7 +466,7 @@ export default function FocusedRelationGraph({
       <button onClick={() => zoomBy(1.2)} aria-label="Yakınlaştır"
         style={{ width: 26, height: 26, background: aiBg, color: ai, border: `1px solid ${ai}`, borderRadius: 6, cursor: "pointer", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
       <button onClick={resetView}
-        style={{ height: 26, padding: "0 10px", background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 0, cursor: "pointer", fontSize: 10, fontFamily: "Inter, sans-serif" }}>Sıfırla</button>
+        style={{ height: 26, padding: "0 10px", background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 0, cursor: "pointer", fontSize: 11, fontFamily: "Inter, sans-serif" }}>Sıfırla</button>
       {!fullscreen && (
         <button onClick={() => setFullscreen(true)} aria-label="Tam ekran" title="Tam ekran"
           style={{ width: 26, height: 26, background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -492,7 +493,7 @@ export default function FocusedRelationGraph({
       <p style={{ fontSize: 12, fontWeight: 500, color: textPrim, margin: "3px 0 0", fontFamily: "Inter, sans-serif" }}>
         {hoveredNode.subject}
       </p>
-      <p style={{ fontSize: 10, color: textSec, margin: "4px 0 0", fontFamily: "Inter, sans-serif" }}>
+      <p style={{ fontSize: 11, color: textSec, margin: "4px 0 0", fontFamily: "Inter, sans-serif" }}>
         Durum: {hoveredNode.status}
         {hoveredNode.tier !== "center" && ` · ${hoveredNode.tier === "chain" ? "Zincir" : hoveredNode.tier === "content" ? "İçerik" : "Dolaylı"}`}
       </p>
@@ -550,13 +551,13 @@ export default function FocusedRelationGraph({
                 strokeLinecap="round"
               />
             </svg>
-            <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
+            <span style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
               {item.label}
             </span>
           </span>
         ))}
       </div>
-      <span style={{ fontSize: 10, color: textSec, fontFamily: "Inter, sans-serif" }}>
+      <span style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
         {nodes.length} kayıt · {edges.length} bağlantı
       </span>
     </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
@@ -68,7 +68,7 @@ export default function NewChange() {
   };
 
   const labelStyle = {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 500 as const,
     textTransform: "uppercase" as const,
     letterSpacing: "0.08em",
@@ -190,7 +190,7 @@ export default function NewChange() {
 
           {/* Notice Deadline */}
           <div style={{ padding: 16, backgroundColor: cardBg, border: `0.5px solid ${border}` }}>
-            <p style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 6 }}>
+            <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 6 }}>
               {lang === "tr" ? "Notice Deadline (Opsiyonel)" : "Notice Deadline (Optional)"}
             </p>
             <p style={{ fontSize: 11, color: textSecond, fontStyle: "italic", marginBottom: 12 }}>
@@ -223,7 +223,7 @@ export default function NewChange() {
 
           {/* Impact Deadline */}
           <div style={{ padding: 16, backgroundColor: cardBg, border: `0.5px solid ${border}` }}>
-            <p style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 6 }}>
+            <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 6 }}>
               {lang === "tr" ? "Impact Submission Deadline (Opsiyonel)" : "Impact Submission Deadline (Optional)"}
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

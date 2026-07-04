@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+﻿import { useState, useCallback, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "../hooks/useDebounce";
 import { api } from "../services/api";
@@ -185,7 +185,7 @@ export default function DocumentsModule({ projectId }: Props) {
     const s = map[status] ?? map["pending"];
     return (
       <span style={{
-        fontSize: 10, fontWeight: 500, padding: "2px 8px",
+        fontSize: 11, fontWeight: 500, padding: "2px 8px",
         backgroundColor: s.bg, color: s.color,
         textTransform: "uppercase" as const, letterSpacing: "0.04em",
         fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const,
@@ -224,7 +224,7 @@ export default function DocumentsModule({ projectId }: Props) {
         >
           <div>
             <span style={{
-              fontFamily: "JetBrains Mono, monospace", fontSize: 10,
+              fontFamily: "JetBrains Mono, monospace", fontSize: 11,
               color: textSecond, display: "flex", alignItems: "center", gap: 3,
             }}>
               {isChild && (
@@ -241,7 +241,7 @@ export default function DocumentsModule({ projectId }: Props) {
             }}>
               {r.subject}
             </p>
-            <p style={{ fontSize: 10, color: textSecond, marginTop: 1 }}>
+            <p style={{ fontSize: 11, color: textSecond, marginTop: 1 }}>
               {r.date}
             </p>
           </div>
@@ -331,7 +331,7 @@ export default function DocumentsModule({ projectId }: Props) {
         >
           <div>
             <span style={{
-              fontFamily: "JetBrains Mono, monospace", fontSize: 10,
+              fontFamily: "JetBrains Mono, monospace", fontSize: 11,
               color: textSecond, display: "flex", alignItems: "center", gap: 3,
             }}>
               {isChild && (
@@ -361,7 +361,7 @@ export default function DocumentsModule({ projectId }: Props) {
             }}>
               {r.subject}
             </p>
-            <p style={{ fontSize: 10, color: textSecond, marginTop: 1 }}>
+            <p style={{ fontSize: 11, color: textSecond, marginTop: 1 }}>
               {r.date}
             </p>
           </div>
@@ -397,7 +397,7 @@ export default function DocumentsModule({ projectId }: Props) {
             </button>
             {r.rfi_type === "response" ? (
               <span style={{
-                fontSize: 10, fontWeight: 500, padding: "2px 8px",
+                fontSize: 11, fontWeight: 500, padding: "2px 8px",
                 backgroundColor: "var(--color-success-bg)",
                 color: "var(--color-success)",
                 textTransform: "uppercase" as const, letterSpacing: "0.04em",

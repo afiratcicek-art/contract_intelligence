@@ -22,6 +22,7 @@ class CorrespondenceCreate(BaseModel):
     response_due_clause: Optional[str] = None
     response_due_day_type: Optional[DayType] = None
     external_ref: Optional[str] = None
+    keywords: Optional[list[str]] = None
 
     @field_validator("corr_number", "external_ref", "response_due_clause", mode="before")
     @classmethod
@@ -43,6 +44,7 @@ class CorrespondenceUpdate(BaseModel):
     assigned_to: Optional[UUID] = None
     external_ref: Optional[str] = None
     final_content: Optional[str] = None
+    keywords: Optional[list[str]] = None
 
     @field_validator("external_ref", "response_due_clause", mode="before")
     @classmethod
@@ -116,6 +118,7 @@ class CorrespondenceResponse(BaseModel):
     closed_by: Optional[UUID] = None
     closed_at: Optional[datetime] = None
     external_ref: Optional[str] = None
+    keywords: list[str] = []
     version: int
     created_by: Optional[UUID] = None
     created_at: datetime

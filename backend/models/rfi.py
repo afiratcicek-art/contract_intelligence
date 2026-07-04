@@ -20,6 +20,7 @@ class RFICreate(BaseModel):
     external_ref: Optional[str] = None
     parent_id: Optional[UUID] = None
     rfi_type: Optional[str] = "original"
+    keywords: Optional[list[str]] = None
 
     @field_validator("rfi_number", mode="before")
     @classmethod
@@ -51,6 +52,7 @@ class RFIUpdate(BaseModel):
     status: Optional[str] = None
     assigned_to: Optional[UUID] = None
     external_ref: Optional[str] = None
+    keywords: Optional[list[str]] = None
 
     @field_validator("subject", mode="before")
     @classmethod
@@ -95,6 +97,7 @@ class RFIResponse(BaseModel):
     external_ref: Optional[str] = None
     parent_id: Optional[UUID] = None
     rfi_type: str = "original"
+    keywords: list[str] = []
     created_by: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime

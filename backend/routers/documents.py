@@ -35,6 +35,40 @@ from backend.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
+
+def _upsert_keyword_stats(admin_db, project_id: str, keywords: list[str]) -> None:
+    """Keyword sayaçlarını project_keyword_stats tablosuna yazar.
+
+    TB-24: Yeni belge kaynakları eklendiğinde bu helper çağrılmalı.
+    """
+    if not keywords:
+        return
+    for kw in keywords:
+        kw = kw.strip().lower()
+        if not kw:
+            continue
+        try:
+            existing = (
+                admin_db.table("project_keyword_stats")
+                .select("count")
+                .eq("project_id", project_id)
+                .eq("keyword", kw)
+                .execute()
+            )
+            if existing.data:
+                admin_db.table("project_keyword_stats") \
+                    .update({"count": existing.data[0]["count"] + 1}) \
+                    .eq("project_id", project_id) \
+                    .eq("keyword", kw) \
+                    .execute()
+            else:
+                admin_db.table("project_keyword_stats") \
+                    .insert({"project_id": project_id, "keyword": kw, "count": 1}) \
+                    .execute()
+        except Exception as exc:
+            logger.warning("keyword_stats upsert failed for '%s': %s", kw, exc)
+
+
 router = APIRouter(
     prefix="/projects/{project_id}/documents",
     tags=["documents"],
@@ -309,7 +343,9 @@ def _build_relation_index(project_id: str, db):
 def _jaccard(a: set, b: set) -> float:
     if not a or not b:
         return 0.0
-    return len(a & b) / len(a | b)
+    a_lower = {x.lower() for x in a}
+    b_lower = {x.lower() for x in b}
+    return len(a_lower & b_lower) / len(a_lower | b_lower)
 
 
 def _subject_overlap(s1: str, s2: str) -> float:

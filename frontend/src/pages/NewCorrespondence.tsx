@@ -137,6 +137,13 @@ export default function NewCorrespondence() {
       if (form.from_party_id) body.from_party_id = form.from_party_id;
       if (form.to_party_id) body.to_party_id = form.to_party_id;
 
+      if (docKeywords.trim()) {
+        body.keywords = docKeywords
+          .split(",")
+          .map((k) => k.trim().toLowerCase())
+          .filter(Boolean);
+      }
+
       const corr = await api.post<{ id: string }>(`/projects/${projectId}/correspondences`, body);
 
       if (selectedFiles.length > 0 && corr.id) {

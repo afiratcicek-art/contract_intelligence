@@ -7,6 +7,8 @@ from datetime import datetime, date
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
 from backend.core.limiter import limiter
+from backend.database import get_admin_client
+from backend.routers.documents import _upsert_keyword_stats
 from backend.models.correspondence import (
     CorrespondenceCreate, CorrespondenceUpdate,
     ContractualStatusUpdate, CorrespondencePublish, CorrespondenceClose,
@@ -123,6 +125,8 @@ def create_correspondence(
         user_id=access["user"]["id"], project_id=str(project_id),
         new_value={"type": corr["type"], "direction": corr["direction"]},
     )
+    # Keyword stats upsert (migration 026 — project_keyword_stats)
+    _upsert_keyword_stats(get_admin_client(), str(project_id), corr.get("keywords") or [])
     return corr
 
 

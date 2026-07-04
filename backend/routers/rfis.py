@@ -6,7 +6,9 @@ from uuid import UUID
 from datetime import date, datetime
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
+from backend.database import get_admin_client
 from backend.models.rfi import RFICreate, RFIUpdate, RFIClose
+from backend.routers.documents import _upsert_keyword_stats
 from backend.repositories.rfi_repository import RFIRepository
 from backend.services.audit_service import AuditService
 from backend.services.deadline_service import DeadlineService
@@ -109,6 +111,8 @@ def create_rfi(
         user_id=access["user"]["id"], project_id=str(project_id),
         new_value=data,
     )
+    # Keyword stats upsert (migration 026 — project_keyword_stats)
+    _upsert_keyword_stats(get_admin_client(), str(project_id), rfi.get("keywords") or [])
     return rfi
 
 

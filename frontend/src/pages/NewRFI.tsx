@@ -129,6 +129,14 @@ export default function NewRFI() {
       if (form.response_due_source) body.response_due_source = form.response_due_source;
       if (form.response_due_day_type) body.response_due_day_type = form.response_due_day_type;
 
+      // keywords: dosya eki olmasa da card'a yazılır (TB-17 resolved)
+      if (docKeywords.trim()) {
+        body.keywords = docKeywords
+          .split(",")
+          .map((k) => k.trim().toLowerCase())
+          .filter(Boolean);
+      }
+
       const rfi = await api.post<{ id: string }>(`/projects/${projectId}/rfis`, body);
 
       if (selectedFiles.length > 0 && rfi.id) {

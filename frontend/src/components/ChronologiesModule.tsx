@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import type { Chronology, ChronologyEvent } from "../types/chronology";
 import { MANUAL_EVENT_TYPE_LABELS } from "../types/chronology";
 import {
@@ -299,6 +299,9 @@ function HorizontalStrip({
 
 export default function ChronologiesModule({ projectId }: ChronologiesModuleProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const bridgeModeOpenedRef = useRef(false);
+  const bridgeFilledRef     = useRef(false);
 
   // ── List & selection state ──────────────────────────────────
   const [chronologies, setChronologies] = useState<Chronology[]>([]);
@@ -365,6 +368,39 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
       setSelectedId(chronologies[0].id);
     }
   }, [chronologies, selectedId]);
+
+  // ── Bridge: open create mode when arriving from relation views ──
+  useEffect(() => {
+    if (bridgeModeOpenedRef.current) return;
+    const s = location.state as { bridgeIds?: string[] } | null;
+    if (!s?.bridgeIds?.length) return;
+    bridgeModeOpenedRef.current = true;
+    setCreateMode(true);
+  }, [location.state]);
+
+  // ── Bridge: pre-fill pendingEvents once linkableDocs loaded ──
+  useEffect(() => {
+    const s = location.state as { bridgeIds?: string[] } | null;
+    const ids = s?.bridgeIds;
+    if (!ids?.length || bridgeFilledRef.current) return;
+    if (!createMode || loadingDocs || linkableDocs.length === 0) return;
+    bridgeFilledRef.current = true;
+    const toAdd = linkableDocs.filter((d) => ids.includes(d.id));
+    if (!toAdd.length) return;
+    setPendingEvents(
+      toAdd
+        .map((doc) => ({
+          doc,
+          narrativeMode: null,
+          manualText: "",
+          autoNarrative: null,
+          loadingLlm: false,
+          approved: false,
+          approvedText: "",
+        }))
+        .sort((a, b) => (a.doc.date > b.doc.date ? 1 : -1))
+    );
+  }, [createMode, loadingDocs, linkableDocs, location.state]);
 
   // ── Load linkable docs when entering create mode ─────────────
   useEffect(() => {

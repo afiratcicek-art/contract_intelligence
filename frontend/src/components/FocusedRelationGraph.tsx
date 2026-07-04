@@ -204,6 +204,8 @@ export default function FocusedRelationGraph({
   const [loading, setLoading] = useState(true);
   const [hovered, setHovered] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [bridgeMode, setBridgeMode]   = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -213,6 +215,26 @@ export default function FocusedRelationGraph({
   const svgWrapRef = useRef<HTMLDivElement>(null);
   const fsSvgWrapRef = useRef<HTMLDivElement>(null);
 
+  const allBridgeIds: string[] = data
+    ? [data.center.id, ...data.nodes.map((n) => n.id)]
+    : [];
+  const bridgeAll =
+    allBridgeIds.length > 0 && allBridgeIds.every((id) => selectedIds.has(id));
+  const toggleBridgeId = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  const handleBridgeAll = () =>
+    setSelectedIds(bridgeAll ? new Set() : new Set(allBridgeIds));
+  const handleBridgeNavigate = () => {
+    if (selectedIds.size === 0) return;
+    navigate(
+      `/projects/${projectId}/workspace?module=chronologies`,
+      { state: { bridgeIds: [...selectedIds] } }
+    );
+  };
   const border = "var(--color-border-light)";
   const textPrim = "var(--color-text-primary)";
   const textSec = "var(--color-text-secondary)";
@@ -379,10 +401,15 @@ export default function FocusedRelationGraph({
             <g
               key={n.id}
               style={{ cursor: "pointer" }}
-              onClick={() => goTo(n.id)}
+              onClick={() => bridgeMode ? toggleBridgeId(n.id) : goTo(n.id)}
               onMouseEnter={() => setHovered(n.id)}
               onMouseLeave={() => setHovered(null)}
             >
+              {bridgeMode && selectedIds.has(n.id) && (
+                <circle cx={pos.x} cy={pos.y} r={r + 6}
+                  fill="none" stroke="var(--color-accent)"
+                  strokeWidth={1.8} strokeOpacity={0.9} />
+              )}
               <circle
                 cx={pos.x} cy={pos.y} r={r}
                 fill={isHov ? ai : aiBg}
@@ -407,7 +434,7 @@ export default function FocusedRelationGraph({
 
         <g
           style={{ cursor: "pointer" }}
-          onClick={() => goTo(center.id)}
+          onClick={() => bridgeMode ? toggleBridgeId(center.id) : goTo(center.id)}
           onMouseEnter={() => setHovered(center.id)}
           onMouseLeave={() => setHovered(null)}
         >
@@ -415,6 +442,11 @@ export default function FocusedRelationGraph({
             <animate attributeName="r" values={`${CENTER_R};${CENTER_R + 9};${CENTER_R}`} dur="2.5s" repeatCount="indefinite" />
             <animate attributeName="opacity" values="0.4;0;0.4" dur="2.5s" repeatCount="indefinite" />
           </circle>
+          {bridgeMode && selectedIds.has(center.id) && (
+            <circle cx={CX} cy={CY} r={CENTER_R + 6}
+              fill="none" stroke="var(--color-accent)"
+              strokeWidth={1.8} strokeOpacity={0.9} />
+          )}
           <circle
             cx={CX} cy={CY} r={hovered === center.id ? CENTER_R + 3 : CENTER_R}
             fill={ai} stroke={ai} strokeWidth={2}
@@ -484,6 +516,18 @@ export default function FocusedRelationGraph({
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {controls}
+        <button
+          onClick={() => { setBridgeMode((m) => !m); setSelectedIds(new Set()); }}
+          style={{
+            background: bridgeMode ? "var(--color-accent)" : "none",
+            color: bridgeMode ? "var(--color-bg-primary)" : textSec,
+            border: `1px solid ${bridgeMode ? "var(--color-accent)" : border}`,
+            padding: "5px 11px", fontSize: 11, fontWeight: 500,
+            cursor: "pointer", fontFamily: "Inter, sans-serif",
+          }}
+        >
+          {bridgeMode ? "İptal" : "Kronoloji'ye Aktar"}
+        </button>
         {inFullscreen && (
           <button onClick={() => setFullscreen(false)} aria-label="Kapat"
             style={{ background: "none", border: "none", color: textSec, fontSize: 20, cursor: "pointer", padding: 0 }}>×</button>
@@ -546,6 +590,57 @@ export default function FocusedRelationGraph({
       {graphBox(500, svgWrapRef)}
       {legend}
 
+      {bridgeMode && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          marginTop: 10, padding: "10px 14px",
+          border: `1px solid ${border}`,
+          borderLeft: "2px solid var(--color-accent)",
+          background: "var(--color-bg-secondary)",
+        }}>
+          <div
+            role="checkbox"
+            aria-checked={bridgeAll}
+            onClick={handleBridgeAll}
+            style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flexShrink: 0 }}
+          >
+            <div style={{
+              width: 14, height: 14,
+              border: `1.5px solid ${bridgeAll ? "var(--color-accent)" : border}`,
+              background: bridgeAll ? "var(--color-accent)" : "transparent",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {bridgeAll && (
+                <svg width="9" height="7" viewBox="0 0 9 7" aria-hidden="true">
+                  <polyline points="1,3.5 3.5,6 8,1"
+                    stroke="var(--color-bg-primary)" strokeWidth="1.5"
+                    fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </div>
+            <span style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
+              Tümünü Seç
+            </span>
+          </div>
+          <span style={{ flex: 1, fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
+            {selectedIds.size > 0 ? `${selectedIds.size} kayıt seçildi` : "Grafikten kayıt seçin"}
+          </span>
+          <button
+            onClick={handleBridgeNavigate}
+            disabled={selectedIds.size === 0}
+            style={{
+              background: selectedIds.size > 0 ? "var(--color-accent)" : "transparent",
+              color: selectedIds.size > 0 ? "var(--color-bg-primary)" : border,
+              border: `1px solid ${selectedIds.size > 0 ? "var(--color-accent)" : border}`,
+              padding: "7px 18px", fontSize: 12, fontWeight: 500,
+              cursor: selectedIds.size > 0 ? "pointer" : "not-allowed",
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            Kronoloji Oluştur →
+          </button>
+        </div>
+      )}
       {truncated && (
         <p style={{ fontSize: 11, color: "var(--color-warning)", marginTop: 8, fontFamily: "Inter, sans-serif" }}>
           ⚠ {hidden_count} ilişkili kayıt daha zayıf bağlantı nedeniyle gösterilmiyor.

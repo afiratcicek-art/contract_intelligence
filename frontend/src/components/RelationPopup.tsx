@@ -118,7 +118,7 @@ export default function RelationPopup({
         >
           <div style={{
             width: 14, height: 14, flexShrink: 0,
-            border: `1.5px solid ${checked ? accent : border}`,
+            border: `1.5px solid ${checked ? accent : "var(--color-text-secondary)"}`,
             background: checked ? accent : "transparent",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
@@ -217,6 +217,15 @@ export default function RelationPopup({
     const roots = items.filter(
       (i) => !i.parent_id || !byId.has(i.parent_id)
     );
+    // Recursive tree — supports unlimited depth (grandchildren, etc.)
+    const renderTree = (item: RelationItem, depth: number) => (
+      <div key={item.id}>
+        {renderRow(item, color, depth > 0)}
+        {(childMap.get(item.id) ?? []).map((child) =>
+          renderTree(child, depth + 1)
+        )}
+      </div>
+    );
 
     return (
       <div style={{ marginBottom: 16 }}>
@@ -228,14 +237,7 @@ export default function RelationPopup({
         }}>
           {title}
         </div>
-        {roots.map((root) => (
-          <div key={root.id}>
-            {renderRow(root, color, false)}
-            {(childMap.get(root.id) ?? []).map((child) =>
-              renderRow(child, color, true)
-            )}
-          </div>
-        ))}
+        {roots.map((root) => renderTree(root, 0))}
       </div>
     );
   };
@@ -357,9 +359,9 @@ export default function RelationPopup({
                       style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", flexShrink: 0 }}
                     >
                       <div style={{
-                        width: 14, height: 14,
-                        border: `1.5px solid ${allSelected ? accent : border}`,
-                        background: allSelected ? accent : "transparent",
+                      width: 14, height: 14,
+                      border: `1.5px solid ${allSelected ? accent : "var(--color-text-secondary)"}`,
+                      background: allSelected ? accent : "transparent",
                         display: "flex", alignItems: "center", justifyContent: "center",
                       }}>
                         {allSelected && (

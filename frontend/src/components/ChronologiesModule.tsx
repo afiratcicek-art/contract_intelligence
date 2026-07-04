@@ -1430,8 +1430,9 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                 onClick={() => requestLlmNarrative(pe)}
                                 style={{
                                   fontSize: 11, padding: "5px 12px",
-                                  background: ACCENT, color: "#F5F2ED",
-                                  border: "none", borderRadius: 0,
+                                  background: ACCENT, color: "var(--color-bg-primary)",
+                                  border: `1px solid ${ACCENT}`, borderRadius: 0,
+                                  fontWeight: 500,
                                   cursor: "pointer",
                                   fontFamily: "Inter, sans-serif",
                                 }}
@@ -1981,9 +1982,10 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               fontSize: 11,
                               padding: "5px 12px",
                               background: ACCENT,
-                              color: "#F5F2ED",
-                              border: "none",
+                              color: "var(--color-bg-primary)",
+                              border: `1px solid ${ACCENT}`,
                               borderRadius: 0,
+                              fontWeight: 500,
                               cursor: "pointer",
                               fontFamily: "Inter, sans-serif",
                             }}

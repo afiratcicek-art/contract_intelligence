@@ -606,7 +606,7 @@ export default function FocusedRelationGraph({
           >
             <div style={{
               width: 14, height: 14,
-              border: `1.5px solid ${bridgeAll ? "var(--color-accent)" : border}`,
+              border: `1.5px solid ${bridgeAll ? "var(--color-accent)" : "var(--color-text-secondary)"}`,
               background: bridgeAll ? "var(--color-accent)" : "transparent",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>

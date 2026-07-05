@@ -337,15 +337,75 @@ def _build_relation_index(project_id: str, db):
         if n.get("parent_id"):
             children_map[n["parent_id"]].append(n["id"])
 
+    # ── Root keyword inheritance ─────────────────────────────────
+    # Zincir yanıt belgeleri (Re:, RES) genelde kendi keyword'lerini
+    # girmez. İçerik benzerliği için zincir KÖKÜNÜN keyword'lerini
+    # devralırlar. Kartın kendi keyword'ü varsa union yapılır —
+    # kullanıcının eklediği ekstra keyword'ler korunur.
+    def _root_id(nid: str) -> str:
+        seen: set = set()
+        while parent_map.get(nid) and nid not in seen:
+            seen.add(nid)
+            nid = parent_map[nid]
+        return nid
+
+    for n in all_nodes:
+        root = _root_id(n["id"])
+        if root == n["id"]:
+            continue  # kök kartın kendisi — miras yok
+        root_kw = node_map[root].get("keywords") or []
+        own_kw = n.get("keywords") or []
+        # union — kendi keyword'ü öncelikli, root'unkiyle birleştir
+        merged = list({*(k.lower() for k in own_kw),
+                       *(k.lower() for k in root_kw)})
+        n["keywords"] = merged
+
     return all_nodes, node_map, parent_map, children_map
 
 
+def _kw_tokens(keyword: str) -> set:
+    """Bir keyword'ü anlamlı token'lara böler (>2 karakter)."""
+    return {
+        t for t in (keyword or "").lower()
+        .replace(",", " ").replace(".", " ")
+        .replace(":", " ").replace("-", " ").split()
+        if len(t) > 2
+    }
+
+
 def _jaccard(a: set, b: set) -> float:
+    """Token-overlap keyword matching (Varyant 2).
+    İki keyword en az bir anlamlı token paylaşıyorsa (ör. "fiber" ↔
+    "fiber hattı") eşleşmiş sayılır. Skor = eşleşen benzersiz keyword /
+    toplam benzersiz keyword. Tam string eşitliği GEREKMEZ — deterministik
+    kısmi eşleşme. (Gerçek semantic eşleşme V1.5'te embedding ile gelecek.)
+    """
     if not a or not b:
         return 0.0
-    a_lower = {x.lower() for x in a}
-    b_lower = {x.lower() for x in b}
-    return len(a_lower & b_lower) / len(a_lower | b_lower)
+    a_list = [k for k in a if k and k.strip()]
+    b_list = [k for k in b if k and k.strip()]
+    if not a_list or not b_list:
+        return 0.0
+
+    a_tokens = {k: _kw_tokens(k) for k in a_list}
+    b_tokens = {k: _kw_tokens(k) for k in b_list}
+
+    def _matches(kw_tokens: set, other: dict) -> bool:
+        # Bu keyword, karşı taraftaki herhangi bir keyword ile
+        # en az bir token paylaşıyor mu?
+        for toks in other.values():
+            if kw_tokens & toks:
+                return True
+        return False
+
+    matched_a = sum(1 for k, t in a_tokens.items() if t and _matches(t, b_tokens))
+    matched_b = sum(1 for k, t in b_tokens.items() if t and _matches(t, a_tokens))
+
+    total_unique = len(a_list) + len(b_list)
+    if total_unique == 0:
+        return 0.0
+    # Simetrik oran: her iki taraftan eşleşenlerin toplamı / toplam keyword
+    return round((matched_a + matched_b) / total_unique, 3)
 
 
 def _subject_overlap(s1: str, s2: str) -> float:
@@ -364,10 +424,28 @@ def _subject_overlap(s1: str, s2: str) -> float:
 
 
 def _content_score(n1: dict, n2: dict) -> float:
-    """Average of keyword Jaccard + subject token overlap."""
-    kw = _jaccard(set(n1.get("keywords") or []), set(n2.get("keywords") or []))
-    sub = _subject_overlap(n1.get("subject") or "", n2.get("subject") or "")
-    return round((kw + sub) / 2, 3)
+    """Content similarity: subject↔subject, kw↔kw, and cross subj↔kw signals.
+    max (not average) — güçlü tek sinyal threshold'u geçmeli.
+    """
+    kw1 = n1.get("keywords") or []
+    kw2 = n2.get("keywords") or []
+    subj1 = n1.get("subject") or ""
+    subj2 = n2.get("subject") or ""
+    kw1_str = " ".join(kw1)
+    kw2_str = " ".join(kw2)
+
+    # Ağırlık hiyerarşisi:
+    #   subject ↔ subject → EN GÜÇLÜ (tam ağırlık ×1.0)
+    #   keyword ↔ keyword, çapraz (subj↔kw) → eşit, ×0.85 indirimli
+    # Böylece iki tam-subject eşleşmesi her zaman keyword/çapraz eşleşmeyi geçer.
+    CROSS_WEIGHT = 0.85
+
+    subj_subj = _subject_overlap(subj1, subj2)                       # ×1.0
+    kw_kw = _jaccard(set(kw1), set(kw2)) * CROSS_WEIGHT
+    subj1_kw2 = _subject_overlap(subj1, kw2_str) * CROSS_WEIGHT
+    kw1_subj2 = _subject_overlap(kw1_str, subj2) * CROSS_WEIGHT
+
+    return round(max(subj_subj, kw_kw, subj1_kw2, kw1_subj2), 3)
 
 
 def _full_chain_ids(entity_id: str, parent_map: dict, children_map: dict) -> set:
@@ -772,6 +850,8 @@ def get_focused_graph(
 
         # ── Hop 1: center's own relations ───────────────────
         chain_ids = _full_chain_ids(entity_id, parent_map, children_map)
+        # Center'ın yapısal zincir bileşeni — chain tier yalnızca buna verilir.
+        center_chain_component = chain_ids | {entity_id}
         content_scores = _content_neighbors(
             entity_id, center, all_nodes,
             exclude_ids=chain_ids | {entity_id},
@@ -822,11 +902,16 @@ def get_focused_graph(
                     continue
                 a, b = direct_list[i], direct_list[j]
                 if parent_map.get(b) == a:
-                    tiers[a] = "chain"
-                    tiers[b] = "chain"
-                    scores[a] = 1.0
-                    scores[b] = 1.0
-                    edges.append({"source": a, "target": b, "score": 1.0, "tier": "chain"})
+                    # Chain tier yalnızca center'ın kendi zincir bileşenindeyse.
+                    if a in center_chain_component and b in center_chain_component:
+                        tiers[a] = "chain"
+                        tiers[b] = "chain"
+                        scores[a] = 1.0
+                        scores[b] = 1.0
+                        edges.append({"source": a, "target": b, "score": 1.0, "tier": "chain"})
+                    else:
+                        # Peripheral parent-child — cross bağlantı, content tier'ı ezme.
+                        edges.append({"source": a, "target": b, "score": 0.5, "tier": "cross"})
 
         # ── Hop 2: relations of each directly-related node ──
         for rid in direct_ids:
@@ -838,6 +923,10 @@ def get_focused_graph(
             r_chain_ids = _full_chain_ids(rid, parent_map, children_map)
             for cid2 in r_chain_ids:
                 if cid2 == entity_id or cid2 in direct_ids:
+                    continue
+                # Peripheral bir komşunun zincir ağacı, center'ın zinciri DEĞİLDİR.
+                # Yalnızca center'ın kendi bileşenindeki node'lar chain tier alır.
+                if cid2 not in center_chain_component:
                     continue
                 if tiers.get(cid2) != "chain":
                     tiers[cid2] = "chain"
@@ -903,9 +992,7 @@ def get_focused_graph(
         # outweigh the center's own relations. Downgrade such
         # edges to "cross" (faintest tier). Applied generically
         # for any center / graph shape.
-        center_chain_component = _full_chain_ids(
-            entity_id, parent_map, children_map
-        ) | {entity_id}
+        # center_chain_component Hop 1'de tanımlandı — yeniden hesaplama yok.
         for e in edges:
             if e["tier"] != "chain":
                 continue
@@ -915,6 +1002,10 @@ def get_focused_graph(
             ):
                 e["tier"] = "cross"
                 e["score"] = round(e["score"] * 0.5, 3)
+                # Node tier'larını da düzelt — yanıltıcı "Zincir" etiketini kaldır.
+                for nid in (e["source"], e["target"]):
+                    if nid != entity_id and tiers.get(nid) == "chain":
+                        tiers[nid] = "content"
 
         # ── Dedupe edges ──────────────────────────────────────
         # Multiple direct_ids can rediscover the same chain

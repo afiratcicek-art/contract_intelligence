@@ -35,6 +35,11 @@ from backend.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
+# Content-relation floor. Provisional (see TB-26): deterministic-only
+# mode; recalibrate on TB-5 Haiku activation. Low floor is intentional —
+# relations are advisory (HITL); user prunes weak links.
+CONTENT_RELATION_THRESHOLD = 0.10
+
 
 def _upsert_keyword_stats(admin_db, project_id: str, keywords: list[str]) -> None:
     """Keyword sayaçlarını project_keyword_stats tablosuna yazar.
@@ -474,7 +479,7 @@ def _full_chain_ids(entity_id: str, parent_map: dict, children_map: dict) -> set
 
 def _content_neighbors(
     entity_id: str, self_node: dict, all_nodes: list,
-    exclude_ids: set, threshold: float = 0.25,
+    exclude_ids: set, threshold: float = CONTENT_RELATION_THRESHOLD,
 ) -> dict:
     """Direct content-similarity neighbors, excluding exclude_ids/self."""
     result: dict = {}
@@ -735,7 +740,7 @@ def get_all_document_relations(
                 if key in seen_edges:
                     continue
                 score = _content_score(node_map[nid1], node_map[nid2])
-                if score >= 0.25:
+                if score >= CONTENT_RELATION_THRESHOLD:
                     _add_edge(nid1, nid2, score, "content")
 
         return {"nodes": nodes, "edges": edges}
@@ -974,7 +979,7 @@ def get_focused_graph(
                 if not na or not nb:
                     continue
                 cs = _content_score(na, nb)
-                if cs >= 0.25:
+                if cs >= CONTENT_RELATION_THRESHOLD:
                     edges.append({
                         "source": a, "target": b,
                         "score": cs, "tier": "cross",

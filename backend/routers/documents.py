@@ -828,10 +828,9 @@ def get_focused_graph(
                  and deterministic — always promoted to this tier
                  regardless of hop distance from center.
       content  — direct content-similarity match to center (1-hop).
-      indirect — content-similarity match of a directly-related
-                 node, with no direct link to center (2-hop only).
-                 Weakest — probabilistic signal on a probabilistic
-                 signal. Score is halved to reflect this.
+      A matched neighbor's full chain is pulled in; chain members that
+      don't themselves match the center appear linked to their matched
+      sibling as 'cross' (peripheral), never to the center.
 
     Nodes are deduplicated globally — a node keeps its strongest
     tier if reachable multiple ways. Capped at MAX_FOCUS_NODES
@@ -889,9 +888,8 @@ def get_focused_graph(
             edges.append({"source": entity_id, "target": cid, "score": sc, "tier": "content"})
 
         # ── Chain edges WITHIN direct_ids ────────────────────
-        # A node can reach the center via content/indirect
-        # similarity while ALSO having a real parent_id chain
-        # relationship to another directly-related node (e.g.
+        # A node can reach the center via content similarity while ALSO
+        # having a real parent_id chain relationship to another directly-related node (e.g.
         # RFI-011 is content-linked separately to CORR-009,
         # CORR-010, AND CORR-011, but those three also form a
         # real chain among themselves). The hop-1/hop-2 logic
@@ -929,28 +927,12 @@ def get_focused_graph(
             for cid2 in r_chain_ids:
                 if cid2 == entity_id or cid2 in direct_ids:
                     continue
-                # Peripheral bir komşunun zincir ağacı, center'ın zinciri DEĞİLDİR.
-                # Yalnızca center'ın kendi bileşenindeki node'lar chain tier alır.
-                if cid2 not in center_chain_component:
-                    continue
                 if tiers.get(cid2) != "chain":
                     tiers[cid2] = "chain"
                     scores[cid2] = 1.0
                 parent2 = parent_map.get(cid2)
                 if parent2 and (parent2 == rid or parent2 in r_chain_ids):
                     edges.append({"source": parent2, "target": cid2, "score": 1.0, "tier": "chain"})
-
-            # 2b. that node's own content neighbors — weakest tier
-            r_content = _content_neighbors(
-                rid, r_node, all_nodes,
-                exclude_ids=direct_ids | {entity_id, rid} | r_chain_ids,
-            )
-            for cid2, sc2 in r_content.items():
-                if cid2 not in tiers:
-                    weakened = round(sc2 * 0.5, 3)
-                    tiers[cid2] = "indirect"
-                    scores[cid2] = weakened
-                    edges.append({"source": rid, "target": cid2, "score": weakened, "tier": "indirect"})
 
         # ── Cross edges (lowest priority) ─────────────────────
         # Content similarity BETWEEN non-center nodes that are
@@ -961,8 +943,7 @@ def get_focused_graph(
         # so the relationship is discoverable, but at the
         # faintest tier ("cross") so they never compete visually
         # with the center's direct edges. Only added when the
-        # pair has NO stronger edge already (chain/content/
-        # indirect); those win.
+        # pair has NO stronger edge already (chain/content); those win.
         placed_ids = set(tiers.keys())
         existing_pairs = {
             frozenset((e["source"], e["target"])) for e in edges
@@ -1029,7 +1010,7 @@ def get_focused_graph(
         edges = deduped_edges
 
         # ── Cap + assemble ───────────────────────────────────
-        tier_rank = {"chain": 0, "content": 1, "indirect": 2}
+        tier_rank = {"chain": 0, "content": 1}
         kept_ordered = sorted(
             tiers.keys(),
             key=lambda i: (tier_rank[tiers[i]], -scores[i]),

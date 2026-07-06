@@ -187,6 +187,9 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   modda 0.25 fazla yüksek; nihai değer TAHMİNLE değil, ölçülen
   skor dağılımından belirlenmeli ve TB-5 (Haiku) aktive edilince
   yeniden kalibre edilmeli. Bağımlı: TB-5.
+  → Interim deterministic value set to 0.10 (2026-07-07, commit 6e1943c),
+    surfaced via CONTENT_RELATION_THRESHOLD const in documents.py.
+    Recalibrate on TB-5 (Haiku) activation.
 
 ---
 
@@ -222,11 +225,9 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
 
 ## Backend refactor / AI service
 
-- **TB-22**: C-04: claude_service `_execute_pipeline` refactor — 4 public
-  method aynı 7 adımı tekrarlıyor; `_execute_pipeline()` helper ile ~150
-  satır tasarruf. ÖNKOŞUL: pytest smoke test suite kurulmalı
-  (gate→blocked→cache→analysis sırası korunduğunu doğrulamak için).
-  Risk: Orta. Durum: Açık — test altyapısı sonrası
+- **TB-22**: RESERVED. İleride bu modül + yeni modül tamamlanınca
+  yapılacak "bahar temizliği" ve AI/LLM pipeline revizyonunda ele
+  alınacak. Numara şimdilik bloke — yeniden kullanılmasın.
 
 ---
 

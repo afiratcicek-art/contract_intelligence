@@ -225,9 +225,12 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
 
 ## Backend refactor / AI service
 
-- **TB-22**: RESERVED. İleride bu modül + yeni modül tamamlanınca
-  yapılacak "bahar temizliği" ve AI/LLM pipeline revizyonunda ele
-  alınacak. Numara şimdilik bloke — yeniden kullanılmasın.
+- **TB-22**: C-04: claude_service `_execute_pipeline` refactor — 4 public
+  method aynı 7 adımı tekrarlıyor; `_execute_pipeline()` helper ile ~150
+  satır tasarruf. ÖNKOŞUL: pytest smoke test suite kurulmalı
+  (gate→blocked→cache→analysis sırası korunduğunu doğrulamak için).
+  Risk: Orta. Durum: ERTELENDİ — bu modül + yeni modül tamamlanınca
+  yapılacak AI/LLM pipeline bahar temizliğinde ele alınacak (2026-07-07 kararı).
 
 ---
 

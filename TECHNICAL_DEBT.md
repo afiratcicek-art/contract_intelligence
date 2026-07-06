@@ -181,6 +181,12 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   and RelationPopup.tsx. Low risk (identical logic, small),
   but should be extracted to a shared util when touching
   these files next.
+- **TB-26**: content-relation eşiği (0.25) geçici/provizyonel.
+  Skor kompoziti "keyword + semantic" olarak tasarlandı ama
+  Haiku/embedding henüz kapalı (TB-5'e bağlı). Deterministik-tek
+  modda 0.25 fazla yüksek; nihai değer TAHMİNLE değil, ölçülen
+  skor dağılımından belirlenmeli ve TB-5 (Haiku) aktive edilince
+  yeniden kalibre edilmeli. Bağımlı: TB-5.
 
 ---
 

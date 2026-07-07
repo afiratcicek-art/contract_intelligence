@@ -9,7 +9,7 @@ interface FocusNode {
   subject: string;
   status: string;
   entity_type: "correspondence" | "rfi";
-  tier: "chain" | "content" | "indirect";
+  tier: "chain" | "content";
   score: number;
 }
 interface CenterNode {
@@ -25,7 +25,7 @@ interface FocusEdge {
   source: string;
   target: string;
   score: number;
-  tier: "chain" | "content" | "indirect" | "cross";
+  tier: "chain" | "content" | "cross";
 }
 interface FocusedGraphResponse {
   center: CenterNode;
@@ -54,7 +54,6 @@ const MAX_SCALE = 3;
 const TIER_OPACITY: Record<string, number> = {
   chain: 1,
   content: 0.7,
-  indirect: 0.5,
   cross: 0.42,
 };
 
@@ -62,7 +61,7 @@ interface LaidOutNode { x: number; y: number; r: number; }
 
 /* ── Layout: center-anchored radial graph ──────────────────
    The center connects DIRECTLY to every node it has a
-   content/indirect edge to (so the user sees the center
+   content edge to (so the user sees the center
    relates to all of them, not just one). Chain edges between
    those nodes are ALSO drawn, as bridges — so a chain like
    CORR-009→010→011 reads as a connected sub-structure while
@@ -354,7 +353,7 @@ export default function FocusedRelationGraph({
 
         {[...edges]
           .sort((a, b) => {
-            const rank = { cross: 0, indirect: 1, content: 2, chain: 3 };
+            const rank = { cross: 0, content: 1, chain: 2 };
             return rank[a.tier] - rank[b.tier];
           })
           .map((e, i) => {
@@ -366,11 +365,9 @@ export default function FocusedRelationGraph({
             const weight =
               e.tier === "chain" ? 2.2
               : e.tier === "content" ? 1.6
-              : e.tier === "indirect" ? 1.1
               : 1.0;
             const dash =
-              e.tier === "indirect" ? "4,3"
-              : e.tier === "cross" ? "1,3"
+              e.tier === "cross" ? "1,3"
               : undefined;
             return (
               <line
@@ -495,7 +492,7 @@ export default function FocusedRelationGraph({
       </p>
       <p style={{ fontSize: 11, color: textSec, margin: "4px 0 0", fontFamily: "Inter, sans-serif" }}>
         Durum: {hoveredNode.status}
-        {hoveredNode.tier !== "center" && ` · ${hoveredNode.tier === "chain" ? "Zincir" : hoveredNode.tier === "content" ? "İçerik" : "Dolaylı"}`}
+        {hoveredNode.tier !== "center" && ` · ${hoveredNode.tier === "chain" ? "Zincir" : "İçerik"}`}
       </p>
     </div>
   ) : null;
@@ -538,7 +535,6 @@ export default function FocusedRelationGraph({
         {([
           { label: "Zincir",  w: 2.2, dash: undefined, op: 1 },
           { label: "İçerik",  w: 1.6, dash: undefined, op: 0.7 },
-          { label: "Dolaylı", w: 1.1, dash: "4,3",     op: 0.5 },
           { label: "Çapraz",  w: 1.0, dash: "1,3",     op: 0.42 },
         ] as const).map((item) => (
           <span key={item.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>

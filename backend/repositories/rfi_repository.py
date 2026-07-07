@@ -116,6 +116,15 @@ class RFIRepository(BaseRepository):
         )
         return result.data or []
 
+    def get_references(self, owner_rfi_id: str) -> list[dict]:
+        result = (
+            self.db.table("rfi_references")
+            .select("*")
+            .eq("owner_rfi_id", owner_rfi_id)
+            .execute()
+        )
+        return result.data or []
+
     def update_with_version_check(
         self, rfi_id: str, data: dict, expected_version: int
     ) -> Optional[dict]:

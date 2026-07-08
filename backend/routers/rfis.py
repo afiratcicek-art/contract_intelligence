@@ -7,7 +7,7 @@ from datetime import date, datetime
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
 from backend.database import get_admin_client
-from backend.models.rfi import RFICreate, RFIUpdate, RFIClose
+from backend.models.rfi import RFICreate, RFIUpdate, RFIClose, RFIReferenceAdd
 from backend.routers.documents import _upsert_keyword_stats
 from backend.repositories.rfi_repository import RFIRepository
 from backend.services.audit_service import AuditService
@@ -275,3 +275,47 @@ def delete_rfi(
         action="update", entity_type="rfi", entity_id=str(rfi_id),
         user_id=access["user"]["id"], project_id=str(project_id),
     )
+
+
+# ── References ─────────────────────────────────────────────────────────────
+
+@router.post("/{rfi_id}/references", status_code=201)
+def add_reference(
+    project_id: UUID,
+    rfi_id: UUID,
+    body: RFIReferenceAdd,
+    access: dict = Depends(require_permission("rfi", "edit")),
+):
+    db = access["db"]
+    repo = RFIRepository(db)
+    rfi = repo.get_or_404(str(rfi_id))
+    if rfi["project_id"] != str(project_id):
+        raise NotFoundError()
+
+    if body.rfi_id:
+        target = db.table("rfis").select("project_id").eq("id", str(body.rfi_id)).execute()
+        if not target.data or target.data[0].get("project_id") != str(project_id):
+            raise NotFoundError()
+    if body.ref_corr_id:
+        target = db.table("correspondences").select("project_id").eq("id", str(body.ref_corr_id)).execute()
+        if not target.data or target.data[0].get("project_id") != str(project_id):
+            raise NotFoundError()
+    if body.change_id:
+        target = db.table("changes").select("project_id").eq("id", str(body.change_id)).execute()
+        if not target.data or target.data[0].get("project_id") != str(project_id):
+            raise NotFoundError()
+
+    data = body.model_dump(mode="json", exclude_none=True)
+    data["owner_rfi_id"] = str(rfi_id)
+    data["added_by"] = access["user"]["id"]
+    if "external_doc_date" in data:
+        data["external_doc_date"] = str(data["external_doc_date"])
+    result = db.table("rfi_references").insert(data).execute()
+    audit = AuditService()
+    audit.log(
+        action="create", entity_type="rfi_reference",
+        entity_id=result.data[0].get("id", str(rfi_id)),
+        user_id=access["user"]["id"], project_id=str(project_id),
+        new_value={"owner_rfi_id": str(rfi_id)},
+    )
+    return result.data[0]

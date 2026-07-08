@@ -111,3 +111,26 @@ class RFIDeadlineResponse(BaseModel):
     deadline_source: Optional[str] = None
     days_remaining: Optional[int] = None
     urgency: str
+
+
+class RFIReferenceAdd(BaseModel):
+    ref_type: str
+    rfi_id: Optional[UUID] = None
+    ref_corr_id: Optional[UUID] = None
+    change_id: Optional[UUID] = None
+    external_doc_number: Optional[str] = None
+    external_doc_title: Optional[str] = None
+    external_doc_date: Optional[date] = None
+    note: Optional[str] = None
+
+    @field_validator("ref_type", "external_doc_number", mode="before")
+    @classmethod
+    def clean_short_fields(cls, v): return sanitize_short(v)
+
+    @field_validator("external_doc_title", mode="before")
+    @classmethod
+    def clean_medium_fields(cls, v): return sanitize_medium(v)
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def clean_note(cls, v): return sanitize_long(v)

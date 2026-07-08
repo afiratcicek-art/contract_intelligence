@@ -32,6 +32,8 @@ from backend.models.document import (
 )
 from backend.services.extraction_service import get_extraction_service
 from backend.services.audit_service import AuditService
+from backend.repositories.correspondence_repository import CorrespondenceRepository
+from backend.repositories.rfi_repository import RFIRepository
 
 logger = logging.getLogger(__name__)
 
@@ -492,6 +494,171 @@ def _content_neighbors(
     return result
 
 
+_TIER_STRENGTH = {"chain": 3, "reference": 2, "content": 1, "cross": 0}
+
+
+def _resolve_reference_target_id(
+    ref: dict,
+    node_map: dict,
+    synthetic_nodes: dict,
+    changes_map: dict,
+) -> Optional[str]:
+    """Resolve a reference row to a graph node id (real or synthetic). None = skip."""
+    ref_id = ref.get("id")
+    if ref.get("rfi_id"):
+        nid = ref["rfi_id"]
+        # IDOR guard: node_map is single-project (RLS-scoped in _build_relation_index); cross-project targets are absent → skipped.
+        return nid if nid in node_map else None
+    if ref.get("ref_corr_id"):
+        nid = ref["ref_corr_id"]
+        # IDOR guard: node_map is single-project (RLS-scoped in _build_relation_index); cross-project targets are absent → skipped.
+        return nid if nid in node_map else None
+    if ref.get("change_id"):
+        ch = changes_map.get(ref["change_id"])
+        if not ch:
+            return None
+        synth_id = f"changeref-{ref_id}"
+        if synth_id not in synthetic_nodes:
+            synthetic_nodes[synth_id] = {
+                "id": synth_id,
+                "ref": ch["change_number"],
+                "subject": ch["title"],
+                "status": ch.get("status", "reference"),
+                "entity_type": "change",
+            }
+        return synth_id
+    ext_num = ref.get("external_doc_number")
+    ext_title = ref.get("external_doc_title")
+    if ext_num or ext_title or ref.get("ref_type") in (
+        "external_doc", "drawing", "spec", "other",
+    ):
+        if not ext_num and not ext_title:
+            return None
+        synth_id = f"extref-{ref_id}"
+        if synth_id not in synthetic_nodes:
+            label = ext_num or ext_title or "EXT"
+            synthetic_nodes[synth_id] = {
+                "id": synth_id,
+                "ref": label,
+                "subject": ext_title or ext_num or "External document",
+                "status": "reference",
+                "entity_type": "external_doc",
+            }
+        return synth_id
+    return None
+
+
+def _gather_center_reference_edges(
+    entity_id: str,
+    entity_type: str,
+    project_id: str,
+    db,
+    node_map: dict,
+    synthetic_nodes: dict,
+) -> tuple[list[dict], set[str]]:
+    """Collect 1-hop reference edges to/from center (outgoing + incoming)."""
+    rfi_repo = RFIRepository(db)
+    corr_repo = CorrespondenceRepository(db)
+    ref_edges: list[dict] = []
+    reference_terminal_ids: set[str] = set()
+
+    if entity_type == "rfi":
+        outgoing = rfi_repo.get_references(entity_id)
+    else:
+        outgoing = corr_repo.get_references(entity_id)
+
+    change_ids = list({ref["change_id"] for ref in outgoing if ref.get("change_id")})
+    changes_map: dict = {}
+    if change_ids:
+        ch_res = (
+            db.table("changes")
+            .select("id, change_number, title, status, project_id")
+            .in_("id", change_ids)
+            .eq("is_deleted", False)
+            .execute()
+        )
+        for row in ch_res.data or []:
+            if row.get("project_id") == project_id:
+                changes_map[row["id"]] = row
+
+    for ref in outgoing:
+        tid = _resolve_reference_target_id(
+            ref, node_map, synthetic_nodes, changes_map,
+        )
+        if not tid or tid == entity_id:
+            continue
+        ref_edges.append({
+            "source": entity_id, "target": tid,
+            "score": 1.0, "tier": "reference",
+        })
+        reference_terminal_ids.add(tid)
+
+    if entity_type == "rfi":
+        for row in rfi_repo.get_linked_correspondences(entity_id):
+            sid = row.get("correspondence_id")
+            if not sid or sid not in node_map:
+                continue
+            ref_edges.append({
+                "source": sid, "target": entity_id,
+                "score": 1.0, "tier": "reference",
+            })
+            reference_terminal_ids.add(sid)
+        try:
+            incoming_rfi = (
+                db.table("rfi_references")
+                .select("*")
+                .eq("rfi_id", entity_id)
+                .execute()
+            ).data or []
+        except Exception:
+            incoming_rfi = []
+        for ref in incoming_rfi:
+            if ref.get("owner_rfi_id") == entity_id:
+                continue
+            sid = ref.get("owner_rfi_id")
+            if sid and sid in node_map:
+                ref_edges.append({
+                    "source": sid, "target": entity_id,
+                    "score": 1.0, "tier": "reference",
+                })
+                reference_terminal_ids.add(sid)
+    else:
+        incoming_corr = (
+            db.table("correspondence_references")
+            .select("*")
+            .eq("ref_corr_id", entity_id)
+            .execute()
+        ).data or []
+        for ref in incoming_corr:
+            sid = ref.get("correspondence_id")
+            if sid and sid in node_map:
+                ref_edges.append({
+                    "source": sid, "target": entity_id,
+                    "score": 1.0, "tier": "reference",
+                })
+                reference_terminal_ids.add(sid)
+        try:
+            incoming_rfi = (
+                db.table("rfi_references")
+                .select("*")
+                .eq("ref_corr_id", entity_id)
+                .execute()
+            ).data or []
+        except Exception:
+            incoming_rfi = []
+        for ref in incoming_rfi:
+            sid = ref.get("owner_rfi_id")
+            if sid and sid in node_map:
+                ref_edges.append({
+                    "source": sid, "target": entity_id,
+                    "score": 1.0, "tier": "reference",
+                })
+                reference_terminal_ids.add(sid)
+
+    reference_terminal_ids.discard(entity_id)
+    return ref_edges, reference_terminal_ids
+
+
 # ════════════════════════════════════════════════════
 # GET /stats — project document statistics (cached)
 # ════════════════════════════════════════════════════
@@ -828,6 +995,7 @@ def get_focused_graph(
                  and deterministic — always promoted to this tier
                  regardless of hop distance from center.
       content  — direct content-similarity match to center (1-hop).
+      reference — explicit card reference (1-hop, terminal, non-transitive).
       A matched neighbor's full chain is pulled in; chain members that
       don't themselves match the center appear linked to their matched
       sibling as 'cross' (peripheral), never to the center.
@@ -851,14 +1019,19 @@ def get_focused_graph(
         tiers: dict = {}
         scores: dict = {}
         edges: list[dict] = []
+        synthetic_nodes: dict = {}
 
         # ── Hop 1: center's own relations ───────────────────
         chain_ids = _full_chain_ids(entity_id, parent_map, children_map)
         # Center'ın yapısal zincir bileşeni — chain tier yalnızca buna verilir.
         center_chain_component = chain_ids | {entity_id}
+
+        ref_edges, reference_terminal_ids = _gather_center_reference_edges(
+            entity_id, entity_type, project_id, db, node_map, synthetic_nodes,
+        )
         content_scores = _content_neighbors(
             entity_id, center, all_nodes,
-            exclude_ids=chain_ids | {entity_id},
+            exclude_ids=chain_ids | {entity_id} | reference_terminal_ids,
         )
         direct_ids = chain_ids | set(content_scores.keys())
 
@@ -882,7 +1055,24 @@ def get_focused_graph(
         if entity_parent and entity_parent in chain_ids:
             edges.append({"source": entity_parent, "target": entity_id, "score": 1.0, "tier": "chain"})
 
+        center_ref_pairs: set = set()
+        chain_pairs = {frozenset((e["source"], e["target"])) for e in edges if e["tier"] == "chain"}
+        for re in ref_edges:
+            pair = frozenset((re["source"], re["target"]))
+            other = re["target"] if re["source"] == entity_id else re["source"]
+            if other in chain_ids or pair in chain_pairs:
+                continue
+            edges.append(re)
+            center_ref_pairs.add(pair)
+            if tiers.get(other) != "chain":
+                tiers[other] = "reference"
+                scores[other] = 1.0
+
         for cid, sc in content_scores.items():
+            if frozenset((entity_id, cid)) in center_ref_pairs:
+                continue
+            if tiers.get(cid) == "reference":
+                continue
             tiers[cid] = "content"
             scores[cid] = sc
             edges.append({"source": entity_id, "target": cid, "score": sc, "tier": "content"})
@@ -954,6 +1144,8 @@ def get_focused_graph(
                 a, b = placed_list[i], placed_list[j]
                 if a == entity_id or b == entity_id:
                     continue
+                if a in reference_terminal_ids or b in reference_terminal_ids:
+                    continue
                 if frozenset((a, b)) in existing_pairs:
                     continue
                 na, nb = node_map.get(a), node_map.get(b)
@@ -994,23 +1186,18 @@ def get_focused_graph(
                         tiers[nid] = "content"
 
         # ── Dedupe edges ──────────────────────────────────────
-        # Multiple direct_ids can rediscover the same chain
-        # relationship from different iterations (e.g. center
-        # content-linked to 3 chain siblings independently, each
-        # re-walks the shared chain and re-adds the same edge).
-        # Keep first occurrence per (unordered pair, tier).
-        seen_edge_keys: set = set()
-        deduped_edges: list[dict] = []
+        # One edge per unordered pair — strongest tier wins
+        # (chain > reference > content > cross).
+        best_by_pair: dict = {}
         for e in edges:
-            key = (frozenset((e["source"], e["target"])), e["tier"])
-            if key in seen_edge_keys:
-                continue
-            seen_edge_keys.add(key)
-            deduped_edges.append(e)
-        edges = deduped_edges
+            pair = frozenset((e["source"], e["target"]))
+            cur = best_by_pair.get(pair)
+            if cur is None or _TIER_STRENGTH[e["tier"]] > _TIER_STRENGTH[cur["tier"]]:
+                best_by_pair[pair] = e
+        edges = list(best_by_pair.values())
 
         # ── Cap + assemble ───────────────────────────────────
-        tier_rank = {"chain": 0, "content": 1}
+        tier_rank = {"chain": 0, "reference": 1, "content": 2}
         kept_ordered = sorted(
             tiers.keys(),
             key=lambda i: (tier_rank[tiers[i]], -scores[i]),
@@ -1019,12 +1206,15 @@ def get_focused_graph(
 
         nodes = [
             {
-                "id": node_map[i]["id"], "ref": node_map[i]["ref"],
-                "subject": node_map[i]["subject"], "status": node_map[i]["status"],
-                "entity_type": node_map[i]["entity_type"],
-                "tier": tiers[i], "score": scores[i],
+                "id": nid,
+                "ref": (node_map.get(nid) or synthetic_nodes[nid])["ref"],
+                "subject": (node_map.get(nid) or synthetic_nodes[nid])["subject"],
+                "status": (node_map.get(nid) or synthetic_nodes[nid])["status"],
+                "entity_type": (node_map.get(nid) or synthetic_nodes[nid])["entity_type"],
+                "tier": tiers[nid], "score": scores[nid],
             }
-            for i in kept_ordered if i in node_map
+            for nid in kept_ordered
+            if nid in node_map or nid in synthetic_nodes
         ]
         valid_ids = kept_ids | {entity_id}
         final_edges = [e for e in edges if e["source"] in valid_ids and e["target"] in valid_ids]

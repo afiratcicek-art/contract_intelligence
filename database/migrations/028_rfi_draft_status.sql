@@ -7,7 +7,7 @@
 -- zero drafts and zero behavioural ripple.
 -- Re-runnable (DROP CONSTRAINT IF EXISTS). Additive only.
 -- Supabase SQL Editor'da çalıştır
--- Applied: 07/07/2026 (uygulama sonrası doldur)
+-- Applied: 2026-07-09
 -- ============================================================
 
 BEGIN;

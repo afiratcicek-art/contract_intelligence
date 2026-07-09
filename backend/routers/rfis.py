@@ -81,6 +81,17 @@ def create_rfi(
     data = body.model_dump(mode="json", exclude_none=True)
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
+
+    # RFI dogum statusu, rfi_type'in yazarlik vekili olmasina dayanir:
+    #   original / revision -> bizim urettigimiz belge -> taslak dogar, onay ile 'open'a gecer
+    #   response            -> karsi taraftan gelen cevap -> zaten gerceklesmis bir olay,
+    #                          taslagi olmaz; DB default 'open' korunur (dokunma)
+    # VARSAYIM (TB-36): prime kontrat ekseni. Alt sozlesme ekseninde bu esleme TERSINE doner
+    # (tasoron 'original' gonderir, 'response'u biz yazariz). O gun bu blok yeniden ele alinmalidir.
+    if "status" not in data:
+        if data.get("rfi_type", "original") in ("original", "revision"):
+            data["status"] = "draft"
+
     if "submitted_date" in data:
         data["submitted_date"] = str(data["submitted_date"])
     if "parent_id" in data and data["parent_id"]:
@@ -89,8 +100,12 @@ def create_rfi(
         if not parent_rfi or parent_rfi.get("project_id") != str(project_id):
             from fastapi import HTTPException
             raise HTTPException(403, "Geçersiz parent_id")
-        # Parent RFI status → "responded" otomatik
-        repo.update_parent_rfi_status(str(data["parent_id"]))
+        # Taslak cocuk, canli parent'in statusunu DEGISTIREMEZ.
+        # Parent 'responded'a ancak cocuk yayimlandiginda gecer:
+        #   - response  -> zaten 'open' dogar, burada tetiklenir
+        #   - revision  -> 'draft' dogar, onay endpoint'inde (2.3) tetiklenecek
+        if data.get("status") != "draft":
+            repo.update_parent_rfi_status(str(data["parent_id"]))
 
     if not body.response_due_date:
         deadline_svc = DeadlineService()

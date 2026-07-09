@@ -82,15 +82,16 @@ def create_rfi(
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
 
-    # RFI dogum statusu, rfi_type'in yazarlik vekili olmasina dayanir:
-    #   original / revision -> bizim urettigimiz belge -> taslak dogar, onay ile 'open'a gecer
-    #   response            -> karsi taraftan gelen cevap -> zaten gerceklesmis bir olay,
-    #                          taslagi olmaz; DB default 'open' korunur (dokunma)
-    # VARSAYIM (TB-36): prime kontrat ekseni. Alt sozlesme ekseninde bu esleme TERSINE doner
-    # (tasoron 'original' gonderir, 'response'u biz yazariz). O gun bu blok yeniden ele alinmalidir.
-    if "status" not in data:
-        if data.get("rfi_type", "original") in ("original", "revision"):
-            data["status"] = "draft"
+    # RFI dogum statusu entry_mode'a baglidir (rfi_type'a DEGIL):
+    #   authored -> platformda yazildi -> taslak dogar; submitted_date ve
+    #               response_due_date onay endpoint'inde atanir
+    #   recorded -> disarida yazilmis/gelmis belge kayda geciriliyor ->
+    #               'open' dogar; submitted_date kullanicidan gelir (DB: CHECK)
+    # entry_mode DB'de kalir (migration 029) — onaydan sonra iki kipi
+    # ayirt eden tek kayittir. data'dan DUSURULMEZ.
+    entry_mode = data.get("entry_mode", "recorded")
+    if "status" not in data and entry_mode == "authored":
+        data["status"] = "draft"
 
     if "submitted_date" in data:
         data["submitted_date"] = str(data["submitted_date"])
@@ -107,7 +108,12 @@ def create_rfi(
         if data.get("status") != "draft":
             repo.update_parent_rfi_status(str(data["parent_id"]))
 
-    if not body.response_due_date:
+    if entry_mode == "authored":
+        # Taslak henuz sunulmadi -> saat islemez.
+        # submitted_date ve response_due_date onay aninda hesaplanir.
+        data.pop("submitted_date", None)
+        data.pop("response_due_date", None)
+    elif not body.response_due_date:
         deadline_svc = DeadlineService()
         project_config, calendar_config = DeadlineService.fetch_configs(db, str(project_id))
         deadline_svc.apply_response_deadline(

@@ -7,6 +7,8 @@ import logging
 from datetime import date
 from typing import Optional
 
+from fastapi import HTTPException
+
 from backend.models.alert import AlertActionCreate
 from backend.repositories.alert_repository import AlertRepository
 from backend.services.audit_service import AuditService
@@ -40,6 +42,24 @@ class AlertService:
         oluşturulan alert.
         Deadline hesabı deterministik — LLM yok.
         """
+        if source_entity_id and source_entity_type in ("rfi", "correspondence"):
+            table = "rfis" if source_entity_type == "rfi" else "correspondences"
+            row = (
+                self.db.table(table)
+                .select("status")
+                .eq("id", source_entity_id)
+                .eq("project_id", project_id)
+                .maybe_single()
+                .execute()
+            )
+            if not row.data:
+                raise HTTPException(status_code=404, detail="Source document not found.")
+            if row.data.get("status") == "draft":
+                raise HTTPException(
+                    status_code=422,
+                    detail="Cannot create alert from a draft document.",
+                )
+
         # Deadline hesabı: source entity tarihinden itibaren
         # notice_start_date kullanıcıdan alınmaz —
         # backend source entity created_at/submitted_date kullanır

@@ -156,8 +156,8 @@ def list_linkable_documents(
     rfi_repo = RFIRepository(db)
     corr_repo = CorrespondenceRepository(db)
 
-    rfis = rfi_repo.list_by_project(str(project_id), limit=500)
-    corrs = corr_repo.list_by_project(str(project_id), limit=500)
+    rfis = [r for r in rfi_repo.list_by_project(str(project_id), limit=500) if r.get("status") != "draft"]
+    corrs = [c for c in corr_repo.list_by_project(str(project_id), limit=500) if c.get("status") != "draft"]
 
     documents: list[dict] = []
 

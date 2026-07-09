@@ -284,32 +284,42 @@ def list_documents(
 # Single source of truth — avoids triplicated scoring logic.
 # ════════════════════════════════════════════════════
 
-def _build_relation_index(project_id: str, db):
+def _build_relation_index(project_id: str, db, preserve_entity_id: str | None = None):
     """Fetch all correspondences + rfis for a project once.
     Returns (all_nodes, node_map, parent_map, children_map).
     Single pair of queries — reused across all relation endpoints
     to avoid repeated DB round-trips (no N+1).
     """
-    corr_res = (
+    if preserve_entity_id:
+        uuid.UUID(str(preserve_entity_id))
+    corr_query = (
         db.table("correspondences")
         .select(
             "id, corr_number, subject, status, "
             "parent_id, correspondence_date, keywords"
         )
         .eq("project_id", project_id)
-        .execute()
     )
+    if preserve_entity_id:
+        corr_query = corr_query.or_(f"id.eq.{preserve_entity_id},status.neq.draft")
+    else:
+        corr_query = corr_query.neq("status", "draft")
+    corr_res = corr_query.execute()
     corrs: list[dict] = corr_res.data or []
 
-    rfi_res = (
+    rfi_query = (
         db.table("rfis")
         .select(
             "id, rfi_number, subject, status, "
             "parent_id, rfi_type, submitted_date, keywords"
         )
         .eq("project_id", project_id)
-        .execute()
     )
+    if preserve_entity_id:
+        rfi_query = rfi_query.or_(f"id.eq.{preserve_entity_id},status.neq.draft")
+    else:
+        rfi_query = rfi_query.neq("status", "draft")
+    rfi_res = rfi_query.execute()
     rfis: list[dict] = rfi_res.data or []
 
     all_nodes: list[dict] = []
@@ -1005,7 +1015,9 @@ def get_focused_graph(
 
     db = access["db"]
     try:
-        all_nodes, node_map, parent_map, children_map = _build_relation_index(project_id, db)
+        all_nodes, node_map, parent_map, children_map = _build_relation_index(
+            project_id, db, preserve_entity_id=entity_id,
+        )
         center = node_map.get(entity_id)
         if not center:
             raise HTTPException(status_code=404, detail="Kayıt bulunamadı.")

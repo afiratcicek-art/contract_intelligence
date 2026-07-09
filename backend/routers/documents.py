@@ -603,15 +603,12 @@ def _gather_center_reference_edges(
                 "score": 1.0, "tier": "reference",
             })
             reference_terminal_ids.add(sid)
-        try:
-            incoming_rfi = (
-                db.table("rfi_references")
-                .select("*")
-                .eq("rfi_id", entity_id)
-                .execute()
-            ).data or []
-        except Exception:
-            incoming_rfi = []
+        incoming_rfi = (
+            db.table("rfi_references")
+            .select("*")
+            .eq("rfi_id", entity_id)
+            .execute()
+        ).data or []
         for ref in incoming_rfi:
             if ref.get("owner_rfi_id") == entity_id:
                 continue
@@ -637,15 +634,12 @@ def _gather_center_reference_edges(
                     "score": 1.0, "tier": "reference",
                 })
                 reference_terminal_ids.add(sid)
-        try:
-            incoming_rfi = (
-                db.table("rfi_references")
-                .select("*")
-                .eq("ref_corr_id", entity_id)
-                .execute()
-            ).data or []
-        except Exception:
-            incoming_rfi = []
+        incoming_rfi = (
+            db.table("rfi_references")
+            .select("*")
+            .eq("ref_corr_id", entity_id)
+            .execute()
+        ).data or []
         for ref in incoming_rfi:
             sid = ref.get("owner_rfi_id")
             if sid and sid in node_map:

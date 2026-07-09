@@ -269,8 +269,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
           metaUpdate.is_key_event = pe.editIsKey;
         }
         // event_date only for manual entries
-        const isManualEntry = !pe.doc.type ||
-          pe.doc.type === ("other" as string);
+        const isManualEntry = pe.doc.type === null;
         if (isManualEntry) {
           if (pe.editDate && pe.editDate !== pe._originalDate) {
             metaUpdate.event_date = pe.editDate;

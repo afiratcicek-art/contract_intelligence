@@ -395,7 +395,7 @@ export default function ChronologyDraftView({
                     color: "var(--color-text-secondary)",
                     fontFamily: "Inter, sans-serif",
                   }}>
-                    {pe.doc.type}
+                    {pe.doc.type ?? (MANUAL_EVENT_TYPE_LABELS[pe.manualEventType ?? "other"] ?? "manual")}
                   </span>
                   {pe._isExisting && (
                     <span style={{
@@ -429,7 +429,7 @@ export default function ChronologyDraftView({
                   }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <select
-                        value={pe.editEventType ?? pe.doc.type}
+                        value={pe.editEventType ?? pe.manualEventType ?? pe.doc.type ?? "other"}
                         onChange={(e) => updatePending(pe.doc.id, {
                           editEventType: e.target.value,
                         })}
@@ -462,7 +462,7 @@ export default function ChronologyDraftView({
                         Key event
                       </label>
                     </div>
-                    {(!pe.doc.type || pe.doc.type === "other") && (
+                    {pe.doc.type === null && (
                       <>
                         <input
                           type="date"

@@ -3,7 +3,6 @@
  * Pure functions, zero side effects, fully testable.
  */
 import type { ChronologyEvent } from "../../types/chronology";
-import type { LinkableDoc } from "../../services/api";
 import type { PendingEvent } from "./usePendingEvents";
 import type { StripEvent } from "./HorizontalStrip";
 
@@ -53,7 +52,9 @@ export function chronologyEventsToPending(
     .map((ev) => ({
       doc: {
         id: ev.id,
-        type: (ev.document_ref_type ?? "other") as "rfi" | "correspondence",
+        type: ev.document_ref_type === "rfi" || ev.document_ref_type === "correspondence"
+          ? ev.document_ref_type
+          : null,
         ref_number: ev.document_ref_type
           ? ev.event_type.toUpperCase()
           : "MANUAL",
@@ -63,7 +64,8 @@ export function chronologyEventsToPending(
         date: ev.event_date,
         status: "existing",
         parent_id: null,
-      } as LinkableDoc,
+      },
+      manualEventType: ev.document_ref_type ? undefined : ev.event_type,
       narrativeMode: ev.approved_narrative ? ("manual" as const) : null,
       manualText: ev.approved_narrative ?? "",
       autoNarrative: ev.auto_narrative,
@@ -85,16 +87,13 @@ export function chronologyEventsToPending(
 
 /** Single PendingEvent → addChronologyEvent payload (create + edit new events) */
 export function buildEventPayload(pe: PendingEvent) {
-  const isManual = pe.doc.id.startsWith("manual-");
+  const docType = pe.doc.type;
+  const isManual = docType === null;
   return {
     event_date: pe.doc.date,
-    event_type: isManual
-      ? (pe.doc.type || "other")
-      : pe.doc.type === "rfi"
-        ? "rfi"
-        : "correspondence",
+    event_type: docType === null ? (pe.manualEventType ?? "other") : docType,
     document_ref_id:  isManual ? undefined : pe.doc.id,
-    document_ref_type: isManual ? undefined : pe.doc.type,
+    document_ref_type: docType === null ? undefined : docType,
     manual_narrative: pe.approved
       ? pe.approvedText || pe.autoNarrative || pe.manualText || undefined
       : undefined,

@@ -18,8 +18,22 @@ import type { ToastType } from "../../hooks/useToast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/** PendingEvent.doc — LinkableDoc'un manuel olaylari da tasiyan hali.
+ *  type === null  => manuel giris (backend: document_ref_type IS NULL)
+ *  type !== null  => sisteme bagli belge (document_ref_type)
+ *  event_type ASLA bu alanda tasinmaz; manualEventType'ta yasar. */
+export interface PendingDoc {
+  id: string;
+  type: "rfi" | "correspondence" | null;
+  ref_number: string;
+  subject: string;
+  date: string;
+  status: string;
+  parent_id: string | null;
+}
+
 export interface PendingEvent {
-  doc: LinkableDoc;
+  doc: PendingDoc;
   narrativeMode: "llm" | "manual" | null;
   manualText: string;
   autoNarrative: string | null;
@@ -37,6 +51,8 @@ export interface PendingEvent {
   editIsKey?: boolean;
   editDate?: string;
   editSubject?: string;
+  /** Yalniz manuel olaylarda dolu (doc.type === null). event_type degeri. */
+  manualEventType?: string;
 }
 
 type ShowToastFn = (message: string, type?: ToastType) => void;
@@ -112,13 +128,14 @@ export function usePendingEvents(projectId: string, showToast: ShowToastFn) {
       [...prev, {
         doc: {
           id: fakeId,
-          type: manualType as "rfi" | "correspondence",
+          type: null,
           ref_number: "MANUAL",
           subject: manualSubject.trim(),
           date: manualDate,
           status: "manual",
           parent_id: null,
         },
+        manualEventType: manualType,
         narrativeMode: manualNarrative.trim() ? "manual" as const : null,
         manualText: manualNarrative.trim(),
         autoNarrative: null,

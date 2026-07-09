@@ -394,3 +394,65 @@ def add_reference(
         new_value={"owner_rfi_id": str(rfi_id)},
     )
     return result.data[0]
+
+
+@router.get("/{rfi_id}/references")
+def list_references(
+    project_id: UUID,
+    rfi_id: UUID,
+    access: dict = Depends(verify_project_access),
+):
+    db = access["db"]
+    repo = RFIRepository(db)
+
+    rfi = repo.get_or_404(str(rfi_id))
+    if rfi["project_id"] != str(project_id):
+        raise NotFoundError()
+
+    refs = repo.get_references(str(rfi_id))
+    if not refs:
+        return []
+
+    # Hedef etiketleri TOPLU cekilir. Referans basina sorgu ACMA (N+1 yasak).
+    rfi_ids    = list({r["rfi_id"]     for r in refs if r.get("rfi_id")})
+    corr_ids   = list({r["ref_corr_id"] for r in refs if r.get("ref_corr_id")})
+    change_ids = list({r["change_id"]   for r in refs if r.get("change_id")})
+
+    rfi_map, corr_map, change_map = {}, {}, {}
+    if rfi_ids:
+        res = (db.table("rfis").select("id, rfi_number, subject, project_id")
+               .in_("id", rfi_ids).eq("is_deleted", False).execute())
+        rfi_map = {x["id"]: x for x in (res.data or [])
+                   if x.get("project_id") == str(project_id)}
+    if corr_ids:
+        res = (db.table("correspondences").select("id, corr_number, subject, project_id")
+               .in_("id", corr_ids).eq("is_deleted", False).execute())
+        corr_map = {x["id"]: x for x in (res.data or [])
+                    if x.get("project_id") == str(project_id)}
+    if change_ids:
+        res = (db.table("changes").select("id, change_number, title, project_id")
+               .in_("id", change_ids).eq("is_deleted", False).execute())
+        change_map = {x["id"]: x for x in (res.data or [])
+                      if x.get("project_id") == str(project_id)}
+
+    out = []
+    for r in refs:
+        label, subject = None, None
+        if r.get("rfi_id") and r["rfi_id"] in rfi_map:
+            t = rfi_map[r["rfi_id"]]
+            label, subject = t["rfi_number"], t["subject"]
+        elif r.get("ref_corr_id") and r["ref_corr_id"] in corr_map:
+            t = corr_map[r["ref_corr_id"]]
+            label, subject = t["corr_number"], t["subject"]
+        elif r.get("change_id") and r["change_id"] in change_map:
+            t = change_map[r["change_id"]]
+            label, subject = t["change_number"], t["title"]
+        elif r.get("external_doc_number") or r.get("external_doc_title"):
+            label, subject = r.get("external_doc_number"), r.get("external_doc_title")
+
+        out.append({
+            **r,
+            "target_label": label,
+            "target_subject": subject,
+        })
+    return out

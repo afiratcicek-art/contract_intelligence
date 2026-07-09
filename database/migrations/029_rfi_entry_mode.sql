@@ -1,6 +1,6 @@
 -- Migration 029: RFI entry mode
 -- Author: ClauseIQ
--- Applied: Applied: 2026-07-09
+-- Applied: 2026-07-09
 --
 -- entry_mode, belgenin PLATFORMDA mi dogdugunu soyler; kim yazdigini degil.
 --   authored -> platformda yazildi -> 'draft' dogar, onay ile 'open'a gecer,

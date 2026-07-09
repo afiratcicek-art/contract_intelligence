@@ -1,11 +1,15 @@
 -- Migration 030: rfi:approve permission seed
 -- Author: ClauseIQ
--- Applied: (uygulama sonrasi doldur)
+-- Applied: 2026-07-09
 --
 -- 627 onay kapisi: authored RFI 'draft' dogar, rfi:approve izni olan rol
 -- onu 'open'a cikarir. Izin correspondence:approve deseninin aynasidir (cm).
 -- Kullanicilar yetkiyi kendi aralarinda taksim eder: bu satir yalnizca
 -- varsayilan seed'dir, project_role_permissions uzerinden degistirilebilir.
+-- NOT (TB-48): Asagidaki LEFT JOIN dali atildir — CROSS JOIN ile ayni VALUES
+-- kullanildigindan is_allowed daima true. Uretimde uygulandi, duzeltilmiyor.
+-- NOT (TB-62): Bu seed yalnizca migration ANINDA var olan projelere islendi.
+-- Sonradan olusturulan projelerde 'cm' rolunun rfi:approve izni YOKTUR.
 
 BEGIN;
 
@@ -45,5 +49,5 @@ ON CONFLICT (project_id, project_role, entity_type, permission) DO NOTHING;
 COMMIT;
 
 -- DOGRULAMA (Ali calistiracak):
--- SELECT role, entity_type, permission, is_allowed FROM project_role_permissions
+-- SELECT project_role, entity_type, permission, is_allowed FROM project_role_permissions
 --   WHERE entity_type='rfi' AND permission='approve';

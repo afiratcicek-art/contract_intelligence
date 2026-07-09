@@ -40,7 +40,7 @@ interface Props {
   onCancel: () => void;
   pending: ReturnType<typeof usePendingEvents>;
   scrollToEvent: (id: string) => void;
-  timelineScrollRef: RefObject<HTMLDivElement>;
+  timelineScrollRef: RefObject<HTMLDivElement | null>;
   eventRefs: MutableRefObject<Record<string, HTMLDivElement | null>>;
   onRemoveEvent?: (pe: PendingEvent) => void;
 }

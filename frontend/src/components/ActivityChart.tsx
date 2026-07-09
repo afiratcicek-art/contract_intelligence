@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts";
 import type { ActivityPoint, PrePeriod } from "../hooks/useProjectDetail";
 
 interface Props {
@@ -82,7 +82,10 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
               fontSize: 11,
               fontFamily: "Inter, sans-serif",
             }}
-            formatter={(value: number, name: string) => [value, name.charAt(0).toUpperCase() + name.slice(1)]}
+            formatter={(value, name) => {
+              const nameStr = String(name ?? "");
+              return [value, nameStr.charAt(0).toUpperCase() + nameStr.slice(1)];
+            }}
             labelFormatter={(label) => {
               if (label === "pre") return "Chart başlangıcından önce overdue";
               if (label === today) return "Bugün";

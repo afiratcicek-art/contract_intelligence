@@ -559,7 +559,7 @@ export default function FocusedRelationGraph({
     </div>
   );
 
-  const graphBox = (heightVal: number | string, wrapRef: React.RefObject<HTMLDivElement>) => (
+  const graphBox = (heightVal: number | string, wrapRef: React.RefObject<HTMLDivElement | null>) => (
     <div
       ref={wrapRef}
       style={{

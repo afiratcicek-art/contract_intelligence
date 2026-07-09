@@ -156,12 +156,6 @@ export default function CorrespondenceDetail() {
     fontFamily: "Inter, sans-serif",
   };
 
-  const parseStatusColor = (status: string) => {
-    if (status === "completed") return "var(--color-success)";
-    if (status === "failed") return "var(--color-alert-red)";
-    return "var(--color-text-secondary)";
-  };
-
   const directionPill = (direction: string) => (
     <span style={{
       fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,

@@ -549,7 +549,6 @@ export default function Workspace() {
               {corrLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : filteredCorrs.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.nocorrespondence")}</p> : (() => {
                 // Parent-child gruplama
                 const allIds = new Set(filteredCorrs.map(c => c.id));
-                const childIds = new Set(filteredCorrs.filter(c => c.parent_id).map(c => c.id));
                 
                 // Filtrelenmiş listede child varsa parent'ı da dahil et (ghost parent)
                 const ghostParents = corrs.filter(c => 

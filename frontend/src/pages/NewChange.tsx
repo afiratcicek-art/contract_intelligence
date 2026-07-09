@@ -34,8 +34,6 @@ export default function NewChange() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const today = new Date().toISOString().slice(0, 10);
-
   const [form, setForm] = useState({
     change_number:      "",
     title:              "",

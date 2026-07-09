@@ -9,6 +9,7 @@ export interface Project {
   currency: string;
   employer_name: string;
   contractor_name: string;
+  engineer_name: string | null;
   status: string;
   start_date: string | null;
   end_date: string | null;

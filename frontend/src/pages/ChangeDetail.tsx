@@ -122,7 +122,6 @@ export default function ChangeDetail() {
   const textPrimary = "var(--color-text-primary)";
   const textSecond  = "var(--color-text-secondary)";
   const alertRed    = "var(--color-alert-red)";
-  const successGrn  = "var(--color-success)";
 
   useEffect(() => {
     if (!projectId || !changeId) return;

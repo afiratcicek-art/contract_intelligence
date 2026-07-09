@@ -44,12 +44,6 @@ export interface DeliverableItem {
 import type { AlertItem } from "../types/alerts";
 export type { AlertItem } from "../types/alerts";
 
-export interface TrendPoint {
-  date: string;
-  incoming: number;
-  outgoing: number;
-}
-
 export function useProjectDetail(projectId: string) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,27 +85,7 @@ export function useProjectTabs(projectId: string) {
     });
   }, [projectId]);
 
-  // Correspondence trend — son 30 gun, gun bazli outgoing/incoming
-  const trend: TrendPoint[] = (() => {
-    const days: Record<string, TrendPoint> = {};
-    const now = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      days[key] = { date: key, incoming: 0, outgoing: 0 };
-    }
-    correspondences.forEach((c) => {
-      const day = c.correspondence_date?.slice(0, 10);
-      if (day && days[day]) {
-        if (c.direction === "incoming") days[day].incoming += 1;
-        else days[day].outgoing += 1;
-      }
-    });
-    return Object.values(days);
-  })();
-
-  return { correspondences, rfis, changes, deliverables, alerts, trend, loading };
+  return { correspondences, rfis, changes, deliverables, alerts, loading };
 }
 
 export interface ActivityPoint {

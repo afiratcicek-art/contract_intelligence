@@ -74,7 +74,7 @@ export default function ProjectDetail() {
   const [activeTab, setActiveTab] = useState<Tab>("correspondence");
 
   const { project, loading: projLoading } = useProjectDetail(projectId!);
-  const { correspondences, rfis, changes, deliverables, alerts, trend, loading: tabLoading } =
+  const { correspondences, rfis, changes, deliverables, alerts, loading: tabLoading } =
     useProjectTabs(projectId!);
 
   const openCorr = correspondences.filter((c) => c.status === "open").length;

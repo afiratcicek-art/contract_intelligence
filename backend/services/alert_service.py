@@ -144,14 +144,7 @@ class AlertService:
             from backend.core.exceptions import RaceConditionError
             raise RaceConditionError()
 
-        self._audit.log(
-            action="alert_actioned",
-            entity_type="internal_alerts",
-            entity_id=alert_id,
-            user_id=decided_by,
-            project_id=project_id,
-            new_value={"decision": decision, "note": note},
-        )
+        # Alert olaylari denetim kapsami disidir (karar: 2026-07-09).
         return result
 
     def list_alerts(
@@ -231,14 +224,7 @@ class AlertService:
             document_id=document_id,
             uploaded_by=str(current_user["id"]),
         )
-        self._audit.log(
-            project_id=project_id,
-            user_id=str(current_user["id"]),
-            action="alert_document_linked",
-            entity_type="internal_alert",
-            entity_id=alert_id,
-            new_value={"document_id": document_id},
-        )
+        # Alert olaylari denetim kapsami disidir (karar: 2026-07-09).
         return result
 
     def list_documents(self, alert_id: str) -> list[dict]:
@@ -259,14 +245,7 @@ class AlertService:
             alert_id=alert_id,
             user_id=user_id,
         )
-        self._audit.log(
-            project_id=project_id,
-            user_id=user_id,
-            action="alert_read",
-            entity_type="internal_alert",
-            entity_id=alert_id,
-            new_value={"read_by": user_id},
-        )
+        # Alert olaylari denetim kapsami disidir (karar: 2026-07-09).
         return result
 
     def get_unread_count(

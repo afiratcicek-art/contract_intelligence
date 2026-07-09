@@ -14,10 +14,9 @@ import NewChange from "./pages/NewChange";
 import NewRFI from "./pages/NewRFI";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<"checking" | "ok" | "denied">(() => {
-    const active = sessionStorage.getItem("clauseiq_session_active") === "1";
-    return active ? "ok" : "checking";
-  });
+  const [status, setStatus] = useState<"checking" | "ok" | "denied">(
+    () => isSessionActive() ? "checking" : "denied"
+  );
 
   useEffect(() => {
     if (status !== "checking") return;

@@ -1,0 +1,12 @@
+* text=auto
+*.sql eol=lf
+*.py eol=lf
+*.ts eol=lf
+*.tsx eol=lf
+*.md eol=lf
+*.json eol=lf
+*.css eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary

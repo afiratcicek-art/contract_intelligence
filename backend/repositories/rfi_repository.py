@@ -105,6 +105,22 @@ class RFIRepository(BaseRepository):
             "status": "responded",
         }).eq("id", parent_id).in_("status", ["open", "overdue"]).execute()
 
+    def approve_draft(self, rfi_id: str, data: dict, expected_version: int) -> Optional[dict]:
+        """
+        Draft -> open gecisi. TOCTOU-safe: yalnizca status='draft' VE version
+        eslesirken gunceller. Eszamanli iki onay isteginde ikincisi bos doner (None).
+        """
+        data["version"] = expected_version + 1
+        res = (
+            self.db.table("rfis")
+            .update(data)
+            .eq("id", rfi_id)
+            .eq("status", "draft")
+            .eq("version", expected_version)
+            .execute()
+        )
+        return res.data[0] if res.data else None
+
     def get_linked_correspondences(self, rfi_id: str) -> list[dict]:
         """Bu RFI'ya referans veren correspondence'ları getirir."""
         result = (

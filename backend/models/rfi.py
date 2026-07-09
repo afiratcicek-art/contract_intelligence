@@ -50,6 +50,11 @@ class RFICreate(BaseModel):
         return self
 
 
+# status buradan degistirilemez. Gecisler kendi endpoint'lerine aittir:
+#   draft -> open      : POST /rfis/{id}/approve  (rfi:approve)
+#   * -> closed        : POST /rfis/{id}/close    (rfi:close)
+#   * -> responded     : cocuk RFI olusturuldugunda otomatik
+# Aksi halde 'edit' izni olan biri onay kapisini baypas eder.
 class RFIUpdate(BaseModel):
     version: int
     subject: Optional[str] = None
@@ -60,7 +65,6 @@ class RFIUpdate(BaseModel):
     response_due_source: Optional[DeadlineSource] = None
     response_due_day_type: Optional[DayType] = None
     actual_response_date: Optional[date] = None
-    status: Optional[str] = None
     assigned_to: Optional[UUID] = None
     external_ref: Optional[str] = None
     keywords: Optional[list[str]] = None
@@ -85,6 +89,10 @@ class RFIClose(BaseModel):
     @field_validator("close_note", mode="before")
     @classmethod
     def clean_close_note(cls, v): return sanitize_long(v)
+
+
+class RFIApprove(BaseModel):
+    version: int
 
 
 class RFIResponse(BaseModel):

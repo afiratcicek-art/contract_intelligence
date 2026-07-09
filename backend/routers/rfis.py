@@ -5,9 +5,9 @@ from typing import Optional
 from uuid import UUID
 from datetime import date, datetime
 from backend.core.dependencies import verify_project_access, require_permission
-from backend.core.exceptions import RaceConditionError, NotFoundError
+from backend.core.exceptions import RaceConditionError, NotFoundError, ValidationError
 from backend.database import get_admin_client
-from backend.models.rfi import RFICreate, RFIUpdate, RFIClose, RFIReferenceAdd
+from backend.models.rfi import RFICreate, RFIUpdate, RFIClose, RFIApprove, RFIReferenceAdd
 from backend.routers.documents import _upsert_keyword_stats
 from backend.repositories.rfi_repository import RFIRepository
 from backend.services.audit_service import AuditService
@@ -275,6 +275,60 @@ def close_rfi(
     audit.log(
         action="close", entity_type="rfi", entity_id=str(rfi_id),
         user_id=access["user"]["id"], project_id=str(project_id),
+    )
+    return updated
+
+
+@router.post("/{rfi_id}/approve")
+def approve_rfi(
+    project_id: UUID,
+    rfi_id: UUID,
+    body: RFIApprove,
+    access: dict = Depends(require_permission("rfi", "approve")),
+):
+    db = access["db"]
+    repo = RFIRepository(db)
+    audit = AuditService()
+
+    rfi = repo.get_or_404(str(rfi_id))
+    if rfi["project_id"] != str(project_id):
+        raise NotFoundError()
+    if rfi["status"] != "draft":
+        raise ValidationError("Only draft RFIs can be approved.")
+    # Version kontrolu artik tek statement icinde (approve_draft).
+    # Ayri okuma-karsilastirma TOCTOU penceresi acardi.
+
+    # Onay = belgenin muhataba cikisi. RFI, cikTIGI gun sunulmus sayilir;
+    # taslakta bekledigi sure karsi tarafi baglamaz. Bu yuzden submitted_date
+    # onay gunudur ve deadline ondan hesaplanir (response_due_source ve
+    # response_due_day_type ile TUTARLI olarak, apply_response_deadline yazar).
+    today = date.today()
+    data = {"status": "open", "submitted_date": str(today)}
+
+    deadline_svc = DeadlineService()
+    project_config, calendar_config = DeadlineService.fetch_configs(db, str(project_id))
+    deadline_svc.apply_response_deadline(
+        data,
+        start_date=today,
+        config_period_days=project_config.get("rfi_response_days", 14),
+        day_type=project_config.get("rfi_day_type", "calendar"),
+        calendar_config=calendar_config,
+    )
+
+    updated = repo.approve_draft(str(rfi_id), data, body.version)
+    if not updated:
+        raise RaceConditionError()
+
+    # 2.2'de bilerek ertelenen adim: taslak cocuk parent'i mutasyona ugratamazdi.
+    # Cocuk artik yayimlandi -> parent 'responded'a gecebilir.
+    if rfi.get("parent_id"):
+        repo.update_parent_rfi_status(str(rfi["parent_id"]))
+
+    audit.log(
+        action="approve", entity_type="rfi", entity_id=str(rfi_id),
+        user_id=access["user"]["id"], project_id=str(project_id),
+        old_value={"status": "draft"},
+        new_value=data,
     )
     return updated
 

@@ -6,6 +6,7 @@ from uuid import UUID
 from datetime import datetime, date
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
+from backend.core.guards import assert_target_in_project
 from backend.core.limiter import limiter
 from backend.database import get_admin_client
 from backend.routers.documents import _upsert_keyword_stats
@@ -377,6 +378,12 @@ def add_reference(
     corr = repo.get_or_404(str(corr_id))
     if corr["project_id"] != str(project_id):
         raise NotFoundError()
+    if body.rfi_id:
+        assert_target_in_project(db, "rfis", body.rfi_id, project_id)
+    if body.ref_corr_id:
+        assert_target_in_project(db, "correspondences", body.ref_corr_id, project_id)
+    if body.change_id:
+        assert_target_in_project(db, "changes", body.change_id, project_id)
     data = body.model_dump(mode="json", exclude_none=True)
     data["correspondence_id"] = str(corr_id)
     data["added_by"] = access["user"]["id"]

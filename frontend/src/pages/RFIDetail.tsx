@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api, fetchLinkableDocuments, type LinkableDoc } from "../services/api";
+import { api, ApiError, approveRFI, fetchLinkableDocuments, type LinkableDoc } from "../services/api";
+import ConfirmModal from "../components/ConfirmModal";
 import { getAuth, clearAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
@@ -38,8 +39,10 @@ interface RFIDetail {
   description: string | null;
   discipline: string | null;
   submitted_by: string | null;
-  submitted_date: string;
+  submitted_date: string | null;
   response_due_date: string | null;
+  version: number;
+  entry_mode: "authored" | "recorded";
   response_due_source: string | null;
   response_due_day_type: string | null;
   actual_response_date: string | null;
@@ -127,6 +130,8 @@ export default function RFIDetail() {
   const [showManualRef, setShowManualRef] = useState(false);
   const [manualRef, setManualRef] = useState({ number: "", title: "", date: "", type: "", note: "" });
   const [refSaving, setRefSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
   const refPickerRef = useRef<HTMLDivElement>(null);
 
   const bg          = "var(--color-bg-primary)";
@@ -204,20 +209,10 @@ export default function RFIDetail() {
   };
 
   const handleRefError = (err: unknown) => {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("403") || msg.toLowerCase().includes("forbidden")) {
-      showToast(
-        lang === "tr"
-          ? "Referans eklemek için düzenleme yetkisi gerekiyor."
-          : "Edit permission required to add references.",
-        "error"
-      );
-    } else {
-      showToast(
-        lang === "tr" ? "Referans eklenemedi." : "Failed to add reference.",
-        "error"
-      );
-    }
+    // TB-58: backend yetki hatasini 404 olarak maskeler (bilgi sizdirmama).
+    // 403 hicbir zaman gelmez; "yok" ile "yetkin yok" ayirt EDILEMEZ.
+    // Bu bilincli bir mimari karardir, duzeltilecek bir eksik degil.
+    showToast(err instanceof Error ? err.message : "", "error");
   };
 
   const addRefFromDoc = async (doc: LinkableDoc) => {
@@ -263,6 +258,39 @@ export default function RFIDetail() {
   };
 
   const canAddManual = manualRef.number.trim() !== "" && manualRef.type !== "";
+
+  const reloadRfi = () => {
+    if (!projectId || !rfiId) return Promise.resolve();
+    return Promise.all([
+      api.get<RFIDetail>(`/projects/${projectId}/rfis/${rfiId}`),
+      api.get<DeadlineInfo>(`/projects/${projectId}/rfis/${rfiId}/deadline`),
+    ]).then(([rfiData, deadlineData]) => {
+      setRfi(rfiData);
+      setDeadline(deadlineData);
+    });
+  };
+
+  const handleApprove = async () => {
+    if (!projectId || !rfiId || !rfi || approving) return;
+    setApproving(true);
+    setApproveConfirmOpen(false);
+    try {
+      await approveRFI(projectId, rfiId, rfi.version);
+      showToast(lang === "tr" ? "RFI onaylandi." : "RFI approved.");
+      await reloadRfi();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        showToast(
+          lang === "tr" ? "Kayit degismis, sayfayi yenileyin." : "Record changed, please refresh.",
+          "error"
+        );
+      } else {
+        showToast(err instanceof Error ? err.message : "", "error");
+      }
+    } finally {
+      setApproving(false);
+    }
+  };
 
   useEffect(() => {
     if (!projectId || !rfiId) return;
@@ -363,9 +391,32 @@ export default function RFIDetail() {
             <h1 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, fontWeight: 500, color: textPrimary, margin: 0, lineHeight: 1.3 }}>{rfi.subject}</h1>
           </div>
           <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 8, flexShrink: 0, marginLeft: 24 }}>
-            {rfi.rfi_type === "response"
-              ? <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
-              : statusPill(rfi.status)}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {rfi.rfi_type === "response"
+                ? <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                : statusPill(rfi.status)}
+              {rfi.status === "draft" && (
+                <button
+                  onClick={() => setApproveConfirmOpen(true)}
+                  disabled={approving}
+                  style={{
+                    backgroundColor: "var(--color-accent)",
+                    color: "var(--color-bg-primary)",
+                    border: "none",
+                    padding: "2px 8px",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    cursor: approving ? "not-allowed" : "pointer",
+                    borderRadius: 0,
+                    fontFamily: "Inter, sans-serif",
+                    whiteSpace: "nowrap" as const,
+                    opacity: approving ? 0.7 : 1,
+                  }}
+                >
+                  {lang === "tr" ? "Onayla" : "Approve"}
+                </button>
+              )}
+            </div>
             {deadline && deadline.days_remaining !== null && (
               <div style={{ fontSize: 11, color: deadline.urgency === "CRITICAL" || deadline.urgency === "WARNING" ? alertRed : textSecond, fontFamily: "Inter, sans-serif", fontWeight: deadline.urgency !== "NORMAL" ? 500 : 400 }}>
                 {deadline.days_remaining < 0 ? `${Math.abs(deadline.days_remaining)} ${lang === "tr" ? "gün geçti" : "days overdue"}` : deadline.days_remaining === 0 ? (lang === "tr" ? "Bugün" : "Today") : `${deadline.days_remaining} ${lang === "tr" ? "gün kaldı" : "days left"}`}
@@ -408,7 +459,12 @@ export default function RFIDetail() {
               <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 16, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>{lang === "tr" ? "Bilgi" : "Information"}</div>
               {field(lang === "tr" ? "Disiplin" : "Discipline", rfi.discipline)}
               {field(lang === "tr" ? "Gönderen" : "Submitted By", rfi.submitted_by)}
-              {field(lang === "tr" ? "Gönderim Tarihi" : "Submission Date", rfi.submitted_date?.slice(0, 10))}
+              {field(
+                lang === "tr" ? "Gönderim Tarihi" : "Submission Date",
+                rfi.submitted_date === null
+                  ? (lang === "tr" ? "Taslak — sunulmadi" : "Draft — not submitted")
+                  : rfi.submitted_date?.slice(0, 10)
+              )}
               {field(lang === "tr" ? "Harici Referans" : "External Reference", rfi.external_ref, true)}
               {docs.length > 0 && docs.some(d => d.location) && (
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: `0.5px solid ${border}` }}>
@@ -796,6 +852,19 @@ export default function RFIDetail() {
             Benzerlik Tespit Edilen Kayıtlar
           </button>
         </div>
+
+        <ConfirmModal
+          open={approveConfirmOpen}
+          message={
+            lang === "tr"
+              ? "Bu RFI'yi onaylayip muhataba çıkarmak istiyor musunuz? Gönderim ve yanıt tarihleri onay anında atanır."
+              : "Approve this RFI for submission? Submission and response dates will be set at approval."
+          }
+          confirmLabel={lang === "tr" ? "Onayla" : "Approve"}
+          cancelLabel={lang === "tr" ? "İptal" : "Cancel"}
+          onConfirm={handleApprove}
+          onCancel={() => !approving && setApproveConfirmOpen(false)}
+        />
 
         {flagOpen && (
           <div

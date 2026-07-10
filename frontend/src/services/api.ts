@@ -35,6 +35,19 @@ function getTTL(path: string): number {
   return 0; // no cache
 }
 
+/** Sunucu hatasi. status, HTTP statu kodudur.
+ *  NOT: Backend yetki hatasini 404 olarak maskeler (bilgi sizdirmama).
+ *  Bu yuzden 403 HICBIR ZAMAN gelmez; 404 "yok" ve "yetkin yok"
+ *  anlamlarini birlikte tasir. Ayirt etmeye calisma. */
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 // ── HTTP client ──────────────────────────────────────────────────────────
 async function request<T>(
   method: string,
@@ -61,10 +74,10 @@ async function request<T>(
         const { clearAuth } = await import("../store/auth");
         clearAuth();
         window.location.href = "/login";
-        throw new Error("Oturum süresi doldu");
+        throw new ApiError(401, "Oturum süresi doldu");
       }
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail ?? "Sunucu hatası");
+      throw new ApiError(res.status, err.detail ?? "Sunucu hatası");
     }
     const data = await res.json() as T;
     if (ttl > 0) cacheSet(path, data, ttl);
@@ -84,10 +97,10 @@ async function request<T>(
       const { clearAuth } = await import("../store/auth");
       clearAuth();
       window.location.href = "/login";
-      throw new Error("Oturum süresi doldu");
+      throw new ApiError(401, "Oturum süresi doldu");
     }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail ?? "Sunucu hatası");
+    throw new ApiError(res.status, err.detail ?? "Sunucu hatası");
   }
   const { markSessionActive } = await import("../store/auth");
   markSessionActive();
@@ -112,10 +125,10 @@ export const api = {
         const { clearAuth } = await import("../store/auth");
         clearAuth();
         window.location.href = "/login";
-        throw new Error("Oturum süresi doldu");
+        throw new ApiError(401, "Oturum süresi doldu");
       }
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail ?? "Sunucu hatası");
+      throw new ApiError(res.status, err.detail ?? "Sunucu hatası");
     }
     const { markSessionActive } = await import("../store/auth");
     markSessionActive();
@@ -210,6 +223,18 @@ export async function fetchLinkableDocuments(
   return api.get(
     `/projects/${projectId}/chronologies/linkable-documents`
   );
+}
+
+/** 627: authored RFI 'draft' dogar; onay onu 'open'a cikarir.
+ *  Onay = belgenin muhataba cikisi. submitted_date ve response_due_date
+ *  onay aninda sunucuda atanir. version optimistic locking icindir.
+ *  Yazma asistani geldiginde bu endpoint LLM ciktisinin HITL kapisi olacak. */
+export async function approveRFI(
+  projectId: string,
+  rfiId: string,
+  version: number,
+): Promise<unknown> {
+  return api.post(`/projects/${projectId}/rfis/${rfiId}/approve`, { version });
 }
 
 export interface DocumentStats {

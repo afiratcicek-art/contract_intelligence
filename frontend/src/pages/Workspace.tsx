@@ -13,7 +13,7 @@ type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "de
 
 interface SearchResult { module: string; label: string; ref: string; subject: string; status: string; date: string; id: string; parent_id?: string | null; has_response?: boolean; rfi_type?: string; }
 interface CorrItem { id: string; corr_number: string; subject: string; type: string; status: string; correspondence_date: string; direction: string; response_due_date: string | null; parent_id: string | null; has_response: boolean; }
-interface RFIItem { id: string; rfi_number: string; subject: string; status: string; submitted_date: string; response_due_date: string | null; discipline: string | null; parent_id: string | null; rfi_type: string; }
+interface RFIItem { id: string; rfi_number: string; subject: string; status: string; submitted_date: string | null; response_due_date: string | null; discipline: string | null; parent_id: string | null; rfi_type: string; entry_mode: "authored" | "recorded"; }
 interface ChangeItem { id: string; change_number: string; title: string; status: string; origin: string; notice_due_date: string | null; created_at: string; }
 interface DeliverableItem { id: string; title: string; status: string; due_date: string | null; category: string | null; is_pre_completion: boolean; }
 
@@ -693,11 +693,16 @@ export default function Workspace() {
                       </span>
                       <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500 }}>{r.subject}</p>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const }}>{r.discipline ?? "—"}</span>
-                      <span style={{ fontSize: 11, color: textSecondary }}>{r.submitted_date?.slice(0, 10)}</span>
+                      <span style={{ fontSize: 11, color: textSecondary }}>
+                        {r.submitted_date ? r.submitted_date.slice(0, 10) : "—"}
+                      </span>
                       <span style={{ fontSize: 11, color: r.response_due_date && r.response_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{r.response_due_date?.slice(0, 10) ?? "—"}</span>
-                      {r.rfi_type === "response"
-                        ? <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
-                        : statusPill(r.status)}
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        {r.rfi_type === "response" && (
+                          <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
+                        )}
+                        {statusPill(r.status)}
+                      </span>
                     </div>
                     {(rfiChildMap.get(r.id) ?? []).map(child => rfiRow(child, true))}
                   </div>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
@@ -74,6 +74,7 @@ export default function NewRFI() {
     response_due_source: "",
     response_due_day_type: "",
   });
+  const [entryMode, setEntryMode] = useState<"authored" | "recorded" | null>(null);
 
   const bg            = "var(--color-bg-primary)";
   const cardBg        = "var(--color-bg-secondary)";
@@ -107,7 +108,7 @@ export default function NewRFI() {
   const handleSubmit = async () => {
     if (!form.rfi_number.trim()) { setError(lang === "tr" ? "RFI numarası zorunlu." : "RFI number is required."); return; }
     if (!form.subject.trim()) { setError(lang === "tr" ? "Konu zorunlu." : "Subject is required."); return; }
-    if (!form.submitted_date) { setError(lang === "tr" ? "Gönderim tarihi zorunlu." : "Submission date is required."); return; }
+    if (entryMode === "recorded" && !form.submitted_date) { setError(lang === "tr" ? "Gönderim tarihi zorunlu." : "Submission date is required."); return; }
 
     setLoading(true);
     setError(null);
@@ -117,8 +118,9 @@ export default function NewRFI() {
       const body: Record<string, unknown> = {
         rfi_number: form.rfi_number.trim(),
         subject: form.subject.trim(),
-        submitted_date: form.submitted_date,
+        ...(entryMode === "recorded" ? { submitted_date: form.submitted_date } : {}),
         rfi_type: rfiType,
+        entry_mode: entryMode,
       };
       if (parentId) body.parent_id = parentId;
       if (form.description.trim()) body.description = form.description.trim();
@@ -215,232 +217,313 @@ export default function NewRFI() {
             : (lang === "tr" ? "Bilgi talebi oluşturun." : "Create a request for information.")}
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* RFI Number + Discipline */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={labelStyle}>{lang === "tr" ? "RFI Numarası *" : "RFI Number *"}</label>
-              <input
-                style={inputStyle}
-                value={form.rfi_number}
-                onChange={(e) => setForm({ ...form, rfi_number: e.target.value })}
-                placeholder="RFI-001"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>{lang === "tr" ? "Disiplin" : "Discipline"}</label>
-              <select
-                style={{ ...inputStyle, cursor: "pointer" }}
-                value={form.discipline}
-                onChange={(e) => setForm({ ...form, discipline: e.target.value })}
-              >
-                {DISCIPLINES.map((d) => (
-                  <option key={d.value} value={d.value}>{d.label}</option>
-                ))}
-              </select>
-            </div>
+        {entryMode === null && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 28 }}>
+            <button
+              onClick={() => setEntryMode("authored")}
+              style={{
+                backgroundColor: cardBg,
+                border: `1px solid ${border}`,
+                padding: "16px 20px",
+                textAlign: "left" as const,
+                cursor: "pointer",
+                borderRadius: 0,
+                fontFamily: "Inter, sans-serif",
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 500, color: textPrimary, display: "block", marginBottom: 6 }}>
+                {lang === "tr" ? "RFI Yaz" : "Author RFI"}
+              </span>
+              <span style={{ fontSize: 11, color: textSecondary, lineHeight: 1.5 }}>
+                {lang === "tr"
+                  ? "Platformda yazılır. Taslak olarak doğar, onaylandığında muhataba çıkar."
+                  : "Written on the platform. Born as a draft; issued when approved."}
+              </span>
+            </button>
+            <button
+              onClick={() => setEntryMode("recorded")}
+              style={{
+                backgroundColor: cardBg,
+                border: `1px solid ${border}`,
+                padding: "16px 20px",
+                textAlign: "left" as const,
+                cursor: "pointer",
+                borderRadius: 0,
+                fontFamily: "Inter, sans-serif",
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 500, color: textPrimary, display: "block", marginBottom: 6 }}>
+                {lang === "tr" ? "RFI Kaydet" : "Record RFI"}
+              </span>
+              <span style={{ fontSize: 11, color: textSecondary, lineHeight: 1.5 }}>
+                {lang === "tr"
+                  ? "Dışarıda yazılmış belge kayda geçiriliyor. Doğrudan açık olur."
+                  : "An externally issued document is being recorded. Opens directly."}
+              </span>
+            </button>
           </div>
+        )}
 
-          {/* Subject */}
-          <div>
-            <label style={labelStyle}>{lang === "tr" ? "Konu *" : "Subject *"}</label>
-            <input
-              style={inputStyle}
-              value={form.subject}
-              onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              placeholder={lang === "tr" ? "RFI konusu" : "Subject of the RFI"}
-            />
-          </div>
+        {entryMode !== null && (
+          <>
+            <button
+              onClick={() => setEntryMode(null)}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                marginBottom: 20,
+                fontSize: 11,
+                fontWeight: 500,
+                color: "var(--color-accent-text)",
+                cursor: "pointer",
+                fontFamily: "Inter, sans-serif",
+                borderRadius: 0,
+              }}
+            >
+              {lang === "tr" ? "← Giriş türünü değiştir" : "← Change entry type"}
+            </button>
 
-          {/* Description */}
-          <div>
-            <label style={labelStyle}>{lang === "tr" ? "Açıklama" : "Description"}</label>
-            <textarea
-              style={{ ...inputStyle, minHeight: 100, resize: "vertical" as const }}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder={lang === "tr" ? "Detaylar, arka plan bilgisi..." : "Details, background information..."}
-            />
-          </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Submitted by + Date */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={labelStyle}>{lang === "tr" ? "Gönderen" : "Submitted By"}</label>
-              <input
-                style={inputStyle}
-                value={form.submitted_by}
-                onChange={(e) => setForm({ ...form, submitted_by: e.target.value })}
-                placeholder={lang === "tr" ? "İsim veya şirket" : "Name or company"}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>{lang === "tr" ? "Gönderim Tarihi *" : "Submission Date *"}</label>
-              <input
-                type="date"
-                style={inputStyle}
-                value={form.submitted_date}
-                onChange={(e) => setForm({ ...form, submitted_date: e.target.value })}
-              />
-            </div>
-          </div>
+              {/* RFI Number + Discipline */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>{lang === "tr" ? "RFI Numarası *" : "RFI Number *"}</label>
+                  <input
+                    style={inputStyle}
+                    value={form.rfi_number}
+                    onChange={(e) => setForm({ ...form, rfi_number: e.target.value })}
+                    placeholder="RFI-001"
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>{lang === "tr" ? "Disiplin" : "Discipline"}</label>
+                  <select
+                    style={{ ...inputStyle, cursor: "pointer" }}
+                    value={form.discipline}
+                    onChange={(e) => setForm({ ...form, discipline: e.target.value })}
+                  >
+                    {DISCIPLINES.map((d) => (
+                      <option key={d.value} value={d.value}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          {/* Deadline — opsiyonel, manuel override */}
-          <div style={{ padding: 16, backgroundColor: cardBg, border: `0.5px solid ${border}` }}>
-            <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecondary, marginBottom: 12 }}>
-              {lang === "tr" ? "Deadline (Opsiyonel)" : "Deadline (Optional)"}
-            </p>
-            <p style={{ fontSize: 11, color: textSecondary, fontStyle: "italic", marginBottom: 12 }}>
-              {lang === "tr" ? "Boş bırakılırsa proje konfigürasyonuna göre otomatik hesaplanır." : "If left empty, calculated automatically from project configuration."}
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              {/* Subject */}
               <div>
-                <label style={labelStyle}>{lang === "tr" ? "Yanıt Tarihi" : "Response Due"}</label>
+                <label style={labelStyle}>{lang === "tr" ? "Konu *" : "Subject *"}</label>
                 <input
-                  type="date"
                   style={inputStyle}
-                  value={form.response_due_date}
-                  onChange={(e) => setForm({ ...form, response_due_date: e.target.value })}
+                  value={form.subject}
+                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                  placeholder={lang === "tr" ? "RFI konusu" : "Subject of the RFI"}
                 />
               </div>
-              <div>
-                <label style={labelStyle}>{lang === "tr" ? "Kaynak" : "Source"}</label>
-                <select
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                  value={form.response_due_source}
-                  onChange={(e) => setForm({ ...form, response_due_source: e.target.value })}
-                >
-                  <option value="">—</option>
-                  {DEADLINE_SOURCES.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>{lang === "tr" ? "Gün Tipi" : "Day Type"}</label>
-                <select
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                  value={form.response_due_day_type}
-                  onChange={(e) => setForm({ ...form, response_due_day_type: e.target.value })}
-                >
-                  <option value="">—</option>
-                  {DAY_TYPES.map((d) => (
-                    <option key={d.value} value={d.value}>{d.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
 
-          {/* External Ref */}
-          <div>
-            <label style={labelStyle}>{lang === "tr" ? "Harici Referans" : "External Reference"}</label>
-            <input
-              style={inputStyle}
-              value={form.external_ref}
-              onChange={(e) => setForm({ ...form, external_ref: e.target.value })}
-              placeholder={lang === "tr" ? "Karşı taraf referans numarası (opsiyonel)" : "Other party reference number (optional)"}
-            />
-          </div>
-
-          {/* Dosya yükleme */}
-          <div>
-            <label style={labelStyle}>{lang === "tr" ? "Belgeler (opsiyonel)" : "Documents (optional)"}</label>
-            {/* Document metadata — optional, passed to extraction pipeline */}
-            <div style={{ marginBottom: 8 }}>
-              <label style={{
-                ...labelStyle,
-                marginBottom: 4,
-              }}>
-                {lang === "tr" ? "Anahtar Kelimeler (opsiyonel)" : "Keywords (optional)"}
-              </label>
-              <input
-                type="text"
-                value={docKeywords}
-                onChange={(e) => setDocKeywords(e.target.value)}
-                placeholder={lang === "tr"
-                  ? "ör. Grid Zone 4A, RFI-006, Madde 13.3"
-                  : "e.g. Grid Zone 4A, RFI-006, Sub-Clause 13.3"}
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <label style={{
-                ...labelStyle,
-                marginBottom: 4,
-              }}>
-                {lang === "tr" ? "Lokasyon (opsiyonel)" : "Location (optional)"}
-              </label>
-              <input
-                type="text"
-                value={docLocation}
-                onChange={(e) => setDocLocation(e.target.value)}
-                placeholder={lang === "tr"
-                  ? "ör. Grid Zone 4A, 3. Kat Podium"
-                  : "e.g. Grid Zone 4A, Level 3 Podium"}
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-              <label style={{ padding: "8px 16px", backgroundColor: cardBg, border: `1px solid ${border}`, color: textSecondary, fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer", borderRadius: 0, whiteSpace: "nowrap" as const }}>
-                {lang === "tr" ? "Dosya Seç" : "Select File"}
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.jpg,.jpeg,.png,.dwg,.dxf,.txt,.csv"
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? []);
-                    setSelectedFiles((prev) => {
-                      const names = new Set(prev.map((f) => f.name));
-                      return [...prev, ...files.filter((f) => !names.has(f.name))];
-                    });
-                  }}
+              {/* Description */}
+              <div>
+                <label style={labelStyle}>{lang === "tr" ? "Açıklama" : "Description"}</label>
+                <textarea
+                  style={{ ...inputStyle, minHeight: 100, resize: "vertical" as const }}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder={lang === "tr" ? "Detaylar, arka plan bilgisi..." : "Details, background information..."}
                 />
-              </label>
-              <span style={{ fontSize: 11, color: textSecondary, fontStyle: "italic" }}>PDF, Word, Excel, DWG, DXF...</span>
-            </div>
-            {selectedFiles.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {selectedFiles.map((file, idx) => (
-                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", backgroundColor: cardBg, borderLeft: `2px solid ${"var(--color-accent)"}` }}>
-                    <span style={{ fontSize: 12, color: textPrimary, flex: 1 }}>{file.name}</span>
-                    <span style={{ fontSize: 11, color: textSecondary }}>{(file.size / 1024).toFixed(0)} KB</span>
-                    <button onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))} style={{ background: "none", border: "none", color: textSecondary, cursor: "pointer", fontSize: 14, padding: 0 }}>×</button>
+              </div>
+
+              {/* Submitted by + Date */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>{lang === "tr" ? "Gönderen" : "Submitted By"}</label>
+                  <input
+                    style={inputStyle}
+                    value={form.submitted_by}
+                    onChange={(e) => setForm({ ...form, submitted_by: e.target.value })}
+                    placeholder={lang === "tr" ? "İsim veya şirket" : "Name or company"}
+                  />
+                </div>
+                <div>
+                  {entryMode === "recorded" ? (
+                    <>
+                      <label style={labelStyle}>{lang === "tr" ? "Gönderim Tarihi *" : "Submission Date *"}</label>
+                      <input
+                        type="date"
+                        style={inputStyle}
+                        value={form.submitted_date}
+                        onChange={(e) => setForm({ ...form, submitted_date: e.target.value })}
+                      />
+                    </>
+                  ) : (
+                    <p style={{ fontSize: 11, color: textSecondary, fontStyle: "italic", margin: "24px 0 0", lineHeight: 1.5 }}>
+                      {lang === "tr" ? "Gönderim tarihi onay anında atanır." : "Submission date is set at approval."}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Deadline — opsiyonel, manuel override */}
+              <div style={{ padding: 16, backgroundColor: cardBg, border: `0.5px solid ${border}` }}>
+                <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecondary, marginBottom: 12 }}>
+                  {lang === "tr" ? "Deadline (Opsiyonel)" : "Deadline (Optional)"}
+                </p>
+                <p style={{ fontSize: 11, color: textSecondary, fontStyle: "italic", marginBottom: 12 }}>
+                  {lang === "tr" ? "Boş bırakılırsa proje konfigürasyonuna göre otomatik hesaplanır." : "If left empty, calculated automatically from project configuration."}
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={labelStyle}>{lang === "tr" ? "Yanıt Tarihi" : "Response Due"}</label>
+                    <input
+                      type="date"
+                      style={inputStyle}
+                      value={form.response_due_date}
+                      onChange={(e) => setForm({ ...form, response_due_date: e.target.value })}
+                    />
                   </div>
-                ))}
+                  <div>
+                    <label style={labelStyle}>{lang === "tr" ? "Kaynak" : "Source"}</label>
+                    <select
+                      style={{ ...inputStyle, cursor: "pointer" }}
+                      value={form.response_due_source}
+                      onChange={(e) => setForm({ ...form, response_due_source: e.target.value })}
+                    >
+                      <option value="">—</option>
+                      {DEADLINE_SOURCES.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>{lang === "tr" ? "Gün Tipi" : "Day Type"}</label>
+                    <select
+                      style={{ ...inputStyle, cursor: "pointer" }}
+                      value={form.response_due_day_type}
+                      onChange={(e) => setForm({ ...form, response_due_day_type: e.target.value })}
+                    >
+                      <option value="">—</option>
+                      {DAY_TYPES.map((d) => (
+                        <option key={d.value} value={d.value}>{d.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
-            )}
-            {uploadErrors.length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                {uploadErrors.map((err, idx) => (
-                  <p key={idx} style={{ fontSize: 11, color: alertRed, margin: "2px 0" }}>{err}</p>
-                ))}
+
+              {/* External Ref */}
+              <div>
+                <label style={labelStyle}>{lang === "tr" ? "Harici Referans" : "External Reference"}</label>
+                <input
+                  style={inputStyle}
+                  value={form.external_ref}
+                  onChange={(e) => setForm({ ...form, external_ref: e.target.value })}
+                  placeholder={lang === "tr" ? "Karşı taraf referans numarası (opsiyonel)" : "Other party reference number (optional)"}
+                />
               </div>
-            )}
-          </div>
 
-          {/* Error */}
-          {error && <p style={{ fontSize: 12, color: alertRed }}>{error}</p>}
+              {/* Dosya yükleme */}
+              <div>
+                <label style={labelStyle}>{lang === "tr" ? "Belgeler (opsiyonel)" : "Documents (optional)"}</label>
+                {/* Document metadata — optional, passed to extraction pipeline */}
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{
+                    ...labelStyle,
+                    marginBottom: 4,
+                  }}>
+                    {lang === "tr" ? "Anahtar Kelimeler (opsiyonel)" : "Keywords (optional)"}
+                  </label>
+                  <input
+                    type="text"
+                    value={docKeywords}
+                    onChange={(e) => setDocKeywords(e.target.value)}
+                    placeholder={lang === "tr"
+                      ? "ör. Grid Zone 4A, RFI-006, Madde 13.3"
+                      : "e.g. Grid Zone 4A, RFI-006, Sub-Clause 13.3"}
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{
+                    ...labelStyle,
+                    marginBottom: 4,
+                  }}>
+                    {lang === "tr" ? "Lokasyon (opsiyonel)" : "Location (optional)"}
+                  </label>
+                  <input
+                    type="text"
+                    value={docLocation}
+                    onChange={(e) => setDocLocation(e.target.value)}
+                    placeholder={lang === "tr"
+                      ? "ör. Grid Zone 4A, 3. Kat Podium"
+                      : "e.g. Grid Zone 4A, Level 3 Podium"}
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                  <label style={{ padding: "8px 16px", backgroundColor: cardBg, border: `1px solid ${border}`, color: textSecondary, fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer", borderRadius: 0, whiteSpace: "nowrap" as const }}>
+                    {lang === "tr" ? "Dosya Seç" : "Select File"}
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.jpg,.jpeg,.png,.dwg,.dxf,.txt,.csv"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        setSelectedFiles((prev) => {
+                          const names = new Set(prev.map((f) => f.name));
+                          return [...prev, ...files.filter((f) => !names.has(f.name))];
+                        });
+                      }}
+                    />
+                  </label>
+                  <span style={{ fontSize: 11, color: textSecondary, fontStyle: "italic" }}>PDF, Word, Excel, DWG, DXF...</span>
+                </div>
+                {selectedFiles.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {selectedFiles.map((file, idx) => (
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", backgroundColor: cardBg, borderLeft: `2px solid ${"var(--color-accent)"}` }}>
+                        <span style={{ fontSize: 12, color: textPrimary, flex: 1 }}>{file.name}</span>
+                        <span style={{ fontSize: 11, color: textSecondary }}>{(file.size / 1024).toFixed(0)} KB</span>
+                        <button onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))} style={{ background: "none", border: "none", color: textSecondary, cursor: "pointer", fontSize: 14, padding: 0 }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {uploadErrors.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {uploadErrors.map((err, idx) => (
+                      <p key={idx} style={{ fontSize: 11, color: alertRed, margin: "2px 0" }}>{err}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-          {/* Actions */}
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
-            >
-              {loading ? (lang === "tr" ? "Kaydediliyor..." : "Saving...") : (lang === "tr" ? "Kaydet" : "Save")}
-            </button>
-            <button
-              onClick={() => navigate(`/projects/${projectId}/workspace?module=rfis`)}
-              style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}
-            >
-              {lang === "tr" ? "İptal" : "Cancel"}
-            </button>
-          </div>
-        </div>
+              {/* Error */}
+              {error && <p style={{ fontSize: 12, color: alertRed }}>{error}</p>}
+
+              {/* Actions */}
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
+                >
+                  {loading
+                    ? (lang === "tr" ? "Kaydediliyor..." : "Saving...")
+                    : entryMode === "authored"
+                    ? (lang === "tr" ? "Taslak Oluştur" : "Create Draft")
+                    : (lang === "tr" ? "Kaydet" : "Save")}
+                </button>
+                <button
+                  onClick={() => navigate(`/projects/${projectId}/workspace?module=rfis`)}
+                  style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}
+                >
+                  {lang === "tr" ? "İptal" : "Cancel"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

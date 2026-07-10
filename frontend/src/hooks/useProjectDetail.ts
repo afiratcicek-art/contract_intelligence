@@ -18,9 +18,10 @@ export interface RFIItem {
   rfi_number: string;
   subject: string;
   status: string;
-  submitted_date: string;
+  submitted_date: string | null;
   response_due_date: string | null;
   discipline: string | null;
+  entry_mode: "authored" | "recorded";
 }
 
 export interface ChangeItem {

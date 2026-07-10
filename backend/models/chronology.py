@@ -41,9 +41,11 @@ class ChronologyCreate(BaseModel):
 MANUAL_EVENT_TYPES = {
     "rfi", "correspondence", "notice",
     "submission", "response", "meeting",
-    "inspection", "work_permit",
-    "status_change", "other",
+    "inspection", "work_permit", "other",
 }
+# 'status_change' kaldirildi (2026-07-10): statu gecisi bir belge degil.
+# Kaynak: rfis.status / correspondences.status + audit_log.
+# Uretimdeki 2 kayit silindi; kaldirma geriye donuk kirilma uretmiyor.
 
 
 class ChronologyEventCreate(BaseModel):

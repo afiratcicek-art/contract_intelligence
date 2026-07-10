@@ -7,7 +7,6 @@ from backend.core.limiter import limiter
 from backend.models.change import ChangeCreate, ChangeUpdate, ChangeReferenceAdd, ChangeLinkCreate
 from backend.repositories.change_repository import ChangeRepository
 from backend.services.audit_service import AuditService
-from backend.services.chronology_service import ChronologyService
 from backend.services.claude_service import get_ai_service, GateBlockedResult
 from backend.utils.sanitizer import mask_sensitive_fields
 
@@ -53,7 +52,6 @@ def create_change(
     db = access["db"]
     repo = ChangeRepository(db)
     audit = AuditService()
-    chrono = ChronologyService(db, audit_service=audit)
 
     data = body.model_dump(mode="json", exclude_none=True)
     data["project_id"] = str(project_id)
@@ -63,13 +61,6 @@ def create_change(
             data[field] = str(data[field])
 
     change = repo.create(data)
-
-    chrono.auto_create_for_change(
-        change_id=change["id"],
-        change_title=change["title"],
-        project_id=str(project_id),
-        created_by=access["user"]["id"],
-    )
 
     audit.log(
         action="create", entity_type="change", entity_id=change["id"],

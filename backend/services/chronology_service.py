@@ -33,7 +33,17 @@ class ChronologyService:
         project_id: str,
         created_by: str,
     ) -> dict:
-        """Change oluşturulduğunda otomatik çağrılır."""
+        """Bir Change icin kronoloji kabi acar.
+
+        2026-07-10: Change dogumunda ARTIK CAGRILMIYOR. Kronoloji, kullanicinin
+        "bu belgeler bir iddiayi destekliyor" karariyla kurulur; bir variation'in
+        dogumu bu karari vermez. Fonksiyon korunuyor: ileride Change detayinda
+        bir butona baglanacak. Graf-tabanli toplu uretim icin bkz. TB-86.
+
+        Cagrilirsa: olay YAZMAZ (bos kap acar). Onceki 'status_change' olayi
+        semayi ihlal eden yetim referans uretiyordu (document_ref_id dolu,
+        document_ref_type NULL — sema 'change' tipini desteklemiyor).
+        """
         existing = (
             self.db.table("chronologies")
             .select("id")
@@ -54,17 +64,6 @@ class ChronologyService:
 
         chronology = result.data[0]
 
-        self.record_event(
-            chronology_id=chronology["id"],
-            event_type="status_change",
-            event_date=None,
-            document_ref_id=change_id,
-            document_ref_type=None,
-            created_by=created_by,
-            auto_generate_narrative=False,
-            note="Change identified",
-        )
-
         return chronology
 
     def record_event(
@@ -84,6 +83,13 @@ class ChronologyService:
         change_context: Optional[dict] = None,
     ) -> dict:
         """Chronology'ye event kaydeder, opsiyonel AI narrative üretir."""
+        # TB-82: document_ref_id ve document_ref_type birlikte dogrudur.
+        # Sema document_ref_type icin CHECK IN ('correspondence','rfi') tasiyor;
+        # 'change' desteklenmiyor. Tek basina id yazmak yetim referans uretir.
+        if (document_ref_id is None) != (document_ref_type is None):
+            raise ValueError(
+                "document_ref_id and document_ref_type must be set together"
+            )
         from datetime import date as date_type
         if event_date is None:
             event_date = date_type.today()

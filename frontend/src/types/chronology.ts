@@ -35,6 +35,9 @@ export interface Chronology {
 // Labels for manual event entry dropdown.
 // 'dispute_step' is system-triggered only —
 // not listed here but valid in DB.
+// Chronology is a sequence of documents, not a notebook.
+// 'other' = a document type not listed above
+// (permit, method statement, test report...).
 export const MANUAL_EVENT_TYPE_LABELS:
   Record<string, string> = {
   rfi: "RFI",
@@ -45,8 +48,7 @@ export const MANUAL_EVENT_TYPE_LABELS:
   meeting: "Meeting / MOM",
   inspection: "Inspection (WIR/MIR)",
   work_permit: "Work Permit",
-  status_change: "Status Change",
-  other: "Note & Others",
+  other: "Other Document",
 };
 
 export const ENTITY_TYPE_LABELS:

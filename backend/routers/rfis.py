@@ -6,6 +6,7 @@ from uuid import UUID
 from datetime import date, datetime
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError, ValidationError
+from backend.core.guards import assert_target_in_project
 from backend.database import get_admin_client
 from backend.models.rfi import RFICreate, RFIUpdate, RFIClose, RFIApprove, RFIReferenceAdd
 from backend.routers.documents import _upsert_keyword_stats
@@ -126,7 +127,23 @@ def create_rfi(
     elif "response_due_date" in data:
         data["response_due_date"] = str(data["response_due_date"])
 
+    data.pop("references", None)
     rfi = repo.create(data)
+    # Olusturma-ani referanslar (MIMARI-YON-1): RFI dogdu, id hazir.
+    # Guard add_reference ile ayni desen (9a002fd).
+    for ref in (body.references or []):
+        if ref.rfi_id:
+            assert_target_in_project(db, "rfis", ref.rfi_id, project_id)
+        if ref.ref_corr_id:
+            assert_target_in_project(db, "correspondences", ref.ref_corr_id, project_id)
+        if ref.change_id:
+            assert_target_in_project(db, "changes", ref.change_id, project_id)
+        rdata = ref.model_dump(mode="json", exclude_none=True)
+        rdata["owner_rfi_id"] = rfi["id"]
+        rdata["added_by"] = access["user"]["id"]
+        if "external_doc_date" in rdata:
+            rdata["external_doc_date"] = str(rdata["external_doc_date"])
+        db.table("rfi_references").insert(rdata).execute()
     audit.log(
         action="create", entity_type="rfi", entity_id=rfi["id"],
         user_id=access["user"]["id"], project_id=str(project_id),

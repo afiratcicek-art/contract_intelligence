@@ -22,6 +22,7 @@ class RFICreate(BaseModel):
     rfi_type: Optional[str] = "original"
     entry_mode: Literal["authored", "recorded"] = "recorded"
     keywords: Optional[list[str]] = None
+    references: Optional[list["RFIReferenceAdd"]] = None
 
     @field_validator("rfi_number", mode="before")
     @classmethod
@@ -153,3 +154,6 @@ class RFIReferenceAdd(BaseModel):
     @field_validator("note", mode="before")
     @classmethod
     def clean_note(cls, v): return sanitize_long(v)
+
+
+RFICreate.model_rebuild()

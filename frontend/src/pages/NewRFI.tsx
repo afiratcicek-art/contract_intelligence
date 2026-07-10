@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { api } from "../services/api";
+import { api, fetchLinkableDocuments, type LinkableDoc } from "../services/api";
+import { DOCUMENT_TYPE_LABELS } from "../constants/documentTypes";
 import { getAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
 
@@ -76,6 +77,28 @@ export default function NewRFI() {
   });
   const [entryMode, setEntryMode] = useState<"authored" | "recorded" | null>(null);
 
+  // Olusturma-ani referanslar (MIMARI-YON-1). Bellekte birikir,
+  // submit'te body.references'a katilir. Backend: create_rfi (E1, d83706e).
+  // Sekil = RFIReferenceAdd alt kumesi; _display yalniz UI listesi icin,
+  // body'ye GITMEZ (backend _display bilmez -> soyulur).
+  const [pendingRefs, setPendingRefs] = useState<Array<{
+    ref_type: string;
+    rfi_id?: string;
+    ref_corr_id?: string;
+    change_id?: string;
+    external_doc_number?: string;
+    external_doc_title?: string;
+    external_doc_date?: string;
+    note?: string;
+    _display: string;
+  }>>([]);
+  const [linkable, setLinkable] = useState<LinkableDoc[]>([]);
+  const [refSearch, setRefSearch] = useState("");
+  const [showRefDropdown, setShowRefDropdown] = useState(false);
+  const [showManualRef, setShowManualRef] = useState(false);
+  const [manualRef, setManualRef] = useState({ number: "", title: "", date: "", type: "", note: "" });
+  const refPickerRef = useRef<HTMLDivElement>(null);
+
   const bg            = "var(--color-bg-primary)";
   const cardBg        = "var(--color-bg-secondary)";
   const border        = "var(--color-border-light)";
@@ -104,6 +127,68 @@ export default function NewRFI() {
     display: "block",
     marginBottom: 6,
   };
+
+  // Linkable dokuman listesi (RFI + Correspondence) — referans picker icin.
+  useEffect(() => {
+    if (!projectId) return;
+    fetchLinkableDocuments(projectId).then(setLinkable).catch(() => setLinkable([]));
+  }, [projectId]);
+  useEffect(() => {
+    if (!showRefDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (refPickerRef.current && !refPickerRef.current.contains(e.target as Node)) {
+        setShowRefDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showRefDropdown]);
+  const filteredLinkable = linkable.filter((d) => {
+    const q = refSearch.toLowerCase();
+    return (
+      !pendingRefs.some((r) =>
+        (d.type === "rfi" && r.rfi_id === d.id) ||
+        (d.type === "correspondence" && r.ref_corr_id === d.id)
+      ) &&
+      (d.ref_number.toLowerCase().includes(q) || d.subject.toLowerCase().includes(q))
+    );
+  });
+  // Bellek versiyonu (MIMARI-YON-1): API'ye POST yok, pendingRefs'e eklenir.
+  // submit'te body.references'a katilir; _display yalniz UI, backend'e gitmez.
+  const addRefFromDoc = (doc: LinkableDoc) => {
+    setPendingRefs((prev) => [
+      ...prev,
+      {
+        ref_type: doc.type === "rfi" ? "rfi" : "correspondence",
+        rfi_id: doc.type === "rfi" ? doc.id : undefined,
+        ref_corr_id: doc.type === "correspondence" ? doc.id : undefined,
+        _display: `${doc.ref_number} — ${doc.subject}`,
+      },
+    ]);
+    setRefSearch("");
+    setShowRefDropdown(false);
+  };
+  // 'other' turunde kullanicinin girdigi kunye note alanina yazilir (TB-59):
+  // rfi_references'ta serbest tip aciklamasi icin ayri kolon yok.
+  const addManualRef = () => {
+    if (!manualRef.number.trim() || !manualRef.type) return;
+    setPendingRefs((prev) => [
+      ...prev,
+      {
+        ref_type: manualRef.type,
+        external_doc_number: manualRef.number.trim(),
+        external_doc_title: manualRef.title.trim() || undefined,
+        external_doc_date: manualRef.date || undefined,
+        note: manualRef.note.trim() || undefined,
+        _display: manualRef.title.trim()
+          ? `${manualRef.number.trim()} — ${manualRef.title.trim()}`
+          : manualRef.number.trim(),
+      },
+    ]);
+    setManualRef({ number: "", title: "", date: "", type: "", note: "" });
+    setShowManualRef(false);
+  };
+  const canAddManual = manualRef.number.trim() !== "" && manualRef.type !== "";
 
   const handleSubmit = async () => {
     if (!form.rfi_number.trim()) { setError(lang === "tr" ? "RFI numarası zorunlu." : "RFI number is required."); return; }
@@ -137,6 +222,10 @@ export default function NewRFI() {
           .split(",")
           .map((k) => k.trim().toLowerCase())
           .filter(Boolean);
+      }
+
+      if (pendingRefs.length > 0) {
+        body.references = pendingRefs.map(({ _display, ...ref }) => ref);
       }
 
       const rfi = await api.post<{ id: string }>(`/projects/${projectId}/rfis`, body);
@@ -419,6 +508,218 @@ export default function NewRFI() {
                   onChange={(e) => setForm({ ...form, external_ref: e.target.value })}
                   placeholder={lang === "tr" ? "Karşı taraf referans numarası (opsiyonel)" : "Other party reference number (optional)"}
                 />
+              </div>
+
+              {/* Referanslar (opsiyonel) — olusturma aninda eklenir (MIMARI-YON-1) */}
+              <div>
+                <label style={labelStyle}>{lang === "tr" ? "Referanslar" : "References"}</label>
+                {pendingRefs.length === 0 && (
+                  <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic", margin: "0 0 12px", fontFamily: "Inter, sans-serif" }}>
+                    {lang === "tr" ? "Henüz referans yok." : "No references yet."}
+                  </p>
+                )}
+                {pendingRefs.map((r, idx) => (
+                  <div key={idx}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, background: bg }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>
+                        {r._display}
+                        {DOCUMENT_TYPE_LABELS[r.ref_type] && (
+                          <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500,
+                            textTransform: "uppercase" as const, letterSpacing: "0.05em",
+                            padding: "2px 6px", background: cardBg, color: textSecondary }}>
+                            {DOCUMENT_TYPE_LABELS[r.ref_type][lang as "en" | "tr"]}
+                          </span>
+                        )}
+                      </div>
+                      {r.external_doc_date && (
+                        <div style={{ fontSize: 11, color: textSecondary, marginTop: 2 }}>{r.external_doc_date.slice(0, 10)}</div>
+                      )}
+                      {r.note && (
+                        <div style={{ fontSize: 11, color: textSecondary, marginTop: 2, fontStyle: "italic" }}>{r.note}</div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setPendingRefs((prev) => prev.filter((_, i) => i !== idx))}
+                      style={{ background: "none", border: "none", color: textSecondary, cursor: "pointer", fontSize: 14, padding: 0 }}
+                    >×</button>
+                  </div>
+                ))}
+                <div ref={refPickerRef} style={{ position: "relative", marginBottom: 8, marginTop: pendingRefs.length > 0 ? 12 : 0 }}>
+                  <input
+                    value={refSearch}
+                    onChange={(e) => { setRefSearch(e.target.value); setShowRefDropdown(true); }}
+                    onFocus={() => setShowRefDropdown(true)}
+                    placeholder={lang === "tr" ? "RFI veya yazışma ara..." : "Search RFI or Correspondence..."}
+                    style={{
+                      width: "100%", padding: "8px 12px",
+                      border: `1px solid ${border}`,
+                      background: "var(--color-bg-primary)",
+                      color: textPrimary,
+                      fontSize: 12, borderRadius: 0,
+                      boxSizing: "border-box" as const,
+                      fontFamily: "Inter, sans-serif",
+                    }}
+                  />
+                  {showRefDropdown && filteredLinkable.length > 0 && (
+                    <div style={{
+                      position: "absolute", top: "100%", left: 0, right: 0,
+                      background: "var(--color-bg-primary)",
+                      border: `1px solid ${border}`,
+                      zIndex: "var(--z-dropdown)" as unknown as number,
+                      maxHeight: 220, overflowY: "auto",
+                    }}>
+                      {filteredLinkable.map((doc) => (
+                        <button
+                          key={doc.id}
+                          onClick={() => addRefFromDoc(doc)}
+                          style={{
+                            display: "block", width: "100%", textAlign: "left",
+                            padding: "8px 12px", background: "none", border: "none",
+                            borderBottom: `1px solid ${border}`,
+                            cursor: "pointer",
+                            fontSize: 12, color: textPrimary,
+                            fontFamily: "Inter, sans-serif",
+                          }}
+                        >
+                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>
+                            {doc.ref_number}
+                          </span>
+                          {" "}{doc.subject}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowManualRef((v) => !v)}
+                  style={{
+                    fontSize: 11, background: "none",
+                    border: `1px solid ${border}`,
+                    color: textSecondary, cursor: "pointer",
+                    padding: "4px 12px", borderRadius: 0,
+                    fontFamily: "Inter, sans-serif",
+                  }}
+                >
+                  {showManualRef
+                    ? (lang === "tr" ? "Manuel girişi iptal" : "Cancel manual entry")
+                    : (lang === "tr" ? "+ Sistemde olmayan referans ekle" : "+ Add reference not in system")}
+                </button>
+                {showManualRef && (
+                  <div style={{
+                    padding: 12, marginTop: 12,
+                    border: `1px solid ${border}`,
+                    background: "var(--color-bg-primary)",
+                  }}>
+                    <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,
+                                letterSpacing: "0.08em", color: textSecondary, marginBottom: 4 }}>
+                      {lang === "tr" ? "TÜR *" : "TYPE *"}
+                    </p>
+                    <select
+                      value={manualRef.type}
+                      onChange={(e) => setManualRef({ ...manualRef, type: e.target.value })}
+                      style={{ width: "100%", padding: "8px 10px", marginBottom: 12,
+                        border: `1px solid ${border}`, background: "var(--color-bg-primary)",
+                        color: manualRef.type ? textPrimary : textSecondary,
+                        fontSize: 12, borderRadius: 0, boxSizing: "border-box" as const,
+                        fontFamily: "Inter, sans-serif" }}
+                    >
+                      <option value="" disabled>
+                        {lang === "tr" ? "— Seçiniz —" : "— Select —"}
+                      </option>
+                      {Object.entries(DOCUMENT_TYPE_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>{v[lang as "en" | "tr"]}</option>
+                      ))}
+                    </select>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecondary, marginBottom: 4 }}>
+                          {lang === "tr" ? "NUMARA *" : "NUMBER *"}
+                        </p>
+                        <input
+                          value={manualRef.number}
+                          onChange={(e) => setManualRef({ ...manualRef, number: e.target.value })}
+                          style={{
+                            width: "100%", padding: "8px 10px",
+                            border: `1px solid ${border}`,
+                            background: "var(--color-bg-primary)",
+                            color: textPrimary,
+                            fontSize: 12, borderRadius: 0,
+                            boxSizing: "border-box" as const,
+                            fontFamily: "Inter, sans-serif",
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecondary, marginBottom: 4 }}>
+                          {lang === "tr" ? "TARİH" : "DATE"}
+                        </p>
+                        <input
+                          type="date"
+                          value={manualRef.date}
+                          onChange={(e) => setManualRef({ ...manualRef, date: e.target.value })}
+                          style={{
+                            width: "100%", padding: "8px 10px",
+                            border: `1px solid ${border}`,
+                            background: "var(--color-bg-primary)",
+                            color: textPrimary,
+                            fontSize: 12, borderRadius: 0,
+                            boxSizing: "border-box" as const,
+                            fontFamily: "Inter, sans-serif",
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecondary, marginBottom: 4 }}>
+                      {lang === "tr" ? "BAŞLIK" : "TITLE"}
+                    </p>
+                    <input
+                      value={manualRef.title}
+                      onChange={(e) => setManualRef({ ...manualRef, title: e.target.value })}
+                      style={{
+                        width: "100%", padding: "8px 10px", marginBottom: 12,
+                        border: `1px solid ${border}`,
+                        background: "var(--color-bg-primary)",
+                        color: textPrimary,
+                        fontSize: 12, borderRadius: 0,
+                        boxSizing: "border-box" as const,
+                        fontFamily: "Inter, sans-serif",
+                      }}
+                    />
+                    {manualRef.type === "other" && (
+                      <>
+                        <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,
+                                    letterSpacing: "0.08em", color: textSecondary, marginBottom: 4 }}>
+                          {lang === "tr" ? "TÜR KÜNYESİ" : "TYPE DESCRIPTION"}
+                        </p>
+                        <input
+                          value={manualRef.note}
+                          onChange={(e) => setManualRef({ ...manualRef, note: e.target.value })}
+                          placeholder={lang === "tr" ? "ör. Toplantı Tutanağı, Saha Notu"
+                                                     : "e.g. Meeting Minutes, Site Note"}
+                          style={{ width: "100%", padding: "8px 10px", marginBottom: 12,
+                            border: `1px solid ${border}`, background: "var(--color-bg-primary)",
+                            color: textPrimary, fontSize: 12, borderRadius: 0,
+                            boxSizing: "border-box" as const, fontFamily: "Inter, sans-serif" }}
+                        />
+                      </>
+                    )}
+                    <button
+                      onClick={addManualRef}
+                      disabled={!canAddManual}
+                      style={{
+                        fontSize: 11, padding: "6px 14px",
+                        background: canAddManual ? "var(--color-accent)" : "var(--color-border-medium)",
+                        color: canAddManual ? "var(--color-bg-primary)" : textSecondary,
+                        border: "none", borderRadius: 0,
+                        cursor: !canAddManual ? "not-allowed" : "pointer",
+                        fontWeight: 500, fontFamily: "Inter, sans-serif",
+                      }}
+                    >
+                      {lang === "tr" ? "Referans Ekle" : "Add Reference"}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Dosya yükleme */}

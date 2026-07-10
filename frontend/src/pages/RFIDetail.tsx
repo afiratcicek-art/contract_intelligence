@@ -7,6 +7,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
 import { useToastContext } from "../context/ToastContext";
 import RelationPopup from "../components/RelationPopup";
+import { DOCUMENT_TYPE_LABELS, type RefItem } from "../constants/documentTypes";
 
 interface ChainItem {
   id: string;
@@ -73,25 +74,6 @@ const RFI_TYPE_LABELS: Record<string, { en: string; tr: string }> = {
   response: { en: "Response", tr: "Yanıt" },
   revision: { en: "Revision", tr: "Revize" },
 };
-
-const MANUAL_REF_TYPE_LABELS: Record<string, { en: string; tr: string }> = {
-  drawing:      { en: "Drawing",           tr: "Çizim" },
-  spec:         { en: "Specification",     tr: "Şartname" },
-  external_doc: { en: "External Document", tr: "Sistem Dışı Belge" },
-  other:        { en: "Other",             tr: "Diğer" },
-};
-
-interface RefItem {
-  id: string;
-  ref_type: string;
-  target_label: string | null;
-  target_subject: string | null;
-  external_doc_date: string | null;
-  note: string | null;
-  rfi_id: string | null;
-  ref_corr_id: string | null;
-  change_id: string | null;
-}
 
 export default function RFIDetail() {
   const { projectId, rfiId } = useParams<{ projectId: string; rfiId: string }>();
@@ -610,12 +592,12 @@ export default function RFIDetail() {
                   style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, background: "var(--color-bg-primary)" }}>
                   <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond }}>
                     {r.target_label ?? (lang === "tr" ? "—" : "—")}
-                    {MANUAL_REF_TYPE_LABELS[r.ref_type] && (
+                    {DOCUMENT_TYPE_LABELS[r.ref_type] && (
                       <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500,
                         textTransform: "uppercase" as const, letterSpacing: "0.05em",
                         padding: "2px 6px", background: "var(--color-bg-secondary)",
                         color: textSecond }}>
-                        {MANUAL_REF_TYPE_LABELS[r.ref_type][lang as "en" | "tr"]}
+                        {DOCUMENT_TYPE_LABELS[r.ref_type][lang as "en" | "tr"]}
                       </span>
                     )}
                   </div>
@@ -720,7 +702,7 @@ export default function RFIDetail() {
                     <option value="" disabled>
                       {lang === "tr" ? "— Seçiniz —" : "— Select —"}
                     </option>
-                    {Object.entries(MANUAL_REF_TYPE_LABELS).map(([k, v]) => (
+                    {Object.entries(DOCUMENT_TYPE_LABELS).map(([k, v]) => (
                       <option key={k} value={k}>{v[lang as "en" | "tr"]}</option>
                     ))}
                   </select>

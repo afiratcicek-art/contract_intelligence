@@ -385,17 +385,11 @@ def add_reference(
         raise NotFoundError()
 
     if body.rfi_id:
-        target = db.table("rfis").select("project_id").eq("id", str(body.rfi_id)).execute()
-        if not target.data or target.data[0].get("project_id") != str(project_id):
-            raise NotFoundError()
+        assert_target_in_project(db, "rfis", body.rfi_id, project_id)
     if body.ref_corr_id:
-        target = db.table("correspondences").select("project_id").eq("id", str(body.ref_corr_id)).execute()
-        if not target.data or target.data[0].get("project_id") != str(project_id):
-            raise NotFoundError()
+        assert_target_in_project(db, "correspondences", body.ref_corr_id, project_id)
     if body.change_id:
-        target = db.table("changes").select("project_id").eq("id", str(body.change_id)).execute()
-        if not target.data or target.data[0].get("project_id") != str(project_id):
-            raise NotFoundError()
+        assert_target_in_project(db, "changes", body.change_id, project_id)
 
     data = body.model_dump(mode="json", exclude_none=True)
     data["owner_rfi_id"] = str(rfi_id)

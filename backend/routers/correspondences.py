@@ -90,6 +90,7 @@ def create_correspondence(
     audit = AuditService()
 
     data = body.model_dump(mode="json", exclude_none=True)
+    data.pop("references", None)          # E1 deseni: ham liste insert'e sizmasin
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
     if data.get("direction") == "incoming":
@@ -121,6 +122,24 @@ def create_correspondence(
             parent_id=str(body.parent_id),
             response_corr_id=corr["id"],
         )
+    # Olusturma-ani referanslar (MIMARI-YON-1): corr dogdu, id hazir.
+    # Guard add_reference ile ayni desen (9a002fd). E1/create_rfi aynasi.
+    for ref in (body.references or []):
+        if ref.rfi_id:
+            assert_target_in_project(db, "rfis", ref.rfi_id, project_id)
+        if ref.ref_corr_id:
+            assert_target_in_project(db, "correspondences", ref.ref_corr_id, project_id)
+        if ref.change_id:
+            assert_target_in_project(db, "changes", ref.change_id, project_id)
+        rdata = ref.model_dump(mode="json", exclude_none=True)
+        rdata["correspondence_id"] = corr["id"]
+        rdata["added_by"] = access["user"]["id"]
+        if "external_doc_date" in rdata:
+            rdata["external_doc_date"] = str(rdata["external_doc_date"])
+        # RLS ikinci hat; guard (assert_target_in_project) birinci hat IDOR'u kapatiyor.
+        # create context'inde user-client RLS'i gecmiyor (TB-135); admin ile yazilir.
+        # Desen: ayni fonksiyondaki _upsert_keyword_stats de get_admin_client kullanir.
+        get_admin_client().table("correspondence_references").insert(rdata).execute()
     audit.log(
         action="create", entity_type="correspondence", entity_id=corr["id"],
         user_id=access["user"]["id"], project_id=str(project_id),
@@ -398,6 +417,62 @@ def add_reference(
         new_value={"correspondence_id": str(corr_id)},
     )
     return result.data[0]
+
+
+@router.get("/{corr_id}/references")
+def list_references(
+    project_id: UUID,
+    corr_id: UUID,
+    access: dict = Depends(verify_project_access),
+):
+    db = access["db"]
+    repo = CorrespondenceRepository(db)
+    corr = repo.get_or_404(str(corr_id))
+    if corr["project_id"] != str(project_id):
+        raise NotFoundError()
+    refs = repo.get_references(str(corr_id))
+    if not refs:
+        return []
+    # Hedef etiketleri TOPLU cekilir. Referans basina sorgu ACMA (N+1 yasak).
+    rfi_ids    = list({r["rfi_id"]      for r in refs if r.get("rfi_id")})
+    corr_ids   = list({r["ref_corr_id"] for r in refs if r.get("ref_corr_id")})
+    change_ids = list({r["change_id"]   for r in refs if r.get("change_id")})
+    rfi_map, corr_map, change_map = {}, {}, {}
+    if rfi_ids:
+        res = (db.table("rfis").select("id, rfi_number, subject, project_id")
+               .in_("id", rfi_ids).eq("is_deleted", False).execute())
+        rfi_map = {x["id"]: x for x in (res.data or [])
+                   if x.get("project_id") == str(project_id)}
+    if corr_ids:
+        res = (db.table("correspondences").select("id, corr_number, subject, project_id")
+               .in_("id", corr_ids).eq("is_deleted", False).execute())
+        corr_map = {x["id"]: x for x in (res.data or [])
+                    if x.get("project_id") == str(project_id)}
+    if change_ids:
+        res = (db.table("changes").select("id, change_number, title, project_id")
+               .in_("id", change_ids).eq("is_deleted", False).execute())
+        change_map = {x["id"]: x for x in (res.data or [])
+                      if x.get("project_id") == str(project_id)}
+    out = []
+    for r in refs:
+        label, subject = None, None
+        if r.get("rfi_id") and r["rfi_id"] in rfi_map:
+            t = rfi_map[r["rfi_id"]]
+            label, subject = t["rfi_number"], t["subject"]
+        elif r.get("ref_corr_id") and r["ref_corr_id"] in corr_map:
+            t = corr_map[r["ref_corr_id"]]
+            label, subject = t["corr_number"], t["subject"]
+        elif r.get("change_id") and r["change_id"] in change_map:
+            t = change_map[r["change_id"]]
+            label, subject = t["change_number"], t["title"]
+        elif r.get("external_doc_number") or r.get("external_doc_title"):
+            label, subject = r.get("external_doc_number"), r.get("external_doc_title")
+        out.append({
+            **r,
+            "target_label": label,
+            "target_subject": subject,
+        })
+    return out
 
 
 # ── Drafts ─────────────────────────────────────────────────────────────────

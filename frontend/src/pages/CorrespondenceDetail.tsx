@@ -5,6 +5,7 @@ import { getAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
 import RelationPopup from "../components/RelationPopup";
+import { DOCUMENT_TYPE_LABELS, type RefItem } from "../constants/documentTypes";
 
 interface BreadcrumbItem {
   id: string;
@@ -64,6 +65,7 @@ export default function CorrespondenceDetail() {
 
   const [corr, setCorr] = useState<CorrDetail | null>(null);
   const [docs, setDocs] = useState<Document[]>([]);
+  const [refs, setRefs] = useState<RefItem[]>([]);
   const [showRelations, setShowRelations] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +140,13 @@ export default function CorrespondenceDetail() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  }, [projectId, corrId]);
+
+  useEffect(() => {
+    if (!projectId || !corrId) return;
+    api.get<RefItem[]>(`/projects/${projectId}/correspondences/${corrId}/references`)
+      .then(setRefs)
+      .catch(() => {});
   }, [projectId, corrId]);
 
   const labelStyle = {
@@ -383,6 +392,40 @@ export default function CorrespondenceDetail() {
             ))}
           </div>
         )}
+
+        {/* References (E3 gosterim - RFIDetail aynasi, picker haric) */}
+        <div style={{ background: cardBg, padding: 20, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
+            {lang === "tr" ? `Referanslar (${refs.length})` : `References (${refs.length})`}
+          </div>
+          {refs.length === 0 && (
+            <p style={{ fontSize: 12, color: textSecond, fontStyle: "italic", margin: 0, fontFamily: "Inter, sans-serif" }}>
+              {lang === "tr" ? "Henüz referans yok." : "No references yet."}
+            </p>
+          )}
+          {refs.map((r) => (
+            <div key={r.id}
+              style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid var(--color-accent)`, background: "var(--color-bg-primary)" }}>
+              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond }}>
+                {r.target_label ?? "-"}
+                {DOCUMENT_TYPE_LABELS[r.ref_type] && (
+                  <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.05em", padding: "2px 6px", background: "var(--color-bg-secondary)", color: textSecond }}>
+                    {DOCUMENT_TYPE_LABELS[r.ref_type][lang as "en" | "tr"]}
+                  </span>
+                )}
+              </div>
+              {r.target_subject && (
+                <div style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.target_subject}</div>
+              )}
+              {r.external_doc_date && (
+                <div style={{ fontSize: 11, color: textSecond, marginTop: 2 }}>{r.external_doc_date.slice(0, 10)}</div>
+              )}
+              {r.note && (
+                <div style={{ fontSize: 11, color: textSecond, marginTop: 2, fontStyle: "italic" }}>{r.note}</div>
+              )}
+            </div>
+          ))}
+        </div>
 
         {/* Documents */}
         <div style={{ padding: 20, backgroundColor: cardBg }}>

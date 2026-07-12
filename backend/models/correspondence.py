@@ -8,6 +8,7 @@ from backend.core.sanitizer import sanitize_short, sanitize_medium, sanitize_lon
 
 class CorrespondenceCreate(BaseModel):
     parent_id: Optional[UUID] = None
+    references: Optional[list["CorrespondenceReferenceAdd"]] = None
     corr_number: str
     direction: Direction
     type: str

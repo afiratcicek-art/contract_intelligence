@@ -27,4 +27,5 @@ export interface RefItem {
   rfi_id: string | null;
   ref_corr_id: string | null;
   change_id: string | null;
+  document_id: string | null;
 }

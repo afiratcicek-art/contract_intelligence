@@ -591,12 +591,26 @@ export default function RFIDetail() {
                 <div key={r.id}
                   style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, background: "var(--color-bg-primary)" }}>
                   <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond }}>
-                    {r.target_label ?? (lang === "tr" ? "—" : "—")}
+                    {r.document_id ? (
+                      <span
+                        onClick={async () => {
+                          try {
+                            const res = await api.get<{ signed_url: string }>(`/projects/${projectId}/documents/${r.document_id}/signed-url`);
+                            window.open(res.signed_url, "_blank");
+                          } catch {
+                            console.error("signed-url alinamadi", r.document_id);
+                          }
+                        }}
+                        style={{ cursor: "pointer", color: "var(--color-accent)", textDecoration: "underline" }}
+                        title={lang === "tr" ? "Belgeyi ac" : "Open document"}
+                      >
+                        {r.target_label ?? "-"}
+                      </span>
+                    ) : (
+                      r.target_label ?? "-"
+                    )}
                     {DOCUMENT_TYPE_LABELS[r.ref_type] && (
-                      <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500,
-                        textTransform: "uppercase" as const, letterSpacing: "0.05em",
-                        padding: "2px 6px", background: "var(--color-bg-secondary)",
-                        color: textSecond }}>
+                      <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.05em", padding: "2px 6px", background: "var(--color-bg-secondary)", color: textSecond }}>
                         {DOCUMENT_TYPE_LABELS[r.ref_type][lang as "en" | "tr"]}
                       </span>
                     )}

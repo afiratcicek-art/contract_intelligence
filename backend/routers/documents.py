@@ -245,6 +245,8 @@ def list_documents(
     project_id: str,
     entity_type: str = Query(None),
     entity_id: str = Query(None),
+    search: str = Query(None),
+    limit: int = Query(50, le=200),
     access=Depends(verify_project_access),
 ):
     """
@@ -270,6 +272,12 @@ def list_documents(
             query = query.eq("entity_type", entity_type)
         if entity_id:
             query = query.eq("entity_id", entity_id)
+        if search:
+            query = query.ilike("original_filename", f"%{search}%")
+        # limit yalniz proje-geneli (picker) yolda; entity-scoped cagiranlar
+        # (RFIDetail/CorrespondenceDetail, entity_id ile) eski sinirsiz davranisi korur.
+        if not entity_id:
+            query = query.limit(limit)
 
         result = query.execute()
         return result.data or []

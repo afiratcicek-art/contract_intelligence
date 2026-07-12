@@ -6,7 +6,7 @@ from uuid import UUID
 from datetime import datetime, date
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import RaceConditionError, NotFoundError
-from backend.core.guards import assert_target_in_project
+from backend.core.guards import assert_target_in_project, assert_document_not_already_linked
 from backend.core.limiter import limiter
 from backend.database import get_admin_client
 from backend.routers.documents import _upsert_keyword_stats
@@ -131,6 +131,9 @@ def create_correspondence(
             assert_target_in_project(db, "correspondences", ref.ref_corr_id, project_id)
         if ref.change_id:
             assert_target_in_project(db, "changes", ref.change_id, project_id)
+        if ref.document_id:
+            assert_target_in_project(db, "pdf_document", ref.document_id, project_id)
+            assert_document_not_already_linked(get_admin_client(), "correspondence_references", "correspondence_id", corr["id"], ref.document_id)
         rdata = ref.model_dump(mode="json", exclude_none=True)
         rdata["correspondence_id"] = corr["id"]
         rdata["added_by"] = access["user"]["id"]
@@ -403,6 +406,9 @@ def add_reference(
         assert_target_in_project(db, "correspondences", body.ref_corr_id, project_id)
     if body.change_id:
         assert_target_in_project(db, "changes", body.change_id, project_id)
+    if body.document_id:
+        assert_target_in_project(db, "pdf_document", body.document_id, project_id)
+        assert_document_not_already_linked(db, "correspondence_references", "correspondence_id", corr_id, body.document_id)
     data = body.model_dump(mode="json", exclude_none=True)
     data["correspondence_id"] = str(corr_id)
     data["added_by"] = access["user"]["id"]

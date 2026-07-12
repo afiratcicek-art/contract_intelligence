@@ -138,6 +138,7 @@ class RFIReferenceAdd(BaseModel):
     rfi_id: Optional[UUID] = None
     ref_corr_id: Optional[UUID] = None
     change_id: Optional[UUID] = None
+    document_id: Optional[UUID] = None
     external_doc_number: Optional[str] = None
     external_doc_title: Optional[str] = None
     external_doc_date: Optional[date] = None

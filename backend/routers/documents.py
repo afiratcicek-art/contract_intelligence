@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, 
 from fastapi.responses import JSONResponse
 
 from backend.core.dependencies import verify_project_access
+from backend.core.guards import assert_target_in_project
 from backend.core.limiter import limiter
 from backend.database import get_admin_client
 from backend.services.permission_service import PermissionService
@@ -129,6 +130,15 @@ def upload_pdf(
         raise HTTPException(
             status_code=400,
             detail=f"Geçersiz entity_type. İzin verilenler: {sorted(VALID_ENTITY_TYPES)}",
+        )
+
+    # entity_id proje dogrulama (IDOR) — yalniz rfi/correspondence; ClamAV/storage'dan once.
+    if entity_type in ("rfi", "correspondence"):
+        assert_target_in_project(
+            get_admin_client(),
+            "rfis" if entity_type == "rfi" else "correspondences",
+            entity_id,
+            project_id,
         )
 
     # contract_document özel guard

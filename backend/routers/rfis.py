@@ -10,6 +10,7 @@ from backend.core.guards import assert_target_in_project, assert_document_not_al
 from backend.database import get_admin_client
 from backend.models.rfi import RFICreate, RFIUpdate, RFIClose, RFIApprove, RFIReferenceAdd
 from backend.routers.documents import _upsert_keyword_stats
+from backend.routers._reference_enrichment import enrich_references
 from backend.repositories.rfi_repository import RFIRepository
 from backend.services.audit_service import AuditService
 from backend.services.deadline_service import DeadlineService
@@ -427,57 +428,4 @@ def list_references(
         raise NotFoundError()
 
     refs = repo.get_references(str(rfi_id))
-    if not refs:
-        return []
-
-    # Hedef etiketleri TOPLU cekilir. Referans basina sorgu ACMA (N+1 yasak).
-    rfi_ids    = list({r["rfi_id"]     for r in refs if r.get("rfi_id")})
-    corr_ids   = list({r["ref_corr_id"] for r in refs if r.get("ref_corr_id")})
-    change_ids = list({r["change_id"]   for r in refs if r.get("change_id")})
-    doc_ids    = list({r["document_id"] for r in refs if r.get("document_id")})
-
-    rfi_map, corr_map, change_map, doc_map = {}, {}, {}, {}
-    if rfi_ids:
-        res = (db.table("rfis").select("id, rfi_number, subject, project_id")
-               .in_("id", rfi_ids).eq("is_deleted", False).execute())
-        rfi_map = {x["id"]: x for x in (res.data or [])
-                   if x.get("project_id") == str(project_id)}
-    if corr_ids:
-        res = (db.table("correspondences").select("id, corr_number, subject, project_id")
-               .in_("id", corr_ids).eq("is_deleted", False).execute())
-        corr_map = {x["id"]: x for x in (res.data or [])
-                    if x.get("project_id") == str(project_id)}
-    if change_ids:
-        res = (db.table("changes").select("id, change_number, title, project_id")
-               .in_("id", change_ids).eq("is_deleted", False).execute())
-        change_map = {x["id"]: x for x in (res.data or [])
-                      if x.get("project_id") == str(project_id)}
-    if doc_ids:
-        res = (db.table("pdf_document").select("id, original_filename, project_id")
-               .in_("id", doc_ids).execute())
-        doc_map = {x["id"]: x for x in (res.data or [])
-                   if x.get("project_id") == str(project_id)}
-
-    out = []
-    for r in refs:
-        label, subject = None, None
-        if r.get("rfi_id") and r["rfi_id"] in rfi_map:
-            t = rfi_map[r["rfi_id"]]
-            label, subject = t["rfi_number"], t["subject"]
-        elif r.get("ref_corr_id") and r["ref_corr_id"] in corr_map:
-            t = corr_map[r["ref_corr_id"]]
-            label, subject = t["corr_number"], t["subject"]
-        elif r.get("change_id") and r["change_id"] in change_map:
-            t = change_map[r["change_id"]]
-            label, subject = t["change_number"], t["title"]
-        elif r.get("external_doc_number") or r.get("external_doc_title"):
-            label, subject = r.get("external_doc_number"), r.get("external_doc_title")
-        elif r.get("document_id") and r["document_id"] in doc_map:
-            label, subject = doc_map[r["document_id"]]["original_filename"], None
-
-        out.append({
-            **r,
-            "target_label": label,
-            "target_subject": subject,
-        })
-    return out
+    return enrich_references(db, refs, project_id)

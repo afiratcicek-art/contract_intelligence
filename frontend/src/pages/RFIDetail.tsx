@@ -106,6 +106,7 @@ export default function RFIDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refs, setRefs] = useState<RefItem[]>([]);
+  const citationRefs = refs.filter((r) => r.ref_role !== "attachment");
   const [linkable, setLinkable] = useState<LinkableDoc[]>([]);
   const [refSearch, setRefSearch] = useState("");
   const [showRefDropdown, setShowRefDropdown] = useState(false);
@@ -578,16 +579,16 @@ export default function RFIDetail() {
 
             <div style={{ background: cardBg, padding: 20, marginBottom: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
-                {lang === "tr" ? `Referanslar (${refs.length})` : `References (${refs.length})`}
+                {lang === "tr" ? `Referanslar (${citationRefs.length})` : `References (${citationRefs.length})`}
               </div>
 
-              {refs.length === 0 && (
+              {citationRefs.length === 0 && (
                 <p style={{ fontSize: 12, color: textSecond, fontStyle: "italic", margin: "0 0 12px", fontFamily: "Inter, sans-serif" }}>
                   {lang === "tr" ? "Henüz referans yok." : "No references yet."}
                 </p>
               )}
 
-              {refs.map((r) => (
+              {citationRefs.map((r) => (
                 <div key={r.id}
                   style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, background: "var(--color-bg-primary)" }}>
                   <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond }}>

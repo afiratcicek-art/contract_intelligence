@@ -28,4 +28,5 @@ export interface RefItem {
   ref_corr_id: string | null;
   change_id: string | null;
   document_id: string | null;
+  ref_role: string;
 }

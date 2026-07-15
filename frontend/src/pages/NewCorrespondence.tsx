@@ -1,10 +1,9 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { api, fetchLinkableDocuments, searchDocuments, type LinkableDoc, type PickerDocument } from "../services/api";
+import { api, fetchLinkableDocuments, type LinkableDoc } from "../services/api";
 import { getAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
 import { DOCUMENT_TYPE_LABELS } from "../constants/documentTypes";
-import { useDebounce } from "../hooks/useDebounce";
 
 interface Party {
   id: string;
@@ -65,11 +64,6 @@ export default function NewCorrespondence() {
   const [showManualRef, setShowManualRef] = useState(false);
   const [manualRef, setManualRef] = useState({ type: "", number: "", title: "", date: "", note: "" });
   const refPickerRef = useRef<HTMLDivElement>(null);
-  const [documents, setDocuments] = useState<PickerDocument[]>([]);
-  const [docSearch, setDocSearch] = useState("");
-  const [showDocDropdown, setShowDocDropdown] = useState(false);
-  const docPickerRef = useRef<HTMLDivElement>(null);
-  const debouncedDocSearch = useDebounce(docSearch, 300);
 
   const [form, setForm] = useState({
     corr_number: "",
@@ -126,12 +120,6 @@ export default function NewCorrespondence() {
     fetchLinkableDocuments(projectId).then(setLinkable).catch(() => setLinkable([]));
   }, [projectId]);
   useEffect(() => {
-    if (!projectId) return;
-    searchDocuments(projectId, debouncedDocSearch)
-      .then(setDocuments)
-      .catch(() => setDocuments([]));
-  }, [projectId, debouncedDocSearch]);
-  useEffect(() => {
     if (!showRefDropdown) return;
     const handleClick = (e: MouseEvent) => {
       if (refPickerRef.current && !refPickerRef.current.contains(e.target as Node)) {
@@ -141,16 +129,6 @@ export default function NewCorrespondence() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showRefDropdown]);
-  useEffect(() => {
-    if (!showDocDropdown) return;
-    const handleClick = (e: MouseEvent) => {
-      if (docPickerRef.current && !docPickerRef.current.contains(e.target as Node)) {
-        setShowDocDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showDocDropdown]);
   const filteredLinkable = linkable.filter((d) => {
     const q = refSearch.toLowerCase();
     return (
@@ -176,14 +154,6 @@ export default function NewCorrespondence() {
     ]);
     setRefSearch("");
     setShowRefDropdown(false);
-  };
-  const addRefFromDocument = (doc: PickerDocument) => {
-    setPendingRefs((prev) => [
-      ...prev,
-      { ref_type: "document", document_id: doc.id, _display: doc.original_filename },
-    ]);
-    setDocSearch("");
-    setShowDocDropdown(false);
   };
 
   // 'other'/manuel turde kullanicinin girdigi kunye. external_doc_* alanlarina yazilir.
@@ -542,49 +512,6 @@ export default function NewCorrespondence() {
                             {doc.ref_number}
                           </span>
                           {" "}{doc.subject}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div ref={docPickerRef} style={{ position: "relative", marginBottom: 8, marginTop: 8 }}>
-                  <input
-                    value={docSearch}
-                    onChange={(e) => { setDocSearch(e.target.value); setShowDocDropdown(true); }}
-                    onFocus={() => setShowDocDropdown(true)}
-                    placeholder={lang === "tr" ? "Belge ara..." : "Search document..."}
-                    style={{
-                      width: "100%", padding: "8px 12px",
-                      border: `1px solid ${border}`,
-                      background: "var(--color-bg-primary)",
-                      color: textPrimary,
-                      fontSize: 12, borderRadius: 0,
-                      boxSizing: "border-box" as const,
-                      fontFamily: "Inter, sans-serif",
-                    }}
-                  />
-                  {showDocDropdown && documents.length > 0 && (
-                    <div style={{
-                      position: "absolute", top: "100%", left: 0, right: 0,
-                      background: "var(--color-bg-primary)",
-                      border: `1px solid ${border}`,
-                      zIndex: "var(--z-dropdown)" as unknown as number,
-                      maxHeight: 220, overflowY: "auto",
-                    }}>
-                      {documents.filter((d) => !pendingRefs.some((r) => r.document_id === d.id)).map((doc) => (
-                        <button
-                          key={doc.id}
-                          onClick={() => addRefFromDocument(doc)}
-                          style={{
-                            display: "block", width: "100%", textAlign: "left",
-                            padding: "8px 12px", background: "none", border: "none",
-                            borderBottom: `1px solid ${border}`,
-                            cursor: "pointer",
-                            fontSize: 12, color: textPrimary,
-                            fontFamily: "Inter, sans-serif",
-                          }}
-                        >
-                          {doc.original_filename}
                         </button>
                       ))}
                     </div>

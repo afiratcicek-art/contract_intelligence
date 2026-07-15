@@ -92,6 +92,14 @@ VALID_ENTITY_TYPES = {
     "internal_alert",
 }
 
+# e-Bundle: yuklenen belge, sahibinin referans listesine 'attachment' olarak yazilir.
+# Uyelik referans tablosundan okunur, pdf_document.entity taranmaz (ADR-eBundle-002).
+# Yalniz bu iki tipin referans tablosu vardir; diger entity tipleri atlanir.
+REFERENCE_TABLE_BY_ENTITY = {
+    "correspondence": ("correspondence_references", "correspondence_id"),
+    "rfi": ("rfi_references", "owner_rfi_id"),
+}
+
 
 # ----------------------------------------------------------
 # POST /projects/{project_id}/documents/upload
@@ -217,6 +225,25 @@ def upload_pdf(
         delete_document(storage_path)
         logger.error("PDF pending kaydı yazılamadı: %s | id=%s", exc, doc_id)
         raise HTTPException(status_code=500, detail="Belge kaydedilemedi.")
+
+    # Ek referansi yaz: belge = ek (ADR-eBundle-002). Yazilamazsa belge hayalet
+    # kalmasin diye pdf_document satiri ve storage dosyasi geri alinir.
+    ref_target = REFERENCE_TABLE_BY_ENTITY.get(entity_type)
+    if ref_target:
+        ref_table, owner_col = ref_target
+        try:
+            get_admin_client().table(ref_table).insert({
+                owner_col: entity_id,
+                "ref_type": "document",
+                "document_id": doc_id,
+                "ref_role": "attachment",
+                "added_by": user_id,
+            }).execute()
+        except Exception as exc:
+            get_admin_client().table("pdf_document").delete().eq("id", doc_id).execute()
+            delete_document(storage_path)
+            logger.error("Ek referansi yazilamadi, upload geri alindi: %s | doc_id=%s", exc, doc_id)
+            raise HTTPException(status_code=500, detail="Belge kaydedilemedi.")
 
     # Schedule Haiku metadata extraction as background task
     # Extraction needs parsed text — triggered after pdf_pipeline

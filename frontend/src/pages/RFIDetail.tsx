@@ -7,7 +7,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
 import { useToastContext } from "../context/ToastContext";
 import RelationPopup from "../components/RelationPopup";
-import { DOCUMENT_TYPE_LABELS, type RefItem } from "../constants/documentTypes";
+import { DOCUMENT_TYPE_LABELS, parseStatusLabel, type RefItem } from "../constants/documentTypes";
 
 interface ChainItem {
   id: string;
@@ -100,13 +100,17 @@ export default function RFIDetail() {
     newFile: null,
   });
   const [flagSubmitting, setFlagSubmitting] = useState(false);
-  const [docs, setDocs] = useState<{ id: string; original_filename: string; parse_status: string; keywords?: string[]; location?: string | null }[]>([]);
   const [showRelations, setShowRelations] = useState(false);
   const [deadline, setDeadline] = useState<DeadlineInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refs, setRefs] = useState<RefItem[]>([]);
   const citationRefs = refs.filter((r) => r.ref_role !== "attachment");
+  // 035 CHECK: attachment ⇒ document_id NOT NULL. Tip bu kısıtı yansıtır.
+  const attachmentRefs = refs.filter(
+    (r): r is RefItem & { document_id: string } =>
+      r.ref_role === "attachment" && r.document_id !== null
+  );
   const [linkable, setLinkable] = useState<LinkableDoc[]>([]);
   const [refSearch, setRefSearch] = useState("");
   const [showRefDropdown, setShowRefDropdown] = useState(false);
@@ -144,16 +148,28 @@ export default function RFIDetail() {
 
   useEffect(() => {
     if (!projectId || !rfiId) return;
-    api.get<{ id: string; original_filename: string; parse_status: string; keywords?: string[]; location?: string | null }[]>(
-      `/projects/${projectId}/documents/?entity_type=rfi&entity_id=${rfiId}`
-    ).then(setDocs).catch(() => {});
-  }, [projectId, rfiId]);
-
-  useEffect(() => {
-    if (!projectId || !rfiId) return;
     api.get<RefItem[]>(`/projects/${projectId}/rfis/${rfiId}/references`)
       .then(setRefs).catch(() => {});
   }, [projectId, rfiId]);
+
+  useEffect(() => {
+    const hasPending = refs.some(
+      (r) => r.ref_role === "attachment" &&
+        (r.parse_status === "pending" || r.parse_status === "processing")
+    );
+    if (!hasPending) return;
+    const interval = setInterval(async () => {
+      try {
+        const updated = await api.get<RefItem[]>(`/projects/${projectId}/rfis/${rfiId}/references`);
+        if (Array.isArray(updated)) {
+          setRefs(updated);
+        }
+      } catch {
+        // Sessizce devam et — polling hata verirse bir sonraki turda dener
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [refs, projectId, rfiId]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -449,7 +465,7 @@ export default function RFIDetail() {
                   : rfi.submitted_date?.slice(0, 10)
               )}
               {field(lang === "tr" ? "Harici Referans" : "External Reference", rfi.external_ref, true)}
-              {docs.length > 0 && docs.some(d => d.location) && (
+              {attachmentRefs.some(r => r.location) && (
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: `0.5px solid ${border}` }}>
                   <div style={{
                     fontSize: 11,
@@ -467,12 +483,12 @@ export default function RFIDetail() {
                     fontFamily: "Inter, sans-serif",
                     margin: 0,
                   }}>
-                    {docs.find(d => d.location)?.location}
+                    {attachmentRefs.find(r => r.location)?.location}
                   </p>
                 </div>
               )}
               {((rfi.keywords && rfi.keywords.length > 0) ||
-                (docs.length > 0 && docs.some(d => d.keywords && d.keywords.length > 0))) && (
+                attachmentRefs.some(r => r.keywords && r.keywords.length > 0)) && (
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: `0.5px solid ${border}` }}>
                   <div style={{
                     fontSize: 11,
@@ -487,7 +503,7 @@ export default function RFIDetail() {
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
                     {[...new Set([
                       ...(rfi.keywords || []),
-                      ...docs.flatMap(d => d.keywords || []),
+                      ...attachmentRefs.flatMap(r => r.keywords || []),
                     ])].map((kw, i) => (
                         <span
                           key={i}
@@ -812,6 +828,46 @@ export default function RFIDetail() {
                 </div>
               )}
             </div>
+
+            <div style={{ background: cardBg, padding: 20, marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
+                {lang === "tr" ? `Ekli Belgeler (${attachmentRefs.length})` : `Attached Documents (${attachmentRefs.length})`}
+              </div>
+              {attachmentRefs.length === 0 ? (
+                <p style={{ fontSize: 12, color: textSecond, fontStyle: "italic", margin: 0, fontFamily: "Inter, sans-serif" }}>
+                  {lang === "tr" ? "Belge eklenmemiş." : "No documents attached."}
+                </p>
+              ) : (
+                attachmentRefs.map((r) => (
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `0.5px solid ${border}` }}>
+                    <div>
+                      <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, margin: 0 }}>{r.target_label}</p>
+                      <p style={{ fontSize: 11, color: textSecond, marginTop: 2 }}>
+                        {((r.file_size_bytes ?? 0) / 1024).toFixed(0)} KB
+                        {parseStatusLabel(r.parse_status, lang) && (
+                          <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif" }}>
+                            · {parseStatusLabel(r.parse_status, lang)}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await api.get<{ signed_url: string }>(`/projects/${projectId}/documents/${r.document_id}/signed-url`);
+                          window.open(res.signed_url, "_blank");
+                        } catch {
+                          alert(lang === "tr" ? "İndirme linki oluşturulamadı." : "Could not generate download link.");
+                        }
+                      }}
+                      style={{ fontSize: 11, color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif" }}
+                    >
+                      {lang === "tr" ? "İndir →" : "Download →"}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
 
@@ -912,26 +968,30 @@ export default function RFIDetail() {
                 </div>
               )}
 
-              {docs.length > 0 && (
+              {attachmentRefs.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                     {lang === "tr" ? "İlgili Belgeler (Opsiyonel)" : "Related Documents (Optional)"}
                   </label>
                   <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: "var(--color-bg-primary)" }}>
-                    {docs.map((d) => (
-                      <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
+                    {attachmentRefs.map((r) => (
+                      <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
                         <input
                           type="checkbox"
-                          checked={flagForm.document_references.includes(d.id)}
+                          checked={flagForm.document_references.includes(r.document_id)}
                           onChange={(e) => {
                             const refs = e.target.checked
-                              ? [...flagForm.document_references, d.id]
-                              : flagForm.document_references.filter((id) => id !== d.id);
+                              ? [...flagForm.document_references, r.document_id]
+                              : flagForm.document_references.filter((id) => id !== r.document_id);
                             setFlagForm({ ...flagForm, document_references: refs });
                           }}
                         />
-                        <span style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}>{d.original_filename}</span>
-                        <span style={{ fontSize: 11, color: textSecond, marginLeft: "auto" }}>{d.parse_status}</span>
+                        <span style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}>{r.target_label}</span>
+                        {parseStatusLabel(r.parse_status, lang) && (
+                          <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif", marginLeft: "auto" }}>
+                            {parseStatusLabel(r.parse_status, lang)}
+                          </span>
+                        )}
                       </label>
                     ))}
                   </div>

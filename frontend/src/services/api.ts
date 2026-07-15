@@ -209,13 +209,6 @@ export interface LinkableDoc {
   parent_id: string | null;
 }
 
-export interface PickerDocument {
-  id: string;
-  original_filename: string;
-  doc_type?: string | null;
-  doc_date?: string | null;
-}
-
 export async function fetchChronologies(
   projectId: string
 ): Promise<Chronology[]> {
@@ -230,17 +223,6 @@ export async function fetchLinkableDocuments(
   return api.get(
     `/projects/${projectId}/chronologies/linkable-documents`
   );
-}
-
-export async function searchDocuments(
-  projectId: string,
-  search: string
-): Promise<PickerDocument[]> {
-  const base = `/projects/${projectId}/documents`;
-  const q = search.trim()
-    ? `?search=${encodeURIComponent(search.trim())}&limit=50`
-    : `?limit=50`;
-  return api.get(`${base}${q}`);
 }
 
 /** 627: authored RFI 'draft' dogar; onay onu 'open'a cikarir.

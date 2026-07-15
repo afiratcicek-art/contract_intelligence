@@ -33,13 +33,17 @@ def enrich_references(db, refs: list[dict], project_id: UUID) -> list[dict]:
         change_map = {x["id"]: x for x in (res.data or [])
                       if x.get("project_id") == str(project_id)}
     if doc_ids:
-        res = (db.table("pdf_document").select("id, original_filename, project_id")
+        # storage_path ASLA cekilmez (TB-145 over-fetch).
+        res = (db.table("pdf_document")
+               .select("id, original_filename, project_id, "
+                       "file_size_bytes, parse_status, doc_type, keywords, location")
                .in_("id", doc_ids).execute())
         doc_map = {x["id"]: x for x in (res.data or [])
                    if x.get("project_id") == str(project_id)}
     out = []
     for r in refs:
         label, subject = None, None
+        doc_meta: dict = {}
         if r.get("rfi_id") and r["rfi_id"] in rfi_map:
             t = rfi_map[r["rfi_id"]]
             label, subject = t["rfi_number"], t["subject"]
@@ -52,10 +56,21 @@ def enrich_references(db, refs: list[dict], project_id: UUID) -> list[dict]:
         elif r.get("external_doc_number") or r.get("external_doc_title"):
             label, subject = r.get("external_doc_number"), r.get("external_doc_title")
         elif r.get("document_id") and r["document_id"] in doc_map:
-            label, subject = doc_map[r["document_id"]]["original_filename"], None
+            t = doc_map[r["document_id"]]
+            label, subject = t["original_filename"], None
+            # Belge meta'si yalniz document satirlarinda tasinir. EKLI paneli
+            # bunlari referanstan okur; entity-scan'e gerek kalmaz (ADR-eBundle-002).
+            doc_meta = {
+                "file_size_bytes": t.get("file_size_bytes"),
+                "parse_status": t.get("parse_status"),
+                "doc_type": t.get("doc_type"),
+                "keywords": t.get("keywords"),
+                "location": t.get("location"),
+            }
         out.append({
             **r,
             "target_label": label,
             "target_subject": subject,
+            **doc_meta,
         })
     return out

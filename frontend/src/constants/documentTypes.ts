@@ -36,3 +36,14 @@ export interface RefItem {
   keywords?: string[];
   location?: string | null;
 }
+
+/** pdf_document.parse_status → kullanıcıya gösterilecek etiket.
+ *  null döner = gösterilecek bir şey yok (pending/completed sessizdir).
+ *  Iki detay sayfası da bunu kullanır; kopyalanmaz. */
+export function parseStatusLabel(status: string | null | undefined, lang: string): string | null {
+  if (!status || status === "pending") return null;
+  if (status === "processing") return lang === "tr" ? "İşleniyor" : "Processing";
+  if (status === "done" || status === "completed") return null;
+  if (status === "failed") return lang === "tr" ? "İşlem başarısız" : "Upload failed";
+  return null;
+}

@@ -5,7 +5,7 @@ import { getAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
 import RelationPopup from "../components/RelationPopup";
-import { DOCUMENT_TYPE_LABELS, type RefItem } from "../constants/documentTypes";
+import { DOCUMENT_TYPE_LABELS, parseStatusLabel, type RefItem } from "../constants/documentTypes";
 
 interface BreadcrumbItem {
   id: string;
@@ -178,14 +178,6 @@ export default function CorrespondenceDetail() {
       <p style={{ fontSize: 13, color: alertRed }}>{error ?? (lang === "tr" ? "Kayıt bulunamadı." : "Record not found.")}</p>
     </div>
   );
-
-  const parseStatusLabel = (status: string | null, lang: string) => {
-    if (!status || status === "pending") return null;
-    if (status === "processing") return lang === "tr" ? "İşleniyor" : "Processing";
-    if (status === "done" || status === "completed") return null;
-    if (status === "failed") return lang === "tr" ? "İşlem başarısız" : "Upload failed";
-    return null;
-  };
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: bg }}>
@@ -446,9 +438,9 @@ export default function CorrespondenceDetail() {
                   <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{r.target_label}</p>
                   <p style={{ fontSize: 11, color: textSecond, marginTop: 2 }}>
                     {((r.file_size_bytes ?? 0) / 1024).toFixed(0)} KB
-                    {parseStatusLabel(r.parse_status ?? null, lang) && (
+                    {parseStatusLabel(r.parse_status, lang) && (
                       <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif" }}>
-                        · {parseStatusLabel(r.parse_status ?? null, lang)}
+                        · {parseStatusLabel(r.parse_status, lang)}
                       </span>
                     )}
                   </p>
@@ -579,9 +571,9 @@ export default function CorrespondenceDetail() {
                         }}
                       />
                       <span style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}>{r.target_label}</span>
-                      {parseStatusLabel(r.parse_status ?? null, lang) && (
+                      {parseStatusLabel(r.parse_status, lang) && (
                         <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif", marginLeft: "auto" }}>
-                          {parseStatusLabel(r.parse_status ?? null, lang)}
+                          {parseStatusLabel(r.parse_status, lang)}
                         </span>
                       )}
                     </label>

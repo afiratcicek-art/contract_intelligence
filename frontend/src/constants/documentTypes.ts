@@ -29,4 +29,10 @@ export interface RefItem {
   change_id: string | null;
   document_id: string | null;
   ref_role: string;
+  // Yalniz ref_role='attachment' satirlarinda dolar (backend doc_meta).
+  file_size_bytes?: number;
+  parse_status?: string;
+  doc_type?: string | null;
+  keywords?: string[];
+  location?: string | null;
 }

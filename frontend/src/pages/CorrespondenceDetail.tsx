@@ -47,16 +47,6 @@ interface CorrDetail {
   keywords?: string[];
 }
 
-interface Document {
-  id: string;
-  original_filename: string;
-  file_size_bytes: number;
-  parse_status: string;
-  created_at: string;
-  keywords?: string[];
-  location?: string | null;
-}
-
 export default function CorrespondenceDetail() {
   const { projectId, corrId } = useParams<{ projectId: string; corrId: string }>();
   const navigate = useNavigate();
@@ -64,9 +54,13 @@ export default function CorrespondenceDetail() {
   const { lang, toggle: toggleLang, t } = useLanguage();
 
   const [corr, setCorr] = useState<CorrDetail | null>(null);
-  const [docs, setDocs] = useState<Document[]>([]);
   const [refs, setRefs] = useState<RefItem[]>([]);
   const citationRefs = refs.filter((r) => r.ref_role !== "attachment");
+  // 035 CHECK: attachment ⇒ document_id NOT NULL. Tip bu kısıtı yansıtır.
+  const attachmentRefs = refs.filter(
+    (r): r is RefItem & { document_id: string } =>
+      r.ref_role === "attachment" && r.document_id !== null
+  );
   const [showRelations, setShowRelations] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,24 +95,23 @@ export default function CorrespondenceDetail() {
   }, [projectId]);
 
   useEffect(() => {
-    const hasPending = docs.some(
-      (d) => d.parse_status === "pending" || d.parse_status === "processing"
+    const hasPending = refs.some(
+      (r) => r.ref_role === "attachment" &&
+        (r.parse_status === "pending" || r.parse_status === "processing")
     );
     if (!hasPending) return;
     const interval = setInterval(async () => {
       try {
-        const updated = await api.get<Document[]>(
-          `/projects/${projectId}/documents/?entity_type=correspondence&entity_id=${corrId}`
-        );
+        const updated = await api.get<RefItem[]>(`/projects/${projectId}/correspondences/${corrId}/references`);
         if (Array.isArray(updated)) {
-          setDocs(updated);
+          setRefs(updated);
         }
       } catch {
         // Sessizce devam et — polling hata verirse bir sonraki turda dener
       }
     }, 4000);
     return () => clearInterval(interval);
-  }, [docs, projectId, corrId]);
+  }, [refs, projectId, corrId]);
 
   const bg          = "var(--color-bg-primary)";
   const cardBg      = "var(--color-bg-secondary)";
@@ -131,14 +124,8 @@ export default function CorrespondenceDetail() {
 
   useEffect(() => {
     if (!projectId || !corrId) return;
-    Promise.all([
-      api.get<CorrDetail>(`/projects/${projectId}/correspondences/${corrId}`),
-      api.get<Document[]>(`/projects/${projectId}/documents/?entity_type=correspondence&entity_id=${corrId}`),
-    ])
-      .then(([corrData, docsData]) => {
-        setCorr(corrData);
-        setDocs(Array.isArray(docsData) ? docsData : []);
-      })
+    api.get<CorrDetail>(`/projects/${projectId}/correspondences/${corrId}`)
+      .then(setCorr)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [projectId, corrId]);
@@ -322,22 +309,22 @@ export default function CorrespondenceDetail() {
             <label style={labelStyle}>{lang === "tr" ? "KARŞI TARAF REF" : "EXT. REFERENCE"}</label>
             <p style={fieldStyle}>{corr.external_ref ?? "—"}</p>
           </div>
-          {docs.some(d => d.location) && (
+          {attachmentRefs.some(r => r.location) && (
             <div>
               <label style={labelStyle}>{lang === "tr" ? "LOKASYON" : "LOCATION"}</label>
               <p style={fieldStyle}>
-                {docs.find(d => d.location)?.location ?? "—"}
+                {attachmentRefs.find(r => r.location)?.location ?? "—"}
               </p>
             </div>
           )}
           {((corr.keywords && corr.keywords.length > 0) ||
-            docs.some(d => d.keywords && d.keywords.length > 0)) && (
+            attachmentRefs.some(r => r.keywords && r.keywords.length > 0)) && (
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>{lang === "tr" ? "ANAHTAR KELİMELER" : "KEYWORDS"}</label>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginTop: 4 }}>
                 {[...new Set([
                   ...(corr.keywords || []),
-                  ...docs.flatMap(d => d.keywords || []),
+                  ...attachmentRefs.flatMap(r => r.keywords || []),
                 ])].map((kw, i) => (
                     <span key={i} style={{
                       fontSize: 11,
@@ -448,20 +435,20 @@ export default function CorrespondenceDetail() {
         {/* Documents */}
         <div style={{ padding: 20, backgroundColor: cardBg }}>
           <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12 }}>
-            {lang === "tr" ? "EKLİ BELGELER" : "ATTACHED DOCUMENTS"} ({docs.length})
+            {lang === "tr" ? "EKLİ BELGELER" : "ATTACHED DOCUMENTS"} ({attachmentRefs.length})
           </p>
-          {docs.length === 0 ? (
+          {attachmentRefs.length === 0 ? (
             <p style={{ fontSize: 12, color: textSecond, fontStyle: "italic" }}>{lang === "tr" ? "Belge eklenmemiş." : "No documents attached."}</p>
           ) : (
-            docs.map((doc) => (
-              <div key={doc.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `0.5px solid ${border}` }}>
+            attachmentRefs.map((r) => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `0.5px solid ${border}` }}>
                 <div>
-                  <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{doc.original_filename}</p>
+                  <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{r.target_label}</p>
                   <p style={{ fontSize: 11, color: textSecond, marginTop: 2 }}>
-                    {(doc.file_size_bytes / 1024).toFixed(0)} KB
-                    {parseStatusLabel(doc.parse_status, lang) && (
+                    {((r.file_size_bytes ?? 0) / 1024).toFixed(0)} KB
+                    {parseStatusLabel(r.parse_status ?? null, lang) && (
                       <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif" }}>
-                        · {parseStatusLabel(doc.parse_status, lang)}
+                        · {parseStatusLabel(r.parse_status ?? null, lang)}
                       </span>
                     )}
                   </p>
@@ -469,7 +456,7 @@ export default function CorrespondenceDetail() {
                 <button
                   onClick={async () => {
                     try {
-                      const res = await api.get<{ signed_url: string }>(`/projects/${projectId}/documents/${doc.id}/signed-url`);
+                      const res = await api.get<{ signed_url: string }>(`/projects/${projectId}/documents/${r.document_id}/signed-url`);
                       window.open(res.signed_url, "_blank");
                     } catch {
                       alert(lang === "tr" ? "İndirme linki oluşturulamadı." : "Could not generate download link.");
@@ -573,28 +560,28 @@ export default function CorrespondenceDetail() {
               </div>
             )}
 
-            {docs.length > 0 && (
+            {attachmentRefs.length > 0 && (
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: "block", fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 8 }}>
                   {lang === "tr" ? "İlgili Belgeler (Opsiyonel)" : "Related Documents (Optional)"}
                 </label>
                 <div style={{ border: `1px solid ${border}`, padding: "8px 10px", backgroundColor: "var(--color-bg-primary)" }}>
-                  {docs.map((d) => (
-                    <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
+                  {attachmentRefs.map((r) => (
+                    <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
                       <input
                         type="checkbox"
-                        checked={flagForm.document_references.includes(d.id)}
+                        checked={flagForm.document_references.includes(r.document_id)}
                         onChange={(e) => {
                           const refs = e.target.checked
-                            ? [...flagForm.document_references, d.id]
-                            : flagForm.document_references.filter((id) => id !== d.id);
+                            ? [...flagForm.document_references, r.document_id]
+                            : flagForm.document_references.filter((id) => id !== r.document_id);
                           setFlagForm({ ...flagForm, document_references: refs });
                         }}
                       />
-                      <span style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}>{d.original_filename}</span>
-                      {parseStatusLabel(d.parse_status, lang) && (
+                      <span style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}>{r.target_label}</span>
+                      {parseStatusLabel(r.parse_status ?? null, lang) && (
                         <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif", marginLeft: "auto" }}>
-                          {parseStatusLabel(d.parse_status, lang)}
+                          {parseStatusLabel(r.parse_status ?? null, lang)}
                         </span>
                       )}
                     </label>

@@ -192,18 +192,6 @@ def get_correspondence(
     if corr["project_id"] != str(project_id):
         raise NotFoundError()
     corr["children"] = repo.get_children(str(corr_id), str(project_id))
-    try:
-        corr["references"] = repo.get_references(str(corr_id))
-    except Exception as exc:
-        logger.error("Referanslar alınamadı: %s | corr_id=%s", exc, corr_id)
-        corr["references"] = []
-
-    try:
-        corr["documents"] = repo.get_documents(str(corr_id))
-    except Exception as exc:
-        logger.error("Belgeler alınamadı: %s | corr_id=%s", exc, corr_id)
-        corr["documents"] = []
-
     return corr
 
 

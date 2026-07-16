@@ -102,15 +102,6 @@ class CorrespondenceRepository(BaseRepository):
         )
         return result.data or []
 
-    def get_documents(self, corr_id: str) -> list[dict]:
-        result = (
-            self.db.table("correspondence_documents")
-            .select("*")
-            .eq("correspondence_id", corr_id)
-            .execute()
-        )
-        return result.data or []
-
     def get_pending_deadlines(self, project_id: str, days: int = 7) -> list[dict]:
         from datetime import date, timedelta
         today = date.today()

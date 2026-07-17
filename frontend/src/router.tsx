@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { isSessionActive, verifySession, clearAuth } from "./store/auth";
+import { isAuthenticated, verifySession, clearAuth } from "./store/auth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ProjectDetail from "./pages/ProjectDetail";
@@ -15,7 +15,7 @@ import NewRFI from "./pages/NewRFI";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<"checking" | "ok" | "denied">(
-    () => isSessionActive() ? "checking" : "denied"
+    () => isAuthenticated() ? "checking" : "denied"
   );
 
   useEffect(() => {

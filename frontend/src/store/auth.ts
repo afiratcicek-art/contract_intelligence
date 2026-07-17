@@ -1,7 +1,6 @@
 import { invalidateCache } from "../services/api";
 
 const USER_KEY = "clauseiq_user";
-const SESSION_FLAG = "clauseiq_session_active";
 const INACTIVITY_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 let _inactivityTimer: ReturnType<typeof setTimeout> | null = null;
@@ -15,12 +14,7 @@ function resetInactivityTimer(): void {
 }
 
 export function markSessionActive(): void {
-  sessionStorage.setItem(SESSION_FLAG, "1");
   resetInactivityTimer();
-}
-
-export function isSessionActive(): boolean {
-  return sessionStorage.getItem(SESSION_FLAG) === "1";
 }
 
 export interface AuthUser {
@@ -47,7 +41,6 @@ export function clearAuth(): void {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem("theme");
   localStorage.removeItem("clauseiq_remembered_email");
-  sessionStorage.removeItem(SESSION_FLAG);
   if (_inactivityTimer) clearTimeout(_inactivityTimer);
   invalidateCache("/");
 }

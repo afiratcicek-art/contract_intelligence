@@ -12,6 +12,7 @@ import RFIDetail from "./pages/RFIDetail";
 import ChangeDetail from "./pages/ChangeDetail";
 import NewChange from "./pages/NewChange";
 import NewRFI from "./pages/NewRFI";
+import DocumentView from "./pages/DocumentView";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<"checking" | "ok" | "denied">(
@@ -126,6 +127,16 @@ export default function Router() {
             <ErrorBoundary>
               <PrivateRoute>
                 <ChangeDetail />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/view/:docId"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <DocumentView />
               </PrivateRoute>
             </ErrorBoundary>
           }

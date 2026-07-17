@@ -7,6 +7,8 @@ import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
 import { useToastContext } from "../context/ToastContext";
 import RelationPopup from "../components/RelationPopup";
+import DocumentLink from "../components/DocumentLink";
+import ReferenceLink from "../components/ReferenceLink";
 import { DOCUMENT_TYPE_LABELS, parseStatusLabel, type RefItem } from "../constants/documentTypes";
 
 interface ChainItem {
@@ -608,24 +610,13 @@ export default function RFIDetail() {
                 <div key={r.id}
                   style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, background: "var(--color-bg-primary)" }}>
                   <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond }}>
-                    {r.document_id ? (
-                      <span
-                        onClick={async () => {
-                          try {
-                            const res = await api.get<{ signed_url: string }>(`/projects/${projectId}/documents/${r.document_id}/signed-url`);
-                            window.open(res.signed_url, "_blank");
-                          } catch {
-                            console.error("signed-url alinamadi", r.document_id);
-                          }
-                        }}
-                        style={{ cursor: "pointer", color: "var(--color-accent)", textDecoration: "underline" }}
-                        title={lang === "tr" ? "Belgeyi ac" : "Open document"}
-                      >
-                        {r.target_label ?? "-"}
-                      </span>
-                    ) : (
-                      r.target_label ?? "-"
-                    )}
+                    <ReferenceLink
+                      projectId={projectId!}
+                      item={r}
+                      style={{ cursor: "pointer", color: "var(--color-accent)", textDecoration: "underline" }}
+                    >
+                      {r.target_label ?? "-"}
+                    </ReferenceLink>
                     {DOCUMENT_TYPE_LABELS[r.ref_type] && (
                       <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.05em", padding: "2px 6px", background: "var(--color-bg-secondary)", color: textSecond }}>
                         {DOCUMENT_TYPE_LABELS[r.ref_type][lang as "en" | "tr"]}
@@ -851,19 +842,13 @@ export default function RFIDetail() {
                         )}
                       </p>
                     </div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          const res = await api.get<{ signed_url: string }>(`/projects/${projectId}/documents/${r.document_id}/signed-url`);
-                          window.open(res.signed_url, "_blank");
-                        } catch {
-                          alert(lang === "tr" ? "İndirme linki oluşturulamadı." : "Could not generate download link.");
-                        }
-                      }}
-                      style={{ fontSize: 11, color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif" }}
+                    <DocumentLink
+                      projectId={projectId!}
+                      docId={r.document_id!}
+                      style={{ fontSize: 11, color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif", textDecoration: "none" }}
                     >
-                      {lang === "tr" ? "İndir →" : "Download →"}
-                    </button>
+                      {lang === "tr" ? "Aç →" : "Open →"}
+                    </DocumentLink>
                   </div>
                 ))
               )}

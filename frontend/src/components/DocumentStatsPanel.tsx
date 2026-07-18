@@ -6,7 +6,7 @@
  *   RFI LAR      — disiplinler (tıklanabilir filtre)
  *   CONTRACT &
  *   AMENDMENTS   — contract_doc + changes (approved/under_review/disputed)
- *                  + Other Amendments (TB-25, count=0 şimdilik)
+ *                  + Other Amendments (amendments entity, migration 037)
  *   DİĞER        — kronoloji bağımsız kayıtlar
  *   BELGELER       (rfi/correspondence hariç manual event'ler)
  *
@@ -14,7 +14,8 @@
  *
  * TB-24: Yeni belge kaynakları eklendiğinde migration 026 +
  *        GET /documents/stats güncellenmeli.
- * TB-25: Other Amendments — henüz entity yok, count=0.
+ * Other Amendments — amendments tablosunun gerçek sayısı (migration 037;
+ *        backend documents.py other_amendments_count).
  *
  * Design: borderRadius 0, var(--color-accent-text), 8px grid.
  */
@@ -266,7 +267,7 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
           {infoRow("Approved",      stats.changes_approved      ?? 0)}
           {infoRow("Under Review",  stats.changes_under_review  ?? 0)}
           {infoRow("Disputed",      stats.changes_disputed      ?? 0)}
-          {/* TB-25: Other Amendments — henüz entity yok */}
+          {/* Other Amendments — amendments entity'sinin gerçek sayısı (migration 037) */}
           {infoRow("Other Amendments", stats.other_amendments_count ?? 0, true)}
         </>)}
 

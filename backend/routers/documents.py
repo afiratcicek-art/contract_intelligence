@@ -718,7 +718,7 @@ def get_document_stats(
 
     Önce project_document_stats cache'ini kontrol eder (TTL: 30 saniye).
     Cache yoksa veya eskiyse aggregate hesaplar, cache'e yazar ve döner.
-    Kaynak: correspondences, rfis, pdf_document, chronology_events.
+    Kaynak: correspondences, rfis, pdf_document, chronology_events, amendments.
     Write: admin client (service_role — RLS bypass by design).
     Read:  JWT client (RLS enforced — project member only).
     """
@@ -837,6 +837,19 @@ def get_document_stats(
     )
     changes_disputed = sum(1 for r in changes_rows if r["status"] == "disputed")
 
+    # Amendments — real count (EK-15). Retires the TB-25 decorative 0: migration
+    # 037 made `amendments` a first-class entity, so this is now a live COUNT that
+    # mirrors the changes-count pattern above (admin_db / RLS bypass, like every
+    # sibling aggregate). No cache code here — the 30s lazy TTL refreshes it.
+    amendments_res = (
+        admin_db.table("amendments")
+        .select("id")
+        .eq("project_id", p_id)
+        .eq("is_deleted", False)
+        .execute()
+    )
+    amendments_count = len(amendments_res.data or [])
+
     # Top 5 keywords (project_keyword_stats tablosundan)
     kw_res = (
         jwt_db.table("project_keyword_stats")
@@ -876,7 +889,7 @@ def get_document_stats(
         "changes_approved": changes_approved,
         "changes_under_review": changes_under_review,
         "changes_disputed": changes_disputed,
-        "other_amendments_count": 0,  # TB-25: no entity yet
+        "other_amendments_count": amendments_count,
     }
 
     # ── 4. Cache'e yaz (admin client — RLS bypass) ─────────────────────────

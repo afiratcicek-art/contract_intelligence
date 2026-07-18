@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../services/api";
-import { saveAuth } from "../store/auth";
+import { saveAuth, safeNextPath } from "../store/auth";
 import Button from "../components/Button";
 import ThemeToggle from "../components/ThemeToggle";
 import { useLanguage } from "../context/LanguageContext";
@@ -39,7 +39,7 @@ export default function Login() {
       } else {
         localStorage.removeItem("clauseiq_remembered_email");
       }
-      navigate("/dashboard");
+      navigate(safeNextPath(new URLSearchParams(window.location.search).get("next")));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : (lang === "tr" ? "Giriş başarısız." : "Login failed."));
     } finally {

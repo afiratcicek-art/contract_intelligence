@@ -71,9 +71,9 @@ async function request<T>(
     });
     if (!res.ok) {
       if (res.status === 401) {
-        const { clearAuth } = await import("../store/auth");
+        const { clearAuth, loginRedirectUrl } = await import("../store/auth");
         clearAuth();
-        window.location.href = "/login";
+        window.location.href = loginRedirectUrl();
         throw new ApiError(401, "Oturum süresi doldu");
       }
       const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -94,9 +94,9 @@ async function request<T>(
   });
   if (!res.ok) {
     if (res.status === 401) {
-      const { clearAuth } = await import("../store/auth");
+      const { clearAuth, loginRedirectUrl } = await import("../store/auth");
       clearAuth();
-      window.location.href = "/login";
+      window.location.href = loginRedirectUrl();
       throw new ApiError(401, "Oturum süresi doldu");
     }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -122,9 +122,9 @@ export const api = {
     });
     if (!res.ok) {
       if (res.status === 401) {
-        const { clearAuth } = await import("../store/auth");
+        const { clearAuth, loginRedirectUrl } = await import("../store/auth");
         clearAuth();
-        window.location.href = "/login";
+        window.location.href = loginRedirectUrl();
         throw new ApiError(401, "Oturum süresi doldu");
       }
       const err = await res.json().catch(() => ({ detail: res.statusText }));

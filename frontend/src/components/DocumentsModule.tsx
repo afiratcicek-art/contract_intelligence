@@ -41,6 +41,19 @@ interface DocSearchResult {
   rfi_type?: string;
 }
 
+/** The dimensions a click on the stats panel can carry.
+ *  A keyword or location chip carries a search term. A card row carries a
+ *  FIELD of a specific entity — the RFI card's rows are disciplines, the
+ *  correspondence card's rows are types. doSearch switches on this, and the
+ *  switch is exhaustiveness-checked, so adding a member here without handling
+ *  it there is a compile error rather than a silent keyword search. */
+type FilterType = "corrType" | "rfiDiscipline" | "keyword" | "location";
+
+interface ActiveFilter {
+  type: FilterType;
+  value: string;
+}
+
 interface Props {
   projectId: string;
 }
@@ -91,7 +104,7 @@ export default function DocumentsModule({ projectId }: Props) {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<DocumentStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<{ type: string; value: string } | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter | null>(null);
 
   useEffect(() => {
     setStatsLoading(true);
@@ -126,18 +139,61 @@ export default function DocumentsModule({ projectId }: Props) {
      (invoked server-side when q is present).
      Empty query → clear results, no API call.            */
   const doSearch = useCallback(
-    async (q: string) => {
-      if (!q.trim()) { setResults([]); return; }
+    async (q: string, filter: ActiveFilter | null) => {
+      if (!q.trim() && !filter) { setResults([]); return; }
       setLoading(true);
       try {
         const enc = encodeURIComponent(q.trim());
+        const base = `/projects/${projectId}`;
+
+        /* Free text asks both lists the same question, so both are queried.
+           A card row does not: the RFI card's "Architectural" is a question
+           about RFIs, and asking correspondences for the literal word
+           "Architectural" is what produced the wrong results this replaces.
+           So a card row narrows one list and drops the other entirely. */
+        let rfiUrl: string | null = `${base}/rfis?limit=100&q=${enc}`;
+        let corrUrl: string | null = `${base}/correspondences?limit=100&q=${enc}`;
+
+        if (filter) {
+          switch (filter.type) {
+            case "rfiDiscipline": {
+              /* Filter pins the discipline; keyword (if any) narrows within it.
+                 Correspondences are dropped: a discipline is an RFI concept. */
+              const kw = q.trim() ? `&q=${enc}` : "";
+              rfiUrl = `${base}/rfis?limit=100&discipline=${encodeURIComponent(filter.value)}${kw}`;
+              corrUrl = null;
+              break;
+            }
+            case "corrType": {
+              /* Filter pins the correspondence type; keyword narrows within it.
+                 RFIs are dropped: a correspondence type is a correspondence
+                 concept. */
+              const kw = q.trim() ? `&q=${enc}` : "";
+              corrUrl = `${base}/correspondences?limit=100&type=${encodeURIComponent(filter.value)}${kw}`;
+              rfiUrl = null;
+              break;
+            }
+            case "keyword":
+            case "location":
+              /* Both stay text searches across both lists. Neither endpoint has
+                 a location parameter, so location cannot become a real filter
+                 without backend work — do not fake it here. */
+              break;
+            default: {
+              /* Exhaustiveness guard. Add a member to FilterType without
+                 handling it above and this line stops compiling. That is the
+                 point: an unhandled type would fall through to a keyword
+                 search, which is the bug this switch exists to kill. */
+              const _exhaustive: never = filter.type;
+              void _exhaustive;
+              break;
+            }
+          }
+        }
+
         const [rfis, corrs] = await Promise.all([
-          api.get<RFIRow[]>(
-            `/projects/${projectId}/rfis?limit=100&q=${enc}`
-          ),
-          api.get<CorrRow[]>(
-            `/projects/${projectId}/correspondences?limit=100&q=${enc}`
-          ),
+          rfiUrl ? api.get<RFIRow[]>(rfiUrl) : Promise.resolve<RFIRow[]>([]),
+          corrUrl ? api.get<CorrRow[]>(corrUrl) : Promise.resolve<CorrRow[]>([]),
         ]);
 
         const rfiResults: DocSearchResult[] = (rfis ?? []).map((r) => ({
@@ -174,29 +230,47 @@ export default function DocumentsModule({ projectId }: Props) {
   );
 
   useEffect(() => {
-    if (!debouncedQuery.trim()) {
+    /* Fire when there is something to search: a keyword, a filter, or both.
+       An empty box with an active filter is valid — it means the whole
+       filtered set. Only a truly empty state (no keyword AND no filter)
+       clears the results. */
+    if (!debouncedQuery.trim() && !activeFilter) {
       setResults([]);
       return;
     }
-    doSearch(debouncedQuery);
-  }, [debouncedQuery, doSearch]);
+    doSearch(debouncedQuery, activeFilter);
+  }, [debouncedQuery, activeFilter, doSearch]);
 
   const handleInput = (val: string) => {
+    /* Typing only changes the keyword. It does NOT touch activeFilter: the
+       badge stays pinned so the keyword narrows WITHIN the filter. The badge
+       is cleared only by its own ✕ (removeFilter) or the box ✕. Emptying the
+       box clears results only when there is also no active filter — with a
+       filter present, an empty box means "the whole filtered set". */
     setQuery(val);
-    if (!val.trim()) {
+    if (!val.trim() && !activeFilter) {
       setResults([]);
-      setActiveFilter(null);
-    } else if (activeFilter && val !== activeFilter.value) {
-      setActiveFilter(null);
     }
   };
 
   const handleFilter = (
-    filterType: "corrType" | "rfiDiscipline" | "keyword" | "location",
+    filterType: FilterType,
     value: string,
   ) => {
-    setActiveFilter({ type: filterType, value });
-    setQuery(value);
+    if (filterType === "keyword" || filterType === "location") {
+      /* Chips ARE keyword searches: the term belongs in the box and is the
+         query. This is the original, correct behaviour — the badge model does
+         not touch it. */
+      setActiveFilter({ type: filterType, value });
+      setQuery(value);
+    } else {
+      /* Card rows (corrType, rfiDiscipline) become a pinned badge. The filter
+         leaves the box so the user can type a keyword ON TOP of it; the badge,
+         not the box, now holds the filter value. */
+      setActiveFilter({ type: filterType, value });
+      setQuery("");
+      setResults([]);
+    }
   };
 
   /* ── Status pill ─────────────────────────────────────── */
@@ -486,6 +560,35 @@ export default function DocumentsModule({ projectId }: Props) {
           >
             ×
           </button>
+        </div>
+      )}
+
+      {activeFilter && (activeFilter.type === "rfiDiscipline" || activeFilter.type === "corrType") && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          marginBottom: 8,
+        }}>
+          <span style={{ fontSize: 11, color: textSecond }}>
+            {activeFilter.type === "rfiDiscipline" ? "RFI disiplini" : "Yazışma türü"}:
+          </span>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "4px 10px", background: accent,
+            color: "var(--color-bg-primary)", fontSize: 12, fontWeight: 500,
+          }}>
+            {activeFilter.value}
+            <button
+              onClick={() => { setActiveFilter(null); }}
+              aria-label="Filtreyi kaldır"
+              style={{
+                background: "none", border: "none", padding: 0,
+                color: "var(--color-bg-primary)", cursor: "pointer",
+                fontSize: 14, lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </span>
         </div>
       )}
 

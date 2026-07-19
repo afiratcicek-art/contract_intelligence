@@ -8,6 +8,7 @@ import { useLanguage } from "../context/LanguageContext";
 import AlertsModule from "../components/AlertsModule";
 import ChronologiesModule from "../components/ChronologiesModule";
 import DocumentsModule from "../components/DocumentsModule";
+import ContractInForceView from "../components/ContractInForceView";
 
 type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
@@ -20,7 +21,9 @@ interface DeliverableItem { id: string; title: string; status: string; due_date:
 const MODULE_LABELS: Record<Module, string> = {
   general: "General", alerts: "Alerts & Actions",
   correspondence: "Correspondence", rfis: "RFIs",
-  changes: "Changes", deliverables: "Deliverables", chronologies: "Chronologies",
+  // Key stays "changes" (change-entity routes depend on it); it backs the
+  // "Contracts & Amendments" section, whose Changes list is the Working sub-tab.
+  changes: "Contracts & Amendments", deliverables: "Deliverables", chronologies: "Chronologies",
   documents: "Documents", config: "Config",
 };
 
@@ -103,6 +106,8 @@ export default function Workspace() {
   const [rfiDropdown, setRfiDropdown] = useState(false);
   const [rfiDateField, setRfiDateField] = useState<"submitted_date" | "response_due_date">("submitted_date");
 
+  // Contracts & Amendments sub-tab: "working" = the Changes list, "inforce" = B3 view.
+  const [contractTab, setContractTab] = useState<"working" | "inforce">("working");
   const [changes, setChanges] = useState<ChangeItem[]>([]);
   const [changeLoading, setChangeLoading] = useState(false);
   const [changeKeyword, setChangeKeyword] = useState("");
@@ -285,7 +290,7 @@ export default function Workspace() {
     dateInRange(genDateField === "date" ? r.date : r.date, genDateFrom, genDateTo)
   );
 
-  const SIDEBAR_MAIN: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies"];
+  const SIDEBAR_MAIN: Module[] = ["changes", "general", "alerts", "correspondence", "rfis", "deliverables", "chronologies"];
   const SIDEBAR_SYS: Module[] = ["documents", "config"];
 
   const generalNavTarget = (mod: string, id: string) => {
@@ -717,9 +722,17 @@ export default function Workspace() {
             </div>
           )}
 
-          {/* CHANGES */}
+          {/* CONTRACTS & AMENDMENTS (module key stays "changes") */}
           {activeModule === "changes" && (
             <div>
+              {/* Sub-tabs — reuse the chip + filterRow primitives, no new component/styling.
+                  Working = the existing Changes list; In-Force = the B3 resolution view. */}
+              {filterRow(
+                chip("Değişiklikler", contractTab === "working", () => setContractTab("working")),
+                chip("Yürürlük (In-Force)", contractTab === "inforce", () => setContractTab("inforce")),
+              )}
+              {contractTab === "working" && (
+              <div>
               {moduleHeader("Changes", () => navigate(`/projects/${projectId}/workspace/changes/new`), t("action.newchange"))}
               {filterRow(
                 keywordSearch(changeKeyword, setChangeKeyword),
@@ -746,6 +759,11 @@ export default function Workspace() {
                     </div>
                   ))}
                 </div>
+              )}
+              </div>
+              )}
+              {contractTab === "inforce" && (
+                <ContractInForceView projectId={String(projectId)} />
               )}
             </div>
           )}

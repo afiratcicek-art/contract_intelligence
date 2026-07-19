@@ -262,6 +262,44 @@ export async function fetchDocumentStats(
   return api.get(`/projects/${projectId}/documents/stats`);
 }
 
+// ── Contract & Amendments — In-Force resolution (B3) ───────────────────────
+// Mirrors the backend response models (backend/models/resolution.py). Read-only:
+// the CM-confirmed in-force graph. `status` is RAW (never relabeled here — §6 is
+// a later step). amendment_date is a date string ("YYYY-MM-DD") or null.
+export interface AmendmentRef {
+  id:               string;
+  amendment_number: string;
+  amendment_date:   string | null;
+  arrival_path:     string;
+}
+
+export interface ClauseResolution {
+  subject_key:          string;
+  governing_instrument: "contract" | "amendment";
+  amendment:            AmendmentRef | null;
+  override_id:          string | null;
+}
+
+export interface ChangeOrderResolution {
+  change_id:                string;
+  change_number:            string;
+  title:                    string;
+  status:                   string;
+  superseded_by_amendment:  AmendmentRef | null;
+  amendment_pending:        boolean;
+}
+
+export interface ResolutionResponse {
+  clauses:       ClauseResolution[];
+  change_orders: ChangeOrderResolution[];
+}
+
+export async function fetchContractResolution(
+  projectId: string
+): Promise<ResolutionResponse> {
+  return api.get(`/projects/${projectId}/contract/resolution`);
+}
+
 export async function updateChronology(
   projectId: string,
   chronologyId: string,

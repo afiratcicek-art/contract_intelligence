@@ -28,3 +28,22 @@ class ClauseOverrideRepository(BaseRepository):
             .execute()
         )
         return result.data or []
+
+    def list_confirmed_with_amendment(self, project_id: str) -> list[dict]:
+        # B3 resolution fetch (I/O only). ONE round-trip: the overriding amendment
+        # is FK-embedded (PostgREST) via clause_overrides.overriding_amendment_id ->
+        # amendments(id), NOT fetched per row (no N+1). Only status='confirmed' rows
+        # are ever folded into the in-force graph (migration 037 §clause_overrides:
+        # the HITL gate); 'proposed'/'rejected' are excluded here. RLS on the
+        # JWT-scoped db already restricts to the caller's projects — the explicit
+        # project_id filter narrows to the requested one.
+        result = (
+            self.db.table("clause_overrides")
+            .select(
+                "*, amendments(id, amendment_number, amendment_date, arrival_path)"
+            )
+            .eq("project_id", project_id)
+            .eq("status", "confirmed")
+            .execute()
+        )
+        return result.data or []

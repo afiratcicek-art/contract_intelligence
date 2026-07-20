@@ -40,6 +40,61 @@ class ChangeOrderResolution(BaseModel):
     amendment_pending: bool
 
 
+# ── Hierarchy root (ADR-014) ────────────────────────────────────────────────
+# The In-Force view is DOCUMENT-CENTRIC (Ali's ruling 2026-07-20: "madde madde
+# değil, belge belge"): the base contract is the ROOT of the hierarchy, with
+# amendments and change orders as document-level entries beneath it. clauses[]
+# stays in the payload as the underlying engine (drill-down / future RAG), but
+# it is no longer the dashboard's primary rendering.
+
+
+class ContractPartyRef(BaseModel):
+    role: str
+    name: str
+
+
+class ContractDocumentRef(BaseModel):
+    # One constituent document / annex (ek) of the contract, with its bespoke
+    # precedence. pdf_document_id is nullable (migration 040): an annex may be
+    # registered as a label before its file arrives; the row survives if the
+    # file is later removed (ON DELETE SET NULL).
+    id: UUID
+    pdf_document_id: Optional[UUID] = None
+    label: Optional[str] = None
+    precedence_rank: Optional[int] = None   # 1 = highest; None = unranked
+    original_filename: Optional[str] = None  # display + click-through
+
+
+class ContractRoot(BaseModel):
+    id: UUID
+    title: str
+    contract_number: Optional[str] = None
+    description: Optional[str] = None
+    # dlp_days is the DLP's LENGTH only — its window derives from ACTUAL
+    # completion (dynamic), never stored (ADR-014 term decision).
+    commencement_date: Optional[date] = None
+    duration_days: Optional[int] = None
+    dlp_days: Optional[int] = None
+    parties: list[ContractPartyRef] = []
+    documents: list[ContractDocumentRef] = []
+
+
+class InForceAmendment(BaseModel):
+    # Document-level amendment card for the hierarchy (contrast AmendmentRef,
+    # which is per-clause provenance). A REGISTERED amendment is a CM-confirmed
+    # fact, so every non-deleted amendment appears here.
+    id: UUID
+    amendment_number: str
+    title: str
+    amendment_date: Optional[date] = None
+    arrival_path: str
+    source_pdf_id: Optional[UUID] = None
+
+
 class ResolutionResponse(BaseModel):
+    # contract=None means "not yet registered" — the UI renders the HITL
+    # registration prompt, it does NOT invent a synthetic root.
+    contract: Optional[ContractRoot] = None
+    amendments: list[InForceAmendment] = []
     clauses: list[ClauseResolution]
     change_orders: list[ChangeOrderResolution]

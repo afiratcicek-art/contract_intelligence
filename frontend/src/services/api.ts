@@ -289,7 +289,50 @@ export interface ChangeOrderResolution {
   amendment_pending:        boolean;
 }
 
+// ── Contract root (ADR-014) — the base contract as hierarchy root ─────────
+// Document-centric In-Force view: contract (root) → amendments → change
+// orders. clauses[] stays in the payload as the underlying engine (drill-down
+// / future RAG) but is no longer the dashboard's primary rendering.
+export interface ContractParty {
+  role: "employer" | "contractor" | "engineer" | "other";
+  name: string;
+}
+
+export interface ContractDocumentRef {
+  id:                string;
+  // null = annex registered, file pending (migration 040)
+  pdf_document_id:   string | null;
+  label:             string | null;
+  precedence_rank:   number | null;  // bespoke precedence: 1 = highest, null = unranked
+  original_filename: string | null;
+}
+
+export interface ContractRoot {
+  id:                string;
+  title:             string;
+  contract_number:   string | null;
+  description:       string | null;
+  // dlp_days = the DLP's LENGTH only; its window derives from actual
+  // completion (dynamic, ADR-014) — never a stored date.
+  commencement_date: string | null;
+  duration_days:     number | null;
+  dlp_days:          number | null;
+  parties:           ContractParty[];
+  documents:         ContractDocumentRef[];
+}
+
+export interface InForceAmendment {
+  id:               string;
+  amendment_number: string;
+  title:            string;
+  amendment_date:   string | null;
+  arrival_path:     string;
+  source_pdf_id:    string | null;
+}
+
 export interface ResolutionResponse {
+  contract:      ContractRoot | null;  // null = not yet registered (HITL prompt)
+  amendments:    InForceAmendment[];
   clauses:       ClauseResolution[];
   change_orders: ChangeOrderResolution[];
 }
@@ -298,6 +341,82 @@ export async function fetchContractResolution(
   projectId: string
 ): Promise<ResolutionResponse> {
   return api.get(`/projects/${projectId}/contract/resolution`);
+}
+
+export interface ContractCreatePayload {
+  title:              string;
+  contract_number?:   string;
+  description?:       string;
+  commencement_date?: string;  // "YYYY-MM-DD"
+  duration_days?:     number;
+  dlp_days?:          number;
+  parties:            ContractParty[];
+}
+
+// CM-only on the backend (require_cm_role + contracts_cm_write RLS); 409 if
+// the project already has a contract (pilot 1:1 cardinality, TB-27).
+export async function createContract(
+  projectId: string,
+  payload: ContractCreatePayload
+): Promise<ContractRoot> {
+  return api.post(`/projects/${projectId}/contract`, payload);
+}
+
+export interface ContractDocumentPayload {
+  label?: string;
+  pdf_document_id?: string;
+  precedence_rank?: number;
+}
+
+// CM-only. Creates a constituent-document / annex (ek) row — label-only
+// (file pending) or already linked to an uploaded contract_document PDF.
+export async function addContractDocument(
+  projectId: string,
+  contractId: string,
+  payload: ContractDocumentPayload
+): Promise<ContractRoot> {
+  return api.post(`/projects/${projectId}/contract/${contractId}/documents`, payload);
+}
+
+// CM-only. Attach-later path for a label-only annex, or label/rank correction.
+export async function updateContractDocument(
+  projectId: string,
+  contractId: string,
+  linkId: string,
+  payload: ContractDocumentPayload
+): Promise<ContractRoot> {
+  return api.put(
+    `/projects/${projectId}/contract/${contractId}/documents/${linkId}`,
+    payload
+  );
+}
+
+// CM-only. Unlinks the document from the contract (deletes the link row;
+// the filed PDF itself stays in Documents / storage).
+export async function unlinkContractDocument(
+  projectId: string,
+  contractId: string,
+  linkId: string
+): Promise<ContractRoot> {
+  return api.delete(
+    `/projects/${projectId}/contract/${contractId}/documents/${linkId}`
+  );
+}
+
+// Upload a PDF as entity_type=contract_document (entity_id MUST = projectId,
+// backend guard in documents.py). Returns the new pdf_document id. Caller then
+// links it via addContractDocument / updateContractDocument (CM-only).
+export async function uploadContractPdf(
+  projectId: string,
+  file: File
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await api.postForm<{ doc_id: string }>(
+    `/projects/${projectId}/documents/upload?entity_type=contract_document&entity_id=${projectId}`,
+    formData
+  );
+  return res.doc_id;
 }
 
 export async function updateChronology(

@@ -258,3 +258,20 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   Tasarım gereksinimi: ayrı amendment entity + tablo + workflow
   (Changes sekmesi tasarımı ile birlikte ele alınacak).
   Stats'ta şimdilik count=0 gösterilir.
+
+---
+
+## Contract cardinality
+
+- **TB-27**: Proje ↔ sözleşme kardinalitesi — İLERİDE ZİYARET EDİLECEK
+  ÜRÜN KARARI (Ali, 2026-07-20). Pilot kuralı: proje başına TEK sözleşme.
+  Satış da proje bazlı olacağı için bu varsayılan doğru; ancak işveren işi
+  fazlara/paketlere böldüğünde ilişkili sözleşmeler kopuk projelere düşer
+  ("model for N, default to 1" kararının nedeni).
+  Mevcut durum: `contracts` tablosu project_id taşır ve UNIQUE(project_id)
+  YOKTUR (migration 039) — şema 1:N'i bugün destekler. Tek-sözleşme kuralı
+  yalnızca API'de (POST /contract 409 guard, backend/routers/contract.py).
+  Çözüldüğünde: migration GEREKMEZ; karar "bir projede çok sözleşme" mi
+  yoksa "projelerin üstünde programme/portfolio katmanı" mı — gerçek vaka
+  gelince seçilecek, ikisi de tablo modeliyle açık.
+  Ne zaman: ilk fazlı/çok-sözleşmeli müşteri vakası geldiğinde.

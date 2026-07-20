@@ -27,17 +27,17 @@ class ChangeRepository(BaseRepository):
         return result.data or []
 
     def list_for_resolution(self, project_id: str) -> list[dict]:
-        # B3 resolution fetch (I/O only). ONE round-trip returning every
-        # non-deleted change for the project. A dedicated method (not
-        # list_by_project) because the in-force graph must see ALL change orders:
-        # list_by_project's default limit=100 would silently truncate the set on a
-        # large project. Selects only the columns the resolver needs; status is
-        # returned RAW (never relabeled here — ADR-013 §6 is a UI concern).
+        # B3 resolution fetch (I/O only). ONE round-trip. Dedicated method (not
+        # list_by_project) because the in-force graph must see ALL matching change
+        # orders (no limit=100 truncation). Selects only the resolver's columns;
+        # status is returned RAW (never relabeled here — ADR-013 §6 is a UI concern).
+        # in-force = agreed|closed (Ali's ruling); identified/draft live in the Working sub-tab.
         result = (
             self.db.table("changes")
             .select("id, change_number, title, status")
             .eq("project_id", project_id)
             .eq("is_deleted", False)
+            .in_("status", ["agreed", "closed"])
             .execute()
         )
         return result.data or []

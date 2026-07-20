@@ -6,8 +6,9 @@
  *
  * İlke: sistem yürürlüğü ÇIKARSAMAZ — yalnızca CM tarafından onaylanmış
  * gerçekler (kayıtlı amendment'lar + status='confirmed' override'lar) grafiği
- * sürer. change_orders[].status HAM gösterilir (asla yeniden etiketlenmez;
- * §6 sonraki adım).
+ * sürer. change_orders[].status, StatsPanel ile hizalı GÖRÜNEN etiketlerle
+ * gösterilir (agreed→Approved, closed→Closed); tam status-vocab birleştirmesi
+ * §6'ya ertelendi.
  *
  * Design: inline style + var(--color-*), Inter / JetBrains Mono,
  *         borderRadius 0, 3px sol-accent, DocumentsModule chip stili.
@@ -68,8 +69,8 @@ const chipBase: CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-// Raw-status colour map — reuses house tokens, but the TEXT shown is always the
-// verbatim DB status (no relabeling). Unknown statuses fall back to neutral.
+// Status → house colour tokens (COLOUR only; the displayed TEXT comes from
+// STATUS_LABELS below). Unknown statuses fall back to neutral.
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   identified:        { bg: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" },
   notified:          { bg: "var(--color-warning-bg)",   color: "var(--color-warning)" },
@@ -80,19 +81,29 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   closed:            { bg: "var(--color-success-bg)",   color: "var(--color-success)" },
 };
 
+// Small frontend display map mirroring the StatsPanel vocab (documents.py:833-837).
+// Only agreed/closed reach the In-Force view; anything else falls back to its raw
+// value (defensive). The full status-vocab unification is §6 (deferred,
+// single-source-of-truth later).
+const STATUS_LABELS: Record<string, string> = {
+  agreed: "Approved",
+  closed: "Closed",
+};
+
 // ── Component ─────────────────────────────────────────────────────────────
 
 export default function ContractInForcePanel({ resolution }: Props) {
   const { clauses, change_orders } = resolution;
 
-  // Raw status chip — verbatim text, NEVER relabeled.
+  // Status chip — StatsPanel-aligned display label (agreed→Approved, closed→Closed);
+  // raw value as defensive fallback. §6 will unify the vocab at a single source.
   const statusChip = (status: string) => {
     const c = STATUS_COLORS[status] ?? {
       bg: "var(--color-bg-secondary)", color: "var(--color-text-secondary)",
     };
     return (
       <span style={{ ...chipBase, background: c.bg, color: c.color }}>
-        {status}
+        {STATUS_LABELS[status] ?? status}
       </span>
     );
   };
@@ -152,11 +163,12 @@ export default function ContractInForcePanel({ resolution }: Props) {
         {c.superseded_by_amendment && (
           <span style={{
             ...chipBase,
+            textTransform: "none",
             alignSelf: "flex-start",
             background: "var(--color-ai-bg)", color: "var(--color-ai)",
             border: "0.5px solid var(--color-ai)",
           }}>
-            ↳ {c.superseded_by_amendment.amendment_number}
+            Amendment ile yönetiliyor: {c.superseded_by_amendment.amendment_number}
           </span>
         )}
       </div>
@@ -194,7 +206,7 @@ export default function ContractInForcePanel({ resolution }: Props) {
       <div>
         <p style={SECTION_LABEL}>Değişiklik Emirleri</p>
         {change_orders.length === 0 ? (
-          <p style={EMPTY_STATE}>Bu projede değişiklik emri yok</p>
+          <p style={EMPTY_STATE}>Yürürlükte değişiklik emri yok</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
             {change_orders.map(changeRow)}

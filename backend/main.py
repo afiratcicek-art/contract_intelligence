@@ -12,7 +12,7 @@ import logging
 
 from backend.core.config import settings
 from backend.core.limiter import limiter
-from backend.routers import auth, projects, project_dashboard, rfis, correspondences, changes, chronologies, deliverables, amendments, overrides, contract
+from backend.routers import auth, projects, project_dashboard, rfis, correspondences, changes, chronologies, deliverables, amendments, overrides, contract, incorporations
 from backend.routers import config as config_router
 from backend.routers import documents
 from backend.routers import alerts as alerts_router
@@ -167,6 +167,7 @@ app.include_router(rfis.router, prefix=API_V1)
 app.include_router(correspondences.router, prefix=API_V1)
 app.include_router(amendments.router, prefix=API_V1)
 app.include_router(overrides.router, prefix=API_V1)
+app.include_router(incorporations.router, prefix=API_V1)
 app.include_router(contract.router, prefix=API_V1)
 app.include_router(changes.router, prefix=API_V1)
 app.include_router(chronologies.router, prefix=API_V1)

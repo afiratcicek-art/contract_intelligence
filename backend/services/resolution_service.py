@@ -9,12 +9,13 @@ from backend.models.resolution import (
 )
 
 
-# B3 — pure resolution logic (ADR-013 Stage 1). NO DB access here: it takes the
-# two repository result sets and folds them into the in-force graph, so it is
-# fully deterministic and unit-testable. The system does NOT infer operativeness
-# — only CM-confirmed facts drive the graph (the caller passes status='confirmed'
-# overrides only; changes.status is surfaced raw, never used as a filter).
-# Migration 043: clause subject is subject_clause_id (contract_clauses FK).
+# B3 — pure resolution logic (ADR-013 Stage 1 + 043 incorporation). NO DB
+# access here: it takes repository result sets and folds them into the in-force
+# graph, so it is fully deterministic and unit-testable. The system does NOT
+# infer operativeness — only CM-confirmed facts drive the graph (the caller
+# passes status='confirmed' overrides / incorporations only; changes.status is
+# surfaced raw, never used as a filter).
+# Stack: override (supersede) > incorporation (prefer-as-if-in-body) > contract.
 
 
 def _amendment_ref(embed: dict) -> AmendmentRef:
@@ -42,11 +43,22 @@ def _winner_key(override: dict):
     )
 
 
+def _inc_winner_key(incorporation: dict):
+    return (
+        incorporation.get("created_at") or "",
+        str(incorporation.get("id") or ""),
+    )
+
+
 def resolve_in_force(
     overrides: list[dict],
     changes: list[dict],
+    incorporations: Optional[list[dict]] = None,
     subject_clause_id: Optional[UUID] = None,
 ) -> ResolutionResponse:
+    if incorporations is None:
+        incorporations = []
+
     clause_overrides = [
         o for o in overrides if o.get("scope") == "clause_of_contract"
     ]
@@ -54,22 +66,45 @@ def resolve_in_force(
         o for o in overrides if o.get("scope") == "full_change_order"
     ]
 
-    # clauses[]: group clause-of-contract overrides by subject_clause_id, one
-    # winner each. Only clauses that HAVE an override are enumerated — a clause
-    # with no override is simply absent here (unless targeted below).
+    # (a) override winners by subject_clause_id — governing_instrument=amendment.
     by_subject: dict[str, list[dict]] = {}
     for o in clause_overrides:
         by_subject.setdefault(str(o["subject_clause_id"]), []).append(o)
 
     clauses: list[ClauseResolution] = []
+    overridden_subjects: set[str] = set()
     for scid, group in by_subject.items():
         winner = max(group, key=_winner_key)
+        overridden_subjects.add(scid)
         clauses.append(
             ClauseResolution(
                 subject_clause_id=scid,
                 governing_instrument="amendment",
                 amendment=_amendment_ref(winner["amendments"]),
                 override_id=winner["id"],
+            )
+        )
+
+    # (b) confirmed incorporations whose source subject has NO override.
+    # Override wins the stack: that subject keeps only the amendment row.
+    by_source: dict[str, list[dict]] = {}
+    for inc in incorporations:
+        source = inc.get("source_clause") or {}
+        sid = str(inc.get("source_clause_id") or source.get("id") or "")
+        if not sid or sid in overridden_subjects:
+            continue
+        by_source.setdefault(sid, []).append(inc)
+
+    for sid, group in by_source.items():
+        winner = max(group, key=_inc_winner_key)
+        target = winner.get("target_clause") or {}
+        clauses.append(
+            ClauseResolution(
+                subject_clause_id=sid,
+                governing_instrument="incorporation",
+                incorporation_id=winner["id"],
+                target_clause_ref=target.get("clause_ref"),
+                target_document_id=target.get("contract_document_id"),
             )
         )
 
@@ -104,8 +139,8 @@ def resolve_in_force(
         )
 
     # Optional targeted lookup: narrow clauses[] to one subject_clause_id. If
-    # that clause has no override, it resolves to the base contract (kept
-    # pure/here so it is exercised by the resolver's own unit tests).
+    # that clause has neither override nor incorporation, it resolves to the
+    # base contract (kept pure/here so it is exercised by unit tests).
     if subject_clause_id is not None:
         target = str(subject_clause_id)
         matched = [cl for cl in clauses if str(cl.subject_clause_id) == target]
@@ -113,8 +148,6 @@ def resolve_in_force(
             ClauseResolution(
                 subject_clause_id=subject_clause_id,
                 governing_instrument="contract",
-                amendment=None,
-                override_id=None,
             )
         ]
 

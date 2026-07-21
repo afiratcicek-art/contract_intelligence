@@ -21,14 +21,19 @@ class AmendmentRef(BaseModel):
 
 
 class ClauseResolution(BaseModel):
-    # "For clause X, which instrument is in force?" One row per subject_clause_id
-    # that has a confirmed override (migration 043 registry FK).
-    # A targeted subject_clause_id with no override resolves to the contract
-    # (governing_instrument='contract', amendment=null).
+    # "For clause X, which instrument is in force / preferentially read?"
+    # One row per subject_clause_id that has a confirmed override OR a confirmed
+    # incorporation (043). Stack: override (amendment) > incorporation > contract.
+    # A targeted subject_clause_id with neither resolves to the contract
+    # (governing_instrument='contract').
     subject_clause_id: UUID
-    governing_instrument: Literal["contract", "amendment"]
+    governing_instrument: Literal["contract", "amendment", "incorporation"]
     amendment: Optional[AmendmentRef] = None
     override_id: Optional[UUID] = None
+    # Incorporation branch (prefer target as if in the body of the source).
+    incorporation_id: Optional[UUID] = None
+    target_clause_ref: Optional[str] = None
+    target_document_id: Optional[UUID] = None
 
 
 class ChangeOrderResolution(BaseModel):

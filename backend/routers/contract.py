@@ -21,6 +21,9 @@ from backend.models.resolution import (
 )
 from backend.repositories.amendment_repository import AmendmentRepository
 from backend.repositories.change_repository import ChangeRepository
+from backend.repositories.clause_incorporation_repository import (
+    ClauseIncorporationRepository,
+)
 from backend.repositories.clause_override_repository import ClauseOverrideRepository
 from backend.repositories.contract_repository import ContractRepository
 from backend.services.audit_service import AuditService
@@ -87,8 +90,14 @@ def get_contract_resolution(
         str(project_id)
     )
     changes = ChangeRepository(db).list_for_resolution(str(project_id))
+    incorporations = ClauseIncorporationRepository(db).list_confirmed_with_clauses(
+        str(project_id)
+    )
     resolved = resolve_in_force(
-        overrides, changes, subject_clause_id=subject_clause_id
+        overrides,
+        changes,
+        incorporations=incorporations,
+        subject_clause_id=subject_clause_id,
     )
 
     contract_row = ContractRepository(db).get_by_project(str(project_id))

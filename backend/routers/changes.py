@@ -25,18 +25,22 @@ def _mask_changes(changes: list, access: dict) -> list:
 @router.get("")
 def list_changes(
     project_id: UUID,
-    status: Optional[str] = Query(None),
+    status: Optional[list[str]] = Query(None),
     origin: Optional[str] = Query(None),
+    q: Optional[str] = Query(None, max_length=200),
     limit: int = Query(100, le=500),
     offset: int = Query(0, ge=0),
     access: dict = Depends(verify_project_access),
 ):
+    # status is repeatable (?status=agreed&status=under_negotiation). A single
+    # ?status=agreed arrives as ["agreed"] — same filter as the old .eq path.
     db = access["db"]
     repo = ChangeRepository(db)
     changes = repo.list_by_project(
         str(project_id),
         status=status,
         origin=origin,
+        q=q,
         limit=limit,
         offset=offset,
     )

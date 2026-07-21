@@ -60,12 +60,18 @@ const CHRONOLOGY_INDEPENDENT_TYPES: Array<{ key: string; label: string }> = [
 
 // ── Props ─────────────────────────────────────────────────────────────────
 
+type StatsFilterType =
+  | "corrType"
+  | "rfiDiscipline"
+  | "keyword"
+  | "location"
+  | "changeStatus"
+  | "amendment"
+  | "contractDoc";
+
 interface Props {
   stats: DocumentStats;
-  onFilter: (
-    filterType: "corrType" | "rfiDiscipline" | "keyword" | "location",
-    value: string
-  ) => void;
+  onFilter: (filterType: StatsFilterType, value: string) => void;
   activeFilter: { type: string; value: string } | null;
 }
 
@@ -96,17 +102,18 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
   const isActive = (type: string, value: string) =>
     activeFilter?.type === type && activeFilter?.value === value;
 
-  // Tıklanabilir alt satır (CORR/RFI için)
+  // Tıklanabilir alt satır (CORR/RFI + Contract & Amendments govern-record)
   const filterRow = (
     label: string,
     count: number,
-    filterType: "corrType" | "rfiDiscipline",
-    key: string
+    filterType: "corrType" | "rfiDiscipline" | "changeStatus" | "amendment" | "contractDoc",
+    key: string,
+    italic = false,
   ) => {
     const active = isActive(filterType, key);
     return (
       <button
-        key={key}
+        key={`${filterType}:${key}`}
         onClick={() => onFilter(filterType, key)}
         style={{
           display: "flex", justifyContent: "space-between",
@@ -119,6 +126,7 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
       >
         <span style={{
           fontSize: 11,
+          fontStyle: italic ? "italic" : "normal",
           color: active ? "var(--color-accent)" : count > 0
             ? "var(--color-text-primary)" : "var(--color-text-secondary)",
           fontWeight: active ? 500 : 400,
@@ -139,7 +147,7 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
     );
   };
 
-  // Salt bilgi satırı (Contract & Amendments + Diğer Belgeler için)
+  // Salt bilgi satırı (Diğer Belgeler — Faz B'ye kadar tıklanamaz)
   const infoRow = (label: string, count: number, italic = false) => (
     <div
       key={label}
@@ -260,15 +268,17 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
           )
         )}
 
-        {/* CONTRACT & AMENDMENTS */}
+        {/* CONTRACT & AMENDMENTS — govern-record (tıklanabilir).
+            §6 vocab bridge lives HERE only: UI bucket label → DB status value(s).
+            DocumentsModule/doSearch pass the value through; do not re-map there. */}
         {card("Contract & Amendments", contractTotal, true, <>
-          {infoRow("Sözleşmeler", stats.contract_doc_count ?? 0)}
+          {filterRow("Sözleşmeler", stats.contract_doc_count ?? 0, "contractDoc", "all")}
           <p style={SUB_SECTION_LABEL}>Değişiklikler</p>
-          {infoRow("Approved",      stats.changes_approved      ?? 0)}
-          {infoRow("Under Review",  stats.changes_under_review  ?? 0)}
-          {infoRow("Disputed",      stats.changes_disputed      ?? 0)}
+          {filterRow("Approved",     stats.changes_approved     ?? 0, "changeStatus", "agreed")}
+          {filterRow("Under Review", stats.changes_under_review ?? 0, "changeStatus", "impact_submitted,under_negotiation")}
+          {filterRow("Disputed",     stats.changes_disputed     ?? 0, "changeStatus", "disputed")}
           {/* Other Amendments — amendments entity'sinin gerçek sayısı (migration 037) */}
-          {infoRow("Other Amendments", stats.other_amendments_count ?? 0, true)}
+          {filterRow("Other Amendments", stats.other_amendments_count ?? 0, "amendment", "all", true)}
         </>)}
 
         {/* DİĞER BELGELER */}

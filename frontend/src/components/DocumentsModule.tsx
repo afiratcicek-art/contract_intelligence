@@ -1,7 +1,15 @@
 ﻿import { useState, useCallback, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "../hooks/useDebounce";
-import { api, fetchDocumentStats, type DocumentStats } from "../services/api";
+import {
+  api,
+  fetchContractResolution,
+  fetchDocumentStats,
+  type AmendmentRow,
+  type ChangeRow,
+  type ContractDocumentRef,
+  type DocumentStats,
+} from "../services/api";
 import DocumentStatsPanel from "./DocumentStatsPanel";
 import FocusedRelationGraph from "./FocusedRelationGraph";
 
@@ -30,7 +38,7 @@ interface CorrRow {
 }
 
 interface DocSearchResult {
-  module: "rfi" | "correspondence";
+  module: "rfi" | "correspondence" | "change" | "amendment" | "contract";
   ref: string;
   subject: string;
   status: string;
@@ -44,10 +52,18 @@ interface DocSearchResult {
 /** The dimensions a click on the stats panel can carry.
  *  A keyword or location chip carries a search term. A card row carries a
  *  FIELD of a specific entity — the RFI card's rows are disciplines, the
- *  correspondence card's rows are types. doSearch switches on this, and the
+ *  correspondence card's rows are types, Contract & Amendments rows are
+ *  changeStatus / amendment / contractDoc. doSearch switches on this, and the
  *  switch is exhaustiveness-checked, so adding a member here without handling
  *  it there is a compile error rather than a silent keyword search. */
-type FilterType = "corrType" | "rfiDiscipline" | "keyword" | "location";
+type FilterType =
+  | "corrType"
+  | "rfiDiscipline"
+  | "keyword"
+  | "location"
+  | "changeStatus"
+  | "amendment"
+  | "contractDoc";
 
 interface ActiveFilter {
   type: FilterType;
@@ -126,17 +142,27 @@ export default function DocumentsModule({ projectId }: Props) {
   /* ── Navigation ─────────────────────────────────────────
      Local mirror of Workspace.tsx generalNavTarget.
      Kept here so DocumentsModule has no page-level deps.  */
-  const navTarget = (mod: "rfi" | "correspondence", id: string) => {
+  const navTarget = (
+    mod: "rfi" | "correspondence" | "change" | "amendment" | "contract",
+    id: string,
+  ) => {
     if (mod === "correspondence")
       return `/projects/${projectId}/workspace/correspondence/${id}`;
     if (mod === "rfi")
       return `/projects/${projectId}/workspace/rfis/${id}`;
+    if (mod === "change")
+      return `/projects/${projectId}/workspace/changes/${id}`;
+    if (mod === "amendment")
+      return `/projects/${projectId}/workspace?module=changes`;
+    if (mod === "contract")
+      return `/projects/${projectId}/view/${id}`;
     return `/projects/${projectId}/workspace`;
   };
 
   /* ── Search ──────────────────────────────────────────────
      Parallel fetch: rfis + correspondences chain RPCs
-     (invoked server-side when q is present).
+     (invoked server-side when q is present), plus govern-record
+     endpoints for Contract & Amendments card rows.
      Empty query → clear results, no API call.            */
   const doSearch = useCallback(
     async (q: string, filter: ActiveFilter | null) => {
@@ -150,27 +176,52 @@ export default function DocumentsModule({ projectId }: Props) {
            A card row does not: the RFI card's "Architectural" is a question
            about RFIs, and asking correspondences for the literal word
            "Architectural" is what produced the wrong results this replaces.
-           So a card row narrows one list and drops the other entirely. */
+           So a card row narrows one list and drops the other entirely.
+           Govern-record rows (change/amendment/contract) likewise skip RFI+corr. */
         let rfiUrl: string | null = `${base}/rfis?limit=100&q=${enc}`;
         let corrUrl: string | null = `${base}/correspondences?limit=100&q=${enc}`;
+        let changeUrl: string | null = null;
+        let amendmentUrl: string | null = null;
+        let fetchContracts = false;
 
         if (filter) {
           switch (filter.type) {
             case "rfiDiscipline": {
-              /* Filter pins the discipline; keyword (if any) narrows within it.
-                 Correspondences are dropped: a discipline is an RFI concept. */
               const kw = q.trim() ? `&q=${enc}` : "";
               rfiUrl = `${base}/rfis?limit=100&discipline=${encodeURIComponent(filter.value)}${kw}`;
               corrUrl = null;
               break;
             }
             case "corrType": {
-              /* Filter pins the correspondence type; keyword narrows within it.
-                 RFIs are dropped: a correspondence type is a correspondence
-                 concept. */
               const kw = q.trim() ? `&q=${enc}` : "";
               corrUrl = `${base}/correspondences?limit=100&type=${encodeURIComponent(filter.value)}${kw}`;
               rfiUrl = null;
+              break;
+            }
+            case "changeStatus": {
+              /* §6 bucket→DB status already resolved in DocumentStatsPanel;
+                 value may be comma-joined multi-status ("impact_submitted,under_negotiation"). */
+              const statuses = filter.value.split(",").map((s) => s.trim()).filter(Boolean);
+              const statusQs = statuses
+                .map((s) => `status=${encodeURIComponent(s)}`)
+                .join("&");
+              const kw = q.trim() ? `&q=${enc}` : "";
+              changeUrl = `${base}/changes?limit=100&${statusQs}${kw}`;
+              rfiUrl = null;
+              corrUrl = null;
+              break;
+            }
+            case "amendment": {
+              /* Endpoint has no q — list all amendments (location-chip analogue). */
+              amendmentUrl = `${base}/amendments?limit=100`;
+              rfiUrl = null;
+              corrUrl = null;
+              break;
+            }
+            case "contractDoc": {
+              fetchContracts = true;
+              rfiUrl = null;
+              corrUrl = null;
               break;
             }
             case "keyword":
@@ -191,9 +242,16 @@ export default function DocumentsModule({ projectId }: Props) {
           }
         }
 
-        const [rfis, corrs] = await Promise.all([
+        const [rfis, corrs, changes, amendments, resolution] = await Promise.all([
           rfiUrl ? api.get<RFIRow[]>(rfiUrl) : Promise.resolve<RFIRow[]>([]),
           corrUrl ? api.get<CorrRow[]>(corrUrl) : Promise.resolve<CorrRow[]>([]),
+          changeUrl ? api.get<ChangeRow[]>(changeUrl) : Promise.resolve<ChangeRow[]>([]),
+          amendmentUrl
+            ? api.get<AmendmentRow[]>(amendmentUrl)
+            : Promise.resolve<AmendmentRow[]>([]),
+          fetchContracts
+            ? fetchContractResolution(projectId)
+            : Promise.resolve(null),
         ]);
 
         const rfiResults: DocSearchResult[] = (rfis ?? []).map((r) => ({
@@ -218,8 +276,50 @@ export default function DocumentsModule({ projectId }: Props) {
           has_response: c.has_response,
         }));
 
-        /* Correspondence first — mirrors General Search ordering */
-        setResults([...corrResults, ...rfiResults]);
+        const changeResults: DocSearchResult[] = (changes ?? []).map((c) => ({
+          module: "change" as const,
+          ref:     c.change_number,
+          subject: c.title,
+          status:  c.status,
+          date:    c.created_at,
+          id:      c.id,
+        }));
+
+        const amendmentResults: DocSearchResult[] = (amendments ?? []).map((a) => ({
+          module: "amendment" as const,
+          ref:     a.amendment_number,
+          subject: a.title,
+          status:  a.arrival_path,
+          date:    a.amendment_date ?? "",
+          id:      a.id,
+        }));
+
+        const docs: ContractDocumentRef[] = resolution?.contract?.documents ?? [];
+        const contractResults: DocSearchResult[] = docs
+          .filter((d): d is ContractDocumentRef & { pdf_document_id: string } =>
+            d.pdf_document_id != null
+          )
+          .map((d) => {
+            const name = d.label ?? d.original_filename ?? "Belge";
+            return {
+              module: "contract" as const,
+              ref:     name,
+              subject: name,
+              status:  "contract",
+              date:    "",
+              id:      d.pdf_document_id,
+            };
+          });
+
+        /* Correspondence first — mirrors General Search ordering; then RFI;
+           then govern-record sections (change / amendment / contract). */
+        setResults([
+          ...corrResults,
+          ...rfiResults,
+          ...changeResults,
+          ...amendmentResults,
+          ...contractResults,
+        ]);
       } catch {
         setResults([]);
       } finally {
@@ -264,9 +364,10 @@ export default function DocumentsModule({ projectId }: Props) {
       setActiveFilter({ type: filterType, value });
       setQuery(value);
     } else {
-      /* Card rows (corrType, rfiDiscipline) become a pinned badge. The filter
-         leaves the box so the user can type a keyword ON TOP of it; the badge,
-         not the box, now holds the filter value. */
+      /* Card rows (corrType, rfiDiscipline, changeStatus, amendment, contractDoc)
+         become a pinned badge. The filter leaves the box so the user can type a
+         keyword ON TOP of it (where the endpoint supports q); the badge, not
+         the box, now holds the filter value. */
       setActiveFilter({ type: filterType, value });
       setQuery("");
       setResults([]);
@@ -529,9 +630,69 @@ export default function DocumentsModule({ projectId }: Props) {
     );
   };
 
+  /* ── Render: flat govern-record rows (change/amendment/contract) ──
+     Mirrors renderRfiSection house style, but: no parent-child, no
+     relation-map button (focus graph does not cover these entities). */
+  const renderRecordSection = (group: DocSearchResult[], title: string) => {
+    if (group.length === 0) return null;
+    const renderRow = (r: DocSearchResult) => (
+      <div
+        key={r.id}
+        onClick={() => navigate(navTarget(r.module, r.id))}
+        style={{
+          display: "flex", alignItems: "center",
+          justifyContent: "space-between",
+          padding: "8px 12px",
+          background: cardBg,
+          marginBottom: 2, cursor: "pointer",
+          borderLeft: `2px solid ${accent}`,
+        }}
+      >
+        <div>
+          <span style={{
+            fontFamily: "JetBrains Mono, monospace", fontSize: 11,
+            color: textSecond,
+          }}>
+            {r.ref}
+          </span>
+          <p style={{
+            fontSize: 12, color: textPrimary,
+            fontWeight: 500, marginTop: 2,
+          }}>
+            {r.subject}
+          </p>
+          {r.date && (
+            <p style={{ fontSize: 11, color: textSecond, marginTop: 1 }}>
+              {r.date}
+            </p>
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {statusPill(r.status)}
+        </div>
+      </div>
+    );
+
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,
+          letterSpacing: "0.08em", color: textSecond, marginBottom: 8,
+          fontFamily: "Inter, sans-serif",
+        }}>
+          {title}
+        </div>
+        {group.map((r) => renderRow(r))}
+      </div>
+    );
+  };
+
   /* ── Derived lists ───────────────────────────────────── */
-  const corrGroup = results.filter((r) => r.module === "correspondence");
-  const rfiGroup  = results.filter((r) => r.module === "rfi");
+  const corrGroup       = results.filter((r) => r.module === "correspondence");
+  const rfiGroup        = results.filter((r) => r.module === "rfi");
+  const changeGroup     = results.filter((r) => r.module === "change");
+  const amendmentGroup  = results.filter((r) => r.module === "amendment");
+  const contractGroup   = results.filter((r) => r.module === "contract");
 
   /* ── Render ──────────────────────────────────────────── */
   return (
@@ -563,13 +724,23 @@ export default function DocumentsModule({ projectId }: Props) {
         </div>
       )}
 
-      {activeFilter && (activeFilter.type === "rfiDiscipline" || activeFilter.type === "corrType") && (
+      {activeFilter && (
+        activeFilter.type === "rfiDiscipline"
+        || activeFilter.type === "corrType"
+        || activeFilter.type === "changeStatus"
+        || activeFilter.type === "amendment"
+        || activeFilter.type === "contractDoc"
+      ) && (
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
           marginBottom: 8,
         }}>
           <span style={{ fontSize: 11, color: textSecond }}>
-            {activeFilter.type === "rfiDiscipline" ? "RFI disiplini" : "Yazışma türü"}:
+            {activeFilter.type === "rfiDiscipline" ? "RFI disiplini"
+              : activeFilter.type === "corrType" ? "Yazışma türü"
+              : activeFilter.type === "changeStatus" ? "Değişiklik durumu"
+              : activeFilter.type === "amendment" ? "Amendments"
+              : "Sözleşmeler"}:
           </span>
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 6,
@@ -635,7 +806,7 @@ export default function DocumentsModule({ projectId }: Props) {
         </p>
       )}
 
-      {!loading && query.trim() && results.length === 0 && (
+      {!loading && (query.trim() || activeFilter) && results.length === 0 && (
         <p style={{
           fontSize: 12, color: textSecond, fontStyle: "italic",
           fontFamily: "Inter, sans-serif",
@@ -644,13 +815,13 @@ export default function DocumentsModule({ projectId }: Props) {
         </p>
       )}
 
-      {!query.trim() && !focusId && statsLoading && (
+      {!query.trim() && !activeFilter && !focusId && statsLoading && (
         <p style={{ fontSize: 12, color: textSecond, fontFamily: "Inter, sans-serif" }}>
           İstatistikler yükleniyor...
         </p>
       )}
 
-      {!query.trim() && !focusId && !statsLoading && stats && (
+      {!query.trim() && !activeFilter && !focusId && !statsLoading && stats && (
         <DocumentStatsPanel
           stats={stats}
           onFilter={handleFilter}
@@ -658,11 +829,14 @@ export default function DocumentsModule({ projectId }: Props) {
         />
       )}
 
-      {/* Results — Correspondence + RFI sections */}
+      {/* Results — Correspondence + RFI + govern-record sections */}
       {!loading && results.length > 0 && (
         <div>
           {corrGroup.length > 0 && renderCorrSection(corrGroup)}
           {rfiGroup.length  > 0 && renderRfiSection(rfiGroup)}
+          {renderRecordSection(changeGroup, "Değişiklikler")}
+          {renderRecordSection(amendmentGroup, "Amendments")}
+          {renderRecordSection(contractGroup, "Sözleşmeler")}
         </div>
       )}
 

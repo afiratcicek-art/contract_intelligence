@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 from backend.repositories.base import BaseRepository
 
 
@@ -8,8 +8,9 @@ class ChangeRepository(BaseRepository):
     def list_by_project(
         self,
         project_id: str,
-        status: Optional[str] = None,
+        status: Optional[Union[list[str], str]] = None,
         origin: Optional[str] = None,
+        q: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict]:
@@ -20,9 +21,15 @@ class ChangeRepository(BaseRepository):
             .eq("is_deleted", False)
         )
         if status:
-            query = query.eq("status", status)
+            # Multi-status via .in_; a bare str is wrapped for back-compat
+            # (single-element .in_ == former .eq behaviour).
+            statuses = status if isinstance(status, list) else [status]
+            query = query.in_("status", statuses)
         if origin:
             query = query.eq("origin", origin)
+        if q:
+            # Title-only text search (rfis/corrs q-analogue; no chain RPC here).
+            query = query.ilike("title", f"%{q}%")
         result = query.order("created_at", desc=True).limit(limit).offset(offset).execute()
         return result.data or []
 

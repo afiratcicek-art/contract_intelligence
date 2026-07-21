@@ -280,6 +280,23 @@ export interface ClauseResolution {
   override_id:          string | null;
 }
 
+/** List-row shapes for DocumentsModule govern-record search (changes / amendments). */
+export interface ChangeRow {
+  id:            string;
+  change_number: string;
+  title:         string;
+  status:        string;
+  created_at:    string;
+}
+
+export interface AmendmentRow {
+  id:               string;
+  amendment_number: string;
+  title:            string;
+  arrival_path:     string;
+  amendment_date:   string | null;
+}
+
 export interface ChangeOrderResolution {
   change_id:                string;
   change_number:            string;

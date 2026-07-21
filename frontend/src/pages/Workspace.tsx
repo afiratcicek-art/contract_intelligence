@@ -71,6 +71,19 @@ export default function Workspace() {
       setActiveModule(m);
     }
   }, [location.search]);
+
+  // Contracts & Amendments sub-tab: "working" = the Changes list, "inforce" = B3 view.
+  // Deep-link via ?tab= (same shape as ?module=). Absent param → default "working".
+  const [contractTab, setContractTab] = useState<"working" | "inforce">(() => {
+    const params = new URLSearchParams(location.search);
+    const tb = params.get("tab");
+    return tb === "inforce" || tb === "working" ? tb : "working";
+  });
+  useEffect(() => {
+    const tb = new URLSearchParams(location.search).get("tab");
+    if (tb === "inforce" || tb === "working") setContractTab(tb);
+  }, [location.search]);
+
   const [projectName, setProjectName] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,8 +119,6 @@ export default function Workspace() {
   const [rfiDropdown, setRfiDropdown] = useState(false);
   const [rfiDateField, setRfiDateField] = useState<"submitted_date" | "response_due_date">("submitted_date");
 
-  // Contracts & Amendments sub-tab: "working" = the Changes list, "inforce" = B3 view.
-  const [contractTab, setContractTab] = useState<"working" | "inforce">("working");
   const [changes, setChanges] = useState<ChangeItem[]>([]);
   const [changeLoading, setChangeLoading] = useState(false);
   const [changeKeyword, setChangeKeyword] = useState("");

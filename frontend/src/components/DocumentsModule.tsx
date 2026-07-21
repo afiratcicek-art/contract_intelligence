@@ -153,9 +153,9 @@ export default function DocumentsModule({ projectId }: Props) {
     if (mod === "change")
       return `/projects/${projectId}/workspace/changes/${id}`;
     if (mod === "amendment")
-      return `/projects/${projectId}/workspace?module=changes`;
+      return `/projects/${projectId}/workspace?module=changes&tab=inforce`;
     if (mod === "contract")
-      return `/projects/${projectId}/view/${id}`;
+      return `/projects/${projectId}/workspace?module=changes&tab=inforce`;
     return `/projects/${projectId}/workspace`;
   };
 

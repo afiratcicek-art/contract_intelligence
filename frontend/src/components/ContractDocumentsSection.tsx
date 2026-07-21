@@ -1,25 +1,27 @@
 /**
  * ContractDocumentsSection — sözleşme belgeleri + satır satır ekler (ADR-014).
  *
- * Kök kartın belge alanı: mevcut bağlı belgeler, site stiline uyumlu
- * "Dosya Seç" butonu (NewCorrespondence ile aynı chip), ve satır satır
- * ek (annex) girdileri — her satırda etiket + dosya.
+ * Kök kartın belge alanı: mevcut bağlı belgeler (precedence_rank'e göre
+ * sıralı), CM-only ▲▼ yeniden sıralama, site stiline uyumlu "Dosya Seç",
+ * ve satır satır ek girdileri.
  *
- * Yazma yolu CM-only (backend require_cm_role + contract_documents_cm_write
- * RLS). Akış: dosya → mevcut /documents/upload (entity_type=contract_document)
- * → addContractDocument / updateContractDocument ile link. Label-only satır
- * migration 040 ile dosyasız kayıt edilebilir (dosya sonra gelir).
+ * Yazma yolu CM-only (backend require_cm_role + contract_documents_* RLS).
+ * CM gate: /projects/{id}/members + getAuth().user_id → project_role === 'cm'
+ * (repo'da ayrı frontend CM hook yok; SetupForm backend'e dayanır, burada
+ * sıralama kontrolü görünürlük için mirror edilir). Non-CM yalnızca rank okur.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties, ChangeEvent } from "react";
 import {
   addContractDocument,
+  api,
   unlinkContractDocument,
   updateContractDocument,
   uploadContractPdf,
   type ContractDocumentRef,
   type ContractRoot,
 } from "../services/api";
+import { getAuth } from "../store/auth";
 import DocumentLink from "./DocumentLink";
 
 interface Props {
@@ -67,6 +69,18 @@ const FILE_BTN: CSSProperties = {
   display: "inline-block",
 };
 
+const ARROW_BTN: CSSProperties = {
+  padding: "2px 6px",
+  backgroundColor: "var(--color-bg-primary)",
+  border: "1px solid var(--color-border-light)",
+  color: "var(--color-text-secondary)",
+  fontSize: 10,
+  fontFamily: "Inter, sans-serif",
+  cursor: "pointer",
+  borderRadius: 0,
+  lineHeight: 1.2,
+};
+
 const ACCEPT =
   ".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.jpg,.jpeg,.png,.dwg,.dxf,.txt,.csv";
 
@@ -79,6 +93,19 @@ interface DraftRow {
 let draftSeq = 0;
 const newDraft = (): DraftRow => ({ key: `d-${++draftSeq}`, label: "", file: null });
 
+/** Rank 1 first; NULL/unranked last. Stable by id for equal ranks. */
+function sortByPrecedence(docs: ContractDocumentRef[]): ContractDocumentRef[] {
+  return [...docs].sort((a, b) => {
+    const aNull = a.precedence_rank == null;
+    const bNull = b.precedence_rank == null;
+    if (aNull !== bNull) return aNull ? 1 : -1;
+    if (!aNull && !bNull && a.precedence_rank !== b.precedence_rank) {
+      return (a.precedence_rank as number) - (b.precedence_rank as number);
+    }
+    return a.id.localeCompare(b.id);
+  });
+}
+
 export default function ContractDocumentsSection({
   projectId,
   contract,
@@ -87,17 +114,67 @@ export default function ContractDocumentsSection({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([newDraft()]);
+  const [isCm, setIsCm] = useState(false);
+
+  useEffect(() => {
+    const me = getAuth()?.user_id;
+    if (!me) {
+      setIsCm(false);
+      return;
+    }
+    api
+      .get<{ user_id: string; project_role: string }[]>(`/projects/${projectId}/members`)
+      .then((members) => {
+        const row = members.find((m) => m.user_id === me);
+        setIsCm(row?.project_role === "cm");
+      })
+      .catch(() => setIsCm(false));
+  }, [projectId]);
 
   const fail = (msg: string) => {
     setError(msg);
     setBusy(false);
   };
 
+  const ordered = sortByPrecedence(contract.documents);
+
+  // Reassign 1..N over the new order; persist each changed rank via existing
+  // CM-only updateContractDocument. Survives reload because ranks are written.
+  const persistOrder = async (next: ContractDocumentRef[]) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const updates = next.map((d, i) => {
+        const rank = i + 1;
+        if (d.precedence_rank === rank) return null;
+        return updateContractDocument(projectId, contract.id, d.id, {
+          precedence_rank: rank,
+        });
+      }).filter(Boolean);
+      if (updates.length > 0) await Promise.all(updates);
+      onChanged();
+      setBusy(false);
+    } catch {
+      fail("Sıra kaydedilemedi. CM yetkinizi kontrol edin.");
+    }
+  };
+
+  const move = (index: number, direction: -1 | 1) => {
+    if (busy || !isCm) return;
+    const target = index + direction;
+    if (target < 0 || target >= ordered.length) return;
+    const next = [...ordered];
+    const tmp = next[index];
+    next[index] = next[target];
+    next[target] = tmp;
+    void persistOrder(next);
+  };
+
   // Quick-add: pick file → upload as contract_document → link (label = filename).
   const handleQuickUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || busy) return;
+    if (!file || busy || !isCm) return;
     setBusy(true);
     setError(null);
     try {
@@ -115,7 +192,7 @@ export default function ContractDocumentsSection({
 
   const submitDraft = async (row: DraftRow) => {
     const label = row.label.trim();
-    if (busy || (!label && !row.file)) return;
+    if (busy || !isCm || (!label && !row.file)) return;
     setBusy(true);
     setError(null);
     try {
@@ -139,11 +216,10 @@ export default function ContractDocumentsSection({
     }
   };
 
-  // Attach a file to an existing label-only annex row.
   const attachToExisting = async (link: ContractDocumentRef, e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || busy) return;
+    if (!file || busy || !isCm) return;
     setBusy(true);
     setError(null);
     try {
@@ -158,9 +234,8 @@ export default function ContractDocumentsSection({
     }
   };
 
-  // Unlink from the contract composition — PDF itself stays in Documents.
   const handleUnlink = async (link: ContractDocumentRef) => {
-    if (busy) return;
+    if (busy || !isCm) return;
     const name = link.label ?? link.original_filename ?? "bu belge";
     if (!window.confirm(`"${name}" sözleşmeden kaldırılsın mı?\n(Dosya Documents'ta kalır — yalnızca bağ kopar.)`)) {
       return;
@@ -176,7 +251,7 @@ export default function ContractDocumentsSection({
     }
   };
 
-  const docLine = (d: ContractDocumentRef) => {
+  const docLine = (d: ContractDocumentRef, index: number) => {
     const name = d.label ?? d.original_filename ?? "Belge";
     return (
       <div
@@ -187,6 +262,36 @@ export default function ContractDocumentsSection({
         }}
       >
         <span style={MONO}>{d.precedence_rank != null ? `#${d.precedence_rank}` : "—"}</span>
+        {isCm && ordered.length > 1 && (
+          <span style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
+            <button
+              type="button"
+              disabled={busy || index === 0}
+              onClick={() => move(index, -1)}
+              title="Yukarı (öncelik artar)"
+              style={{
+                ...ARROW_BTN,
+                opacity: busy || index === 0 ? 0.4 : 1,
+                cursor: busy || index === 0 ? "default" : "pointer",
+              }}
+            >
+              ▲
+            </button>
+            <button
+              type="button"
+              disabled={busy || index === ordered.length - 1}
+              onClick={() => move(index, 1)}
+              title="Aşağı (öncelik azalır)"
+              style={{
+                ...ARROW_BTN,
+                opacity: busy || index === ordered.length - 1 ? 0.4 : 1,
+                cursor: busy || index === ordered.length - 1 ? "default" : "pointer",
+              }}
+            >
+              ▼
+            </button>
+          </span>
+        )}
         {d.pdf_document_id ? (
           <DocumentLink
             projectId={projectId}
@@ -207,170 +312,175 @@ export default function ContractDocumentsSection({
               {name}
             </span>
             <span style={{ ...MONO, fontStyle: "italic" }}>dosya bekleniyor</span>
-            <label style={{ ...FILE_BTN, padding: "4px 10px", fontSize: 11, opacity: busy ? 0.6 : 1 }}>
-              Dosya Seç
-              <input
-                type="file"
-                accept={ACCEPT}
-                style={{ display: "none" }}
-                disabled={busy}
-                onChange={(e) => attachToExisting(d, e)}
-              />
-            </label>
+            {isCm && (
+              <label style={{ ...FILE_BTN, padding: "4px 10px", fontSize: 11, opacity: busy ? 0.6 : 1 }}>
+                Dosya Seç
+                <input
+                  type="file"
+                  accept={ACCEPT}
+                  style={{ display: "none" }}
+                  disabled={busy}
+                  onChange={(e) => attachToExisting(d, e)}
+                />
+              </label>
+            )}
           </>
         )}
         {d.pdf_document_id && d.original_filename && d.label && d.label !== d.original_filename && (
           <span style={MONO}>({d.original_filename})</span>
         )}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => handleUnlink(d)}
-          title="Sözleşmeden kaldır"
-          style={{
-            background: "none", border: "none",
-            color: "var(--color-text-secondary)",
-            cursor: busy ? "default" : "pointer",
-            fontSize: 14, padding: "0 4px", lineHeight: 1,
-          }}
-        >
-          ×
-        </button>
+        {isCm && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => handleUnlink(d)}
+            title="Sözleşmeden kaldır"
+            style={{
+              background: "none", border: "none",
+              color: "var(--color-text-secondary)",
+              cursor: busy ? "default" : "pointer",
+              fontSize: 14, padding: "0 4px", lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        )}
       </div>
     );
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {/* Existing linked / pending documents */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{ ...MONO, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
           Sözleşme belgeleri (öncelik sırası)
         </span>
-        {contract.documents.length === 0 ? (
+        {ordered.length === 0 ? (
           <p style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif", margin: 0 }}>
             Henüz bağlı belge yok
           </p>
         ) : (
-          contract.documents.map(docLine)
+          ordered.map((d, i) => docLine(d, i))
         )}
       </div>
 
-      {/* Quick-add — site-matching Dosya Seç */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <label style={{ ...FILE_BTN, opacity: busy ? 0.6 : 1, cursor: busy ? "default" : "pointer" }}>
-          Dosya Seç
-          <input
-            type="file"
-            accept={ACCEPT}
-            style={{ display: "none" }}
-            disabled={busy}
-            onChange={handleQuickUpload}
-          />
-        </label>
-        <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "Inter, sans-serif" }}>
-          PDF, Word, Excel, PowerPoint, Görsel, DWG, DXF, TXT, CSV
-        </span>
-      </div>
-
-      {/* Line-by-line ekler */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <span style={{ ...MONO, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          Ekler
-        </span>
-        {drafts.map((row) => (
-          <div
-            key={row.key}
-            style={{
-              display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap",
-              padding: "8px 10px",
-              background: "var(--color-bg-primary)",
-              borderLeft: "3px solid var(--color-border-light)",
-            }}
-          >
-            <div style={{ flex: "2 1 180px", minWidth: 140 }}>
-              <label style={LABEL}>Ek adı</label>
+      {isCm && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <label style={{ ...FILE_BTN, opacity: busy ? 0.6 : 1, cursor: busy ? "default" : "pointer" }}>
+              Dosya Seç
               <input
-                style={INPUT}
-                value={row.label}
-                placeholder="ör. EK-1 Özel Şartname"
+                type="file"
+                accept={ACCEPT}
+                style={{ display: "none" }}
                 disabled={busy}
-                onChange={(e) =>
-                  setDrafts((prev) =>
-                    prev.map((d) => (d.key === row.key ? { ...d, label: e.target.value } : d))
-                  )
-                }
+                onChange={handleQuickUpload}
               />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <span style={LABEL}>Dosya</span>
-              <label style={{ ...FILE_BTN, opacity: busy ? 0.6 : 1 }}>
-                {row.file ? row.file.name : "Dosya Seç"}
-                <input
-                  type="file"
-                  accept={ACCEPT}
-                  style={{ display: "none" }}
-                  disabled={busy}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    e.target.value = "";
-                    setDrafts((prev) =>
-                      prev.map((d) => (d.key === row.key ? { ...d, file } : d))
-                    );
+            </label>
+            <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "Inter, sans-serif" }}>
+              PDF, Word, Excel, PowerPoint, Görsel, DWG, DXF, TXT, CSV
+            </span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <span style={{ ...MONO, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Ekler
+            </span>
+            {drafts.map((row) => (
+              <div
+                key={row.key}
+                style={{
+                  display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap",
+                  padding: "8px 10px",
+                  background: "var(--color-bg-primary)",
+                  borderLeft: "3px solid var(--color-border-light)",
+                }}
+              >
+                <div style={{ flex: "2 1 180px", minWidth: 140 }}>
+                  <label style={LABEL}>Ek adı</label>
+                  <input
+                    style={INPUT}
+                    value={row.label}
+                    placeholder="ör. EK-1 Özel Şartname"
+                    disabled={busy}
+                    onChange={(e) =>
+                      setDrafts((prev) =>
+                        prev.map((d) => (d.key === row.key ? { ...d, label: e.target.value } : d))
+                      )
+                    }
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <span style={LABEL}>Dosya</span>
+                  <label style={{ ...FILE_BTN, opacity: busy ? 0.6 : 1 }}>
+                    {row.file ? row.file.name : "Dosya Seç"}
+                    <input
+                      type="file"
+                      accept={ACCEPT}
+                      style={{ display: "none" }}
+                      disabled={busy}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        e.target.value = "";
+                        setDrafts((prev) =>
+                          prev.map((d) => (d.key === row.key ? { ...d, file } : d))
+                        );
+                      }}
+                    />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy || (!row.label.trim() && !row.file)}
+                  onClick={() => submitDraft(row)}
+                  style={{
+                    fontSize: 12, fontWeight: 500, padding: "7px 14px",
+                    fontFamily: "Inter, sans-serif",
+                    background: "var(--color-accent)",
+                    color: "var(--color-bg-primary)",
+                    border: "none", borderRadius: 0,
+                    cursor: busy || (!row.label.trim() && !row.file) ? "default" : "pointer",
+                    opacity: busy || (!row.label.trim() && !row.file) ? 0.6 : 1,
                   }}
-                />
-              </label>
-            </div>
+                >
+                  Ekle
+                </button>
+                {drafts.length > 1 && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setDrafts((prev) => prev.filter((d) => d.key !== row.key))}
+                    style={{
+                      background: "none", border: "none",
+                      color: "var(--color-text-secondary)",
+                      cursor: "pointer", fontSize: 16, padding: "4px 6px",
+                    }}
+                    title="Satırı kaldır"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
             <button
               type="button"
-              disabled={busy || (!row.label.trim() && !row.file)}
-              onClick={() => submitDraft(row)}
+              disabled={busy}
+              onClick={() => setDrafts((prev) => [...prev, newDraft()])}
               style={{
-                fontSize: 12, fontWeight: 500, padding: "7px 14px",
+                alignSelf: "flex-start",
+                fontSize: 12, padding: "6px 12px",
                 fontFamily: "Inter, sans-serif",
-                background: "var(--color-accent)",
-                color: "var(--color-bg-primary)",
-                border: "none", borderRadius: 0,
-                cursor: busy || (!row.label.trim() && !row.file) ? "default" : "pointer",
-                opacity: busy || (!row.label.trim() && !row.file) ? 0.6 : 1,
+                background: "transparent",
+                color: "var(--color-accent-text)",
+                border: "1px solid var(--color-border-light)",
+                borderRadius: 0, cursor: busy ? "default" : "pointer",
               }}
             >
-              Ekle
+              + Satır ekle
             </button>
-            {drafts.length > 1 && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => setDrafts((prev) => prev.filter((d) => d.key !== row.key))}
-                style={{
-                  background: "none", border: "none",
-                  color: "var(--color-text-secondary)",
-                  cursor: "pointer", fontSize: 16, padding: "4px 6px",
-                }}
-                title="Satırı kaldır"
-              >
-                ×
-              </button>
-            )}
           </div>
-        ))}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setDrafts((prev) => [...prev, newDraft()])}
-          style={{
-            alignSelf: "flex-start",
-            fontSize: 12, padding: "6px 12px",
-            fontFamily: "Inter, sans-serif",
-            background: "transparent",
-            color: "var(--color-accent-text)",
-            border: "1px solid var(--color-border-light)",
-            borderRadius: 0, cursor: busy ? "default" : "pointer",
-          }}
-        >
-          + Satır ekle
-        </button>
-      </div>
+        </>
+      )}
 
       {error && (
         <p style={{ fontSize: 12, color: "var(--color-alert-red)", fontFamily: "Inter, sans-serif", margin: 0 }}>

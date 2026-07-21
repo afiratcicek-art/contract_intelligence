@@ -312,6 +312,8 @@ export interface ContractRoot {
   title:             string;
   contract_number:   string | null;
   description:       string | null;
+  // Same vocabulary as projects.contract_type / ContractType (TB-28).
+  contract_type:     string | null;
   // dlp_days = the DLP's LENGTH only; its window derives from actual
   // completion (dynamic, ADR-014) — never a stored date.
   commencement_date: string | null;
@@ -347,6 +349,7 @@ export interface ContractCreatePayload {
   title:              string;
   contract_number?:   string;
   description?:       string;
+  contract_type?:     string;
   commencement_date?: string;  // "YYYY-MM-DD"
   duration_days?:     number;
   dlp_days?:          number;

@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, Literal
 from datetime import date
 from uuid import UUID
+from backend.models.common import ContractType
 
 
 # B3 — Contract & Amendments resolution response models (ADR-013 Stage 1).
@@ -70,6 +71,9 @@ class ContractRoot(BaseModel):
     title: str
     contract_number: Optional[str] = None
     description: Optional[str] = None
+    # Same vocabulary as projects.contract_type / ContractType (migration 042;
+    # TB-28 dual-source with projects).
+    contract_type: Optional[ContractType] = None
     # dlp_days is the DLP's LENGTH only — its window derives from ACTUAL
     # completion (dynamic), never stored (ADR-014 term decision).
     commencement_date: Optional[date] = None

@@ -3,12 +3,15 @@ from typing import Optional, Literal
 from datetime import date
 from uuid import UUID
 from backend.core.sanitizer import sanitize_short, sanitize_medium
+from backend.models.common import ContractType
 
 
 # Contract registration models (ADR-014). The base contract is a record the CM
 # REGISTERS at project setup (HITL) — the fields describe an instrument that
 # already exists in the world, same registration (not drafting) framing as
 # amendments. role values mirror the DB CHECK in migration 039.
+# contract_type reuses ContractType (common.py) / migration 042 CHECK — same
+# vocabulary as projects.contract_type (TB-28 dual-source).
 PartyRole = Literal["employer", "contractor", "engineer", "other"]
 
 
@@ -25,6 +28,7 @@ class ContractCreate(BaseModel):
     title: str
     contract_number: Optional[str] = None
     description: Optional[str] = None
+    contract_type: Optional[ContractType] = None
     # TERM (ADR-014): dlp_days is the DLP's LENGTH only — its window is derived
     # from actual completion, never stored. gt=0 mirrors the DB CHECKs.
     commencement_date: Optional[date] = None
@@ -81,6 +85,7 @@ class ContractUpdate(BaseModel):
     title: Optional[str] = None
     contract_number: Optional[str] = None
     description: Optional[str] = None
+    contract_type: Optional[ContractType] = None
     commencement_date: Optional[date] = None
     duration_days: Optional[int] = Field(None, gt=0)
     dlp_days: Optional[int] = Field(None, gt=0)

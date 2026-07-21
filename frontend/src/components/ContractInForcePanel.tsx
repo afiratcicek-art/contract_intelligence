@@ -124,6 +124,18 @@ const ROLE_LABELS: Record<string, string> = {
   other:      "Diğer",
 };
 
+// Mirrors ProjectDetail.tsx CONTRACT_LABEL / ContractType enum.
+const CONTRACT_TYPE_LABELS: Record<string, string> = {
+  lump_sum: "Lump Sum",
+  remeasure: "Remeasure",
+  cost_plus: "Cost Plus",
+  target_cost: "Target Cost",
+  epc: "EPC",
+  epcm: "EPCM",
+  framework: "Framework",
+  other: "Other",
+};
+
 // ── Component ─────────────────────────────────────────────────────────────
 
 export default function ContractInForcePanel({ resolution, projectId, onDocumentsChanged }: Props) {
@@ -209,6 +221,12 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
         {/* DLP uzunluk olarak saklanır; penceresi FİİLİ tamamlanmadan türetilir
             (ADR-014) — sabit bitiş tarihi göstermek yanlış olurdu. */}
         {infoCell("DLP", c.dlp_days != null ? `${c.dlp_days} gün (fiili tamamlanmadan türetilir)` : "—")}
+        {infoCell(
+          "Tip",
+          c.contract_type
+            ? (CONTRACT_TYPE_LABELS[c.contract_type] ?? c.contract_type)
+            : "—",
+        )}
       </div>
 
       {/* Belge listesi + Dosya Seç + satır satır ekler (CM-only yazma yolu). */}

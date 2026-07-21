@@ -275,3 +275,16 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   yoksa "projelerin üstünde programme/portfolio katmanı" mı — gerçek vaka
   gelince seçilecek, ikisi de tablo modeliyle açık.
   Ne zaman: ilk fazlı/çok-sözleşmeli müşteri vakası geldiğinde.
+
+---
+
+## Contract type dual-source
+
+- **TB-28**: `projects.contract_type` (migration 001) ve `contracts.contract_type`
+  (migration 042) aynı ContractType enum değerlerini taşır. Phase-1'de create
+  sırasında client göndermezse proje değeri sözleşmeye DEFAULT edilir
+  (continuity). İleride tek kaynak seçilmeli (muhtemelen contracts — hiyerarşi
+  kökü / RAG çıpası) ve projects tarafı türetilen/denormalize veya kaldırılmış
+  olmalı. Şimdilik ikisi de yazılıyor; senkron drift riski bilinçli ertelendi.
+  Ne zaman: contract surface stabilize olduktan sonra, ilk veri-migration
+  penceresinde.

@@ -44,6 +44,7 @@ def _contract_root(row: dict) -> ContractRoot:
         title=row["title"],
         contract_number=row.get("contract_number"),
         description=row.get("description"),
+        contract_type=row.get("contract_type"),
         commencement_date=row.get("commencement_date"),
         duration_days=row.get("duration_days"),
         dlp_days=row.get("dlp_days"),
@@ -152,6 +153,21 @@ def create_contract(
     parties = data.pop("parties", [])
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
+
+    # Continuity (TB-28): if the client omits contract_type, inherit the
+    # project's existing value so the hierarchy root starts aligned. Written
+    # via access["db"] (RLS-scoped), never admin_client.
+    if "contract_type" not in data:
+        proj = (
+            db.table("projects")
+            .select("contract_type")
+            .eq("id", str(project_id))
+            .limit(1)
+            .execute()
+        )
+        proj_row = (proj.data or [None])[0]
+        if proj_row and proj_row.get("contract_type"):
+            data["contract_type"] = proj_row["contract_type"]
 
     contract = repo.create(data)
     repo.add_parties(contract["id"], parties)

@@ -9,65 +9,59 @@
 --   Until now the "contract" existed only as filed PDFs
 --   (pdf_document.entity_type = 'contract_document', entity_id = project_id,
 --   migration 007) with NO structured record: no parties, no commencement, no
---   duration, no DLP, no precedence order among its constituent documents.
---   The resolution surface (B3) therefore returned clauses + change_orders but
---   could not return the base contract as the hierarchy ROOT. This migration
---   gives the contract a table so that:
---     1. the In-Force view can show a DOCUMENT-CENTRIC hierarchy
---        (contract root -> amendments -> change orders), per Ali's ruling
---        2026-07-20 ("madde madde değil, belge belge");
---     2. the contract becomes the project-wide anchor the future RAG layer
---        will always ground on ("LLM hep buna dayanacak").
+--   duration, no DLP, no contract_type, no precedence among constituent
+--   documents. This migration is the SINGLE authoritative definition of the
+--   contract-root tables (contracts + contract_parties + contract_documents)
+--   and their RLS.
+--
+-- SUPERSEDES / CONSOLIDATES
+--   This file SUPERSEDES and consolidates the former incremental patches that
+--   briefly lived as separate files and are now DELETED from the repo:
+--     * former 040_contract_documents_nullable_pdf.sql
+--         → pdf_document_id nullable + ON DELETE SET NULL (annex may exist
+--           before its file; row survives file removal)
+--     * former 041_contract_documents_cm_delete.sql
+--         → contract_documents_cm_delete (CM-only DELETE of the LINK row only;
+--           the filed PDF stays in pdf_document / storage)
+--     * former 042_contracts_contract_type.sql
+--         → contracts.contract_type TEXT CHECK(...) matching ContractType
+--           (backend/models/common.py); projects.contract_type remains (TB-28)
+--   Fresh environments apply ONLY this 039. Environments that already ran the
+--   old 039+040+041+042 must DROP the three tables and re-apply this file
+--   (see the reset steps in the PR / architect handover — not in this SQL).
 --
 -- DOMAIN DECISIONS ENCODED HERE (Ali, 2026-07-20 — binding)
 --   * CARDINALITY — "model for N, default to 1": contracts carries project_id
---     with NO UNIQUE(project_id), so the SCHEMA already supports several
---     contracts per project (phased/packaged works). The PILOT UX is strictly
---     1 contract : 1 project, enforced at the API layer (409 on second create).
---     Multi-contract UX is a deferred decision -> TECHNICAL_DEBT.md TB-27.
---     When that day comes: NO migration needed, only UX.
---   * PARTIES — STRUCTURED, not free text: name + role
---     (employer / contractor / engineer / other), in contract_parties.
---     Foundation for future intelligence ("who is the Employer, who must this
---     notice be served on").
---   * TERM — three fields, DLP DYNAMIC: commencement_date + duration_days +
---     dlp_days. dlp_days stores the DLP's LENGTH ONLY. Its start/end are NEVER
---     stored: they derive from ACTUAL completion (commencement + duration +
---     delays -> completion -> DLP starts). Late completion => DLP starts late.
---     Storing a fixed DLP end date would silently go wrong on every delayed
---     project — this is deliberate, do not "denormalize" it.
---   * BESPOKE PRECEDENCE — a contract is COMPOSED of documents (Agreement,
---     LOA, Particular Conditions, General Conditions, ...) with an order of
---     precedence that is bespoke per contract. contract_documents links the
---     contract to its pdf_document rows with precedence_rank (1 = highest).
+--     with NO UNIQUE(project_id). Pilot UX is 1:1, enforced at the API (409).
+--     Multi-contract UX deferred → TECHNICAL_DEBT.md TB-27.
+--   * PARTIES — STRUCTURED (name + role), in contract_parties.
+--   * TERM — commencement_date + duration_days + dlp_days. dlp_days is the
+--     DLP's LENGTH ONLY; its window derives from ACTUAL completion (never
+--     stored as dates).
+--   * CONTRACT TYPE — same vocabulary as projects.contract_type / ContractType
+--     enum (lump_sum | remeasure | cost_plus | target_cost | epc | epcm |
+--     framework | other). Dual-source with projects → TB-28.
+--   * BESPOKE PRECEDENCE — contract_documents.precedence_rank (1 = highest;
+--     NULL = unranked).
+--   * ACCESS — reads = any active member; writes = CM ONLY (legal-effect
+--     decision, same ruling as migration 038 for amendments). Composition
+--     links (contract_documents) additionally allow CM DELETE of the link
+--     only. contracts / contract_parties: no DELETE policy (soft-delete /
+--     forensic archive on the aggregate root).
 --
 -- CONVENTION NOTES (era-split, same as 037 header)
---   These tables FK into the 001 family (projects, profiles), so they follow
---   the 001 idiom: uuid_generate_v4() + created_by -> profiles(id).
+--   001-family idiom: uuid_generate_v4() + created_by -> profiles(id).
 --
--- OUT OF SCOPE (deliberately NOT here)
---   - Clause-level content of the contract (the clause engine stays
---     subject_key-based, ADR-013; drill-down/RAG comes later).
---   - Multi-contract UX (TB-27) and any programme/portfolio layer above
---     projects — the table model leaves both open, decision deferred.
---   - Derived completion/DLP-window computation (needs actual-completion
---     tracking, which does not exist yet).
---
--- APPLY SEQUENCE (per project protocol)
+-- APPLY SEQUENCE (EK-15)
 --   file -> database/migrations/039_contracts.sql
 --   -> run in Supabase SQL Editor -> run the VERIFICATION block at the bottom
 --   -> bring its output back to the architect -> Ali commits (EK-5).
---   NOTE: the backend shipped alongside this migration queries these tables;
---   apply this BEFORE exercising the In-Force tab, or GET .../contract/resolution
---   will 500 with "relation contracts does not exist".
+--   Update docs/migrations/INDEX.md when this file changes.
 -- =============================================================================
 
 
 -- -----------------------------------------------------------------------------
--- TABLE 1: contracts
---   The structured record of the base contract — the project's anchor
---   instrument. One row per contract; pilot keeps one per project (API guard),
---   schema allows N (see header).
+-- TABLE 1: contracts — structured base-contract record (hierarchy root)
 -- -----------------------------------------------------------------------------
 CREATE TABLE contracts (
     id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -77,36 +71,44 @@ CREATE TABLE contracts (
     title              TEXT NOT NULL,
     description        TEXT,
 
-    -- TERM (see header): DLP is a LENGTH, never a stored date.
+    -- Same vocabulary as projects.contract_type / ContractType (TB-28).
+    contract_type      TEXT
+                         CHECK (
+                             contract_type IS NULL
+                             OR contract_type IN (
+                                 'lump_sum',
+                                 'remeasure',
+                                 'cost_plus',
+                                 'target_cost',
+                                 'epc',
+                                 'epcm',
+                                 'framework',
+                                 'other'
+                             )
+                         ),
+
+    -- TERM: DLP is a LENGTH, never a stored date.
     commencement_date  DATE,
     duration_days      INTEGER CHECK (duration_days > 0),
     dlp_days           INTEGER CHECK (dlp_days > 0),
 
     version            INTEGER     NOT NULL DEFAULT 1,
-    is_deleted         BOOLEAN     NOT NULL DEFAULT false,   -- soft-delete, matches sibling tables
+    is_deleted         BOOLEAN     NOT NULL DEFAULT false,
 
-    -- the user who REGISTERED it (HITL project setup). SET NULL so the record
-    -- survives a profile deletion. profiles(id) per the 001-family idiom.
     created_by         UUID REFERENCES profiles(id) ON DELETE SET NULL,
 
     created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 
-    -- NO UNIQUE(project_id) — deliberate ("model for N, default to 1", header).
+    -- NO UNIQUE(project_id) — deliberate ("model for N, default to 1").
 );
 
 CREATE INDEX idx_contracts_project_id ON contracts(project_id);
 
--- updated_at is per-table opt-in in this schema (001:563-569 function needs an
--- explicit trigger binding, same note as 037).
 CREATE TRIGGER trg_contracts_updated_at
     BEFORE UPDATE ON contracts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- RLS — reads = any active member; writes = CM ONLY, per the 038 ruling:
--- registering the base contract is a legal-effect decision (Contract Manager
--- authority), the same access model as amendments/clause_overrides after 038.
--- No DELETE policy: no table in this schema grants one (soft-delete only).
 ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY contracts_member_read ON contracts
@@ -130,16 +132,14 @@ CREATE POLICY contracts_cm_update ON contracts
         is_project_member(project_id)
         AND get_project_role(project_id) = 'cm'
     );
+-- No DELETE policy: soft-delete via is_deleted (forensic archive).
 
 
 -- -----------------------------------------------------------------------------
--- TABLE 2: contract_parties
---   Structured parties (Ali's ruling: name + role, NOT free text). Multiple
---   'other' parties are legal, so no UNIQUE(contract_id, role).
+-- TABLE 2: contract_parties — structured parties (name + role)
 -- -----------------------------------------------------------------------------
 CREATE TABLE contract_parties (
     id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    -- CASCADE: parties have no meaning without their contract.
     contract_id  UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
 
     role         TEXT NOT NULL
@@ -151,8 +151,7 @@ CREATE TABLE contract_parties (
 
 CREATE INDEX idx_contract_parties_contract_id ON contract_parties(contract_id);
 
--- RLS via the parent contract (child-table pattern, mirrors chronology_events
--- 002:316-343). Reads = member; writes/updates = CM only (same gate as parent).
+-- RLS via parent contract (child-table pattern, mirrors chronology_events).
 ALTER TABLE contract_parties ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY contract_parties_member_read ON contract_parties
@@ -175,7 +174,16 @@ CREATE POLICY contract_parties_cm_write ON contract_parties
     );
 
 CREATE POLICY contract_parties_cm_update ON contract_parties
-    FOR UPDATE USING (
+    FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM contracts c
+            WHERE c.id = contract_id
+              AND is_project_member(c.project_id)
+              AND get_project_role(c.project_id) = 'cm'
+        )
+    )
+    WITH CHECK (
         EXISTS (
             SELECT 1 FROM contracts c
             WHERE c.id = contract_id
@@ -183,23 +191,23 @@ CREATE POLICY contract_parties_cm_update ON contract_parties
               AND get_project_role(c.project_id) = 'cm'
         )
     );
+-- No DELETE policy (forensic; parties are registration-time facts).
 
 
 -- -----------------------------------------------------------------------------
--- TABLE 3: contract_documents
---   The contract's constituent documents with BESPOKE PRECEDENCE. Links the
---   contract root to filed PDFs (pdf_document) — this is what makes the root
---   card clickable through to the actual contract PDF ("Sözleşmeler: 1").
+-- TABLE 3: contract_documents — constituent docs / annexes + bespoke precedence
+--   pdf_document_id nullable: annex row may exist before its file arrives;
+--   ON DELETE SET NULL so the row survives if the PDF is later removed.
+--   UNIQUE(contract_id, pdf_document_id) does not constrain NULL rows
+--   (Postgres treats NULLs as distinct) — many file-less annexes are legal.
 -- -----------------------------------------------------------------------------
 CREATE TABLE contract_documents (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    -- CASCADE: a link row has no meaning without its contract.
     contract_id      UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
-    -- CASCADE: if the PDF itself is removed, the link (not the contract) goes.
-    pdf_document_id  UUID NOT NULL REFERENCES pdf_document(id) ON DELETE CASCADE,
+    pdf_document_id  UUID REFERENCES pdf_document(id) ON DELETE SET NULL,
 
-    label            TEXT,      -- e.g. 'Contract Agreement', 'Particular Conditions'
-    precedence_rank  INTEGER    CHECK (precedence_rank > 0),  -- 1 = highest precedence; NULL = unranked
+    label            TEXT,      -- e.g. 'Contract Agreement', 'EK-1 Özel Şartname'
+    precedence_rank  INTEGER    CHECK (precedence_rank > 0),  -- 1 = highest; NULL = unranked
 
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
 
@@ -209,7 +217,6 @@ CREATE TABLE contract_documents (
 CREATE INDEX idx_contract_documents_contract_id ON contract_documents(contract_id);
 CREATE INDEX idx_contract_documents_pdf_id      ON contract_documents(pdf_document_id);
 
--- RLS via the parent contract, same pattern as contract_parties above.
 ALTER TABLE contract_documents ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY contract_documents_member_read ON contract_documents
@@ -232,7 +239,16 @@ CREATE POLICY contract_documents_cm_write ON contract_documents
     );
 
 CREATE POLICY contract_documents_cm_update ON contract_documents
-    FOR UPDATE USING (
+    FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM contracts c
+            WHERE c.id = contract_id
+              AND is_project_member(c.project_id)
+              AND get_project_role(c.project_id) = 'cm'
+        )
+    )
+    WITH CHECK (
         EXISTS (
             SELECT 1 FROM contracts c
             WHERE c.id = contract_id
@@ -241,23 +257,46 @@ CREATE POLICY contract_documents_cm_update ON contract_documents
         )
     );
 
+-- CM-only DELETE of the LINK row (composition membership). The filed PDF
+-- remains in pdf_document / storage — forensic archive of the file itself.
+CREATE POLICY contract_documents_cm_delete ON contract_documents
+    FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM contracts c
+            WHERE c.id = contract_documents.contract_id
+              AND is_project_member(c.project_id)
+              AND get_project_role(c.project_id) = 'cm'
+        )
+    );
+
 
 -- =============================================================================
 -- VERIFICATION  (run AFTER the migration; bring the output back)
--- Expected: 3 tables with rls_enabled = true; 9 policies (3 per table, all
--- writes gated '= ''cm'''); 4 indexes beyond PKs/uniques; 1 trigger on contracts.
+-- Expected:
+--   * 3 tables, rls_enabled = true
+--   * contracts.contract_type present, nullable text
+--   * contract_documents.pdf_document_id is_nullable = YES
+--   * 10 policies: 3 on contracts, 3 on parties, 4 on documents (incl. DELETE)
 -- =============================================================================
 -- SELECT c.relname AS table, c.relrowsecurity AS rls_enabled
 --   FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 --  WHERE n.nspname = 'public'
 --    AND c.relname IN ('contracts', 'contract_parties', 'contract_documents');
 --
+-- SELECT column_name, data_type, is_nullable
+--   FROM information_schema.columns
+--  WHERE table_name = 'contracts' AND column_name = 'contract_type';
+--
+-- SELECT c.is_nullable,
+--        CASE rc.delete_rule WHEN 'SET NULL' THEN 'SET NULL' ELSE rc.delete_rule END AS delete_action
+--   FROM information_schema.columns c
+--   JOIN information_schema.referential_constraints rc
+--     ON rc.constraint_name = 'contract_documents_pdf_document_id_fkey'
+--  WHERE c.table_name = 'contract_documents' AND c.column_name = 'pdf_document_id';
+--
 -- SELECT tablename, policyname, cmd
 --   FROM pg_policies
 --  WHERE tablename IN ('contracts', 'contract_parties', 'contract_documents')
---  ORDER BY tablename, cmd;
---
--- SELECT indexname FROM pg_indexes
---  WHERE tablename IN ('contracts', 'contract_parties', 'contract_documents')
---  ORDER BY tablename, indexname;
+--  ORDER BY tablename, cmd, policyname;
 -- =============================================================================

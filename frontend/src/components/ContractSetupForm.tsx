@@ -12,10 +12,12 @@
  * Taraflar Faz-1'de kayıt anında yazılır ve sonradan düzenlenmez (039: DELETE
  * policy yok — forensic arşiv). DLP yalnızca UZUNLUK olarak alınır; bitiş
  * tarihi sorulmaz, çünkü DLP penceresi fiili tamamlanmadan türetilir.
+ * contract_type: ProjectDetail CONTRACT_LABEL ile aynı enum; boş bırakılırsa
+ * backend projects.contract_type'tan DEFAULT eder (TB-28).
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
-import { createContract, type ContractParty, type ContractRoot } from "../services/api";
+import { api, createContract, type ContractParty, type ContractRoot } from "../services/api";
 
 interface Props {
   projectId: string;
@@ -43,7 +45,18 @@ const INPUT: CSSProperties = {
 
 const FIELD: CSSProperties = { flex: "1 1 160px", minWidth: 140 };
 
-// Pilot: üç ana rol sabit satır olarak sorulur; boş bırakılan gönderilmez.
+// Mirrors ProjectDetail.tsx CONTRACT_LABEL + ContractType enum (common.py).
+const CONTRACT_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "lump_sum",    label: "Lump Sum" },
+  { value: "remeasure",   label: "Remeasure" },
+  { value: "cost_plus",   label: "Cost Plus" },
+  { value: "target_cost", label: "Target Cost" },
+  { value: "epc",         label: "EPC" },
+  { value: "epcm",        label: "EPCM" },
+  { value: "framework",   label: "Framework" },
+  { value: "other",       label: "Other" },
+];
+
 const PARTY_ROWS: { role: ContractParty["role"]; label: string }[] = [
   { role: "employer",   label: "İşveren" },
   { role: "contractor", label: "Yüklenici" },
@@ -53,12 +66,23 @@ const PARTY_ROWS: { role: ContractParty["role"]; label: string }[] = [
 export default function ContractSetupForm({ projectId, onCreated }: Props) {
   const [title, setTitle] = useState("");
   const [contractNumber, setContractNumber] = useState("");
+  const [contractType, setContractType] = useState("");
   const [commencement, setCommencement] = useState("");
   const [durationDays, setDurationDays] = useState("");
   const [dlpDays, setDlpDays] = useState("");
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Prefill from project's contract_type (continuity; backend also defaults).
+  useEffect(() => {
+    api
+      .get<{ contract_type: string | null }>(`/projects/${projectId}`)
+      .then((p) => {
+        if (p.contract_type) setContractType(p.contract_type);
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -69,6 +93,7 @@ export default function ContractSetupForm({ projectId, onCreated }: Props) {
       const created = await createContract(projectId, {
         title: title.trim(),
         ...(contractNumber.trim() && { contract_number: contractNumber.trim() }),
+        ...(contractType && { contract_type: contractType }),
         ...(commencement && { commencement_date: commencement }),
         ...(durationDays && { duration_days: Number(durationDays) }),
         ...(dlpDays && { dlp_days: Number(dlpDays) }),
@@ -118,6 +143,19 @@ export default function ContractSetupForm({ projectId, onCreated }: Props) {
         <div style={FIELD}>
           <label style={LABEL}>Sözleşme no</label>
           <input style={INPUT} value={contractNumber} onChange={(e) => setContractNumber(e.target.value)} />
+        </div>
+        <div style={FIELD}>
+          <label style={LABEL}>Sözleşme tipi</label>
+          <select
+            style={INPUT}
+            value={contractType}
+            onChange={(e) => setContractType(e.target.value)}
+          >
+            <option value="">— (projeden alınır)</option>
+            {CONTRACT_TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 

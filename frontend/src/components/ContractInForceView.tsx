@@ -61,7 +61,7 @@ export default function ContractInForceView({ projectId }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {data.contract === null && (
-        <ContractSetupForm projectId={projectId} onCreated={load} />
+        <ContractSetupForm projectId={projectId} onCreated={() => load()} />
       )}
       <ContractInForcePanel
         resolution={data}

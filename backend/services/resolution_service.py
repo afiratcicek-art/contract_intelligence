@@ -1,4 +1,5 @@
 from typing import Optional
+from uuid import UUID
 
 from backend.models.resolution import (
     AmendmentRef,
@@ -13,6 +14,7 @@ from backend.models.resolution import (
 # fully deterministic and unit-testable. The system does NOT infer operativeness
 # — only CM-confirmed facts drive the graph (the caller passes status='confirmed'
 # overrides only; changes.status is surfaced raw, never used as a filter).
+# Migration 043: clause subject is subject_clause_id (contract_clauses FK).
 
 
 def _amendment_ref(embed: dict) -> AmendmentRef:
@@ -27,11 +29,11 @@ def _amendment_ref(embed: dict) -> AmendmentRef:
 def _winner_key(override: dict):
     # Deterministic tie-break, DESC on (amendment_date, created_at, id). This
     # covers the deliberately-missing unique constraint on
-    # clause_overrides(project_id, subject_key) (migration 037 header): if two
-    # confirmed overrides target the same clause, the newest amendment wins,
-    # then the newest override, then the highest id. None/absent dates sort as ""
-    # (earliest, so they lose); ISO date/timestamp strings compare correctly
-    # lexicographically, so no parsing is needed.
+    # clause_overrides(project_id, subject_clause_id) (037 header intent, 043
+    # carrier): if two confirmed overrides target the same clause node, the
+    # newest amendment wins, then the newest override, then the highest id.
+    # None/absent dates sort as "" (earliest, so they lose); ISO date/timestamp
+    # strings compare correctly lexicographically, so no parsing is needed.
     amendment = override.get("amendments") or {}
     return (
         amendment.get("amendment_date") or "",
@@ -43,7 +45,7 @@ def _winner_key(override: dict):
 def resolve_in_force(
     overrides: list[dict],
     changes: list[dict],
-    subject_key: Optional[str] = None,
+    subject_clause_id: Optional[UUID] = None,
 ) -> ResolutionResponse:
     clause_overrides = [
         o for o in overrides if o.get("scope") == "clause_of_contract"
@@ -52,19 +54,19 @@ def resolve_in_force(
         o for o in overrides if o.get("scope") == "full_change_order"
     ]
 
-    # clauses[]: group clause-of-contract overrides by subject_key, one winner
-    # each. Only clauses that HAVE an override are enumerated — the contract has
-    # no per-clause rows, so a clause with no override is simply absent here.
+    # clauses[]: group clause-of-contract overrides by subject_clause_id, one
+    # winner each. Only clauses that HAVE an override are enumerated — a clause
+    # with no override is simply absent here (unless targeted below).
     by_subject: dict[str, list[dict]] = {}
     for o in clause_overrides:
-        by_subject.setdefault(o["subject_key"], []).append(o)
+        by_subject.setdefault(str(o["subject_clause_id"]), []).append(o)
 
     clauses: list[ClauseResolution] = []
-    for sk, group in by_subject.items():
+    for scid, group in by_subject.items():
         winner = max(group, key=_winner_key)
         clauses.append(
             ClauseResolution(
-                subject_key=sk,
+                subject_clause_id=scid,
                 governing_instrument="amendment",
                 amendment=_amendment_ref(winner["amendments"]),
                 override_id=winner["id"],
@@ -101,14 +103,15 @@ def resolve_in_force(
             )
         )
 
-    # Optional targeted lookup: narrow clauses[] to one subject_key. If that
-    # clause has no override, it resolves to the base contract (kept pure/here so
-    # it is exercised by the resolver's own unit tests).
-    if subject_key is not None:
-        matched = [cl for cl in clauses if cl.subject_key == subject_key]
+    # Optional targeted lookup: narrow clauses[] to one subject_clause_id. If
+    # that clause has no override, it resolves to the base contract (kept
+    # pure/here so it is exercised by the resolver's own unit tests).
+    if subject_clause_id is not None:
+        target = str(subject_clause_id)
+        matched = [cl for cl in clauses if str(cl.subject_clause_id) == target]
         clauses = matched or [
             ClauseResolution(
-                subject_key=subject_key,
+                subject_clause_id=subject_clause_id,
                 governing_instrument="contract",
                 amendment=None,
                 override_id=None,

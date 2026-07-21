@@ -44,7 +44,9 @@ Format: `table | authoritative migration(s) | one-line history`
 | table | authoritative migration(s) | history |
 |---|---|---|
 | amendments | 037 → 038 | created 037; write gate tightened to CM-only 038 |
-| clause_overrides | 037 → 038 | created 037; write gate tightened to CM-only 038 |
+| clause_overrides | 037 → 038 → **043** | created 037; CM-only write 038; **043 re-points `subject_key` TEXT → `subject_clause_id` UUID FK `contract_clauses` (empty-table only)** |
+| **contract_clauses** | **043** | **created 043 — canonical clause/section nodes (contract_documents XOR amendments); HITL find-or-create** |
+| **clause_incorporations** | **043** | **created 043 — incorporation-by-reference edges (prefer target as if in body); HITL; ≠ override** |
 | **contracts** | **039** | **created 039 (authoritative; consolidates former 040/041/042 — contract_type, nullable doc FK, CM delete on links — into one file)** |
 | **contract_parties** | **039** | **created 039** |
 | **contract_documents** | **039** | **created 039 (nullable `pdf_document_id` + ON DELETE SET NULL; CM DELETE of link only)** |
@@ -90,4 +92,4 @@ Format: `table | authoritative migration(s) | one-line history`
 
 ---
 
-*Last updated with consolidation of contract-root into 039 (former 040/041/042 deleted).*
+*Last updated with 043 (contract_clauses + clause_incorporations; clause_overrides subject_key→subject_clause_id).*

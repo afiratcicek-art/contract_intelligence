@@ -60,11 +60,14 @@ def create_override(
     _assert_amendment_in_project(db, amendment_id, project_id)
     audit = AuditService()
 
-    # IDOR guard: a change order from another project must not be targetable.
-    # (subject_key/contract targets carry no cross-project id, so only the
-    # change-order target needs the guard.)
+    # IDOR: change-order target and subject clause node must belong to this
+    # project (migration 043: subject_clause_id is a cross-row FK).
     if body.overridden_change_id:
         assert_target_in_project(db, "changes", body.overridden_change_id, project_id)
+    if body.subject_clause_id:
+        assert_target_in_project(
+            db, "contract_clauses", body.subject_clause_id, project_id
+        )
 
     now = datetime.now(timezone.utc).isoformat()
     data = body.model_dump(mode="json", exclude_none=True)

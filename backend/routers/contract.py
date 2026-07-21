@@ -68,7 +68,7 @@ def _contract_root(row: dict) -> ContractRoot:
 @router.get("/resolution", response_model=ResolutionResponse)
 def get_contract_resolution(
     project_id: UUID,
-    subject_key: Optional[str] = Query(None),
+    subject_clause_id: Optional[UUID] = Query(None),
     access: dict = Depends(verify_project_access),
 ):
     """In-force resolution for a project (read-only) — the DOCUMENT hierarchy
@@ -79,15 +79,17 @@ def get_contract_resolution(
     Member-level read gate (verify_project_access), matching the
     *_member_read RLS policies (migrations 037/039): every active member may
     SEE the in-force picture. Four RLS-scoped round-trips feed a pure
-    composition — no write, no inference. `subject_key` optionally narrows
-    clauses[] to a single targeted clause lookup.
+    composition — no write, no inference. `subject_clause_id` optionally
+    narrows clauses[] to a single targeted clause-node lookup (migration 043).
     """
     db = access["db"]
     overrides = ClauseOverrideRepository(db).list_confirmed_with_amendment(
         str(project_id)
     )
     changes = ChangeRepository(db).list_for_resolution(str(project_id))
-    resolved = resolve_in_force(overrides, changes, subject_key=subject_key)
+    resolved = resolve_in_force(
+        overrides, changes, subject_clause_id=subject_clause_id
+    )
 
     contract_row = ContractRepository(db).get_by_project(str(project_id))
     # limit=500 = the amendments router's own Query cap; the hierarchy must not

@@ -37,6 +37,7 @@ class ClauseOverrideRepository(BaseRepository):
         # the HITL gate); 'proposed'/'rejected' are excluded here. RLS on the
         # JWT-scoped db already restricts to the caller's projects — the explicit
         # project_id filter narrows to the requested one.
+        # Migration 043: select * returns subject_clause_id (registry FK).
         result = (
             self.db.table("clause_overrides")
             .select(

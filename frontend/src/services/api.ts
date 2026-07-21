@@ -274,7 +274,7 @@ export interface AmendmentRef {
 }
 
 export interface ClauseResolution {
-  subject_key:          string;
+  subject_clause_id:    string;
   governing_instrument: "contract" | "amendment";
   amendment:            AmendmentRef | null;
   override_id:          string | null;

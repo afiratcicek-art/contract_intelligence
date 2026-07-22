@@ -288,3 +288,12 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   olmalı. Şimdilik ikisi de yazılıyor; senkron drift riski bilinçli ertelendi.
   Ne zaman: contract surface stabilize olduktan sonra, ilk veri-migration
   penceresinde.
+
+---
+
+## Contract grounding / Documents Faz B (2026-07)
+
+- **TB-29**: Incorporation kullanıcı-yüzeyi. Haiku sözleşmeyi okuyup atıfları TESPİT eder (proposed_by='haiku'/status='proposed'); CM in-context (ilgili madde/belge görüntülenirken) confirm/reject eder — standalone panel DEĞİL (2b iptal). Bir tespit BİRDEN FAZLA belge bulabilir → aralarındaki precedence CM'e açık gösterilmeli, HITL ile onaylanmalı (order-of-precedence işiyle tutarlı). Resolver'daki geçici newest-wins (_inc_winner_key) bunu rafine edecek. Bağlılık: Haiku (TB-5, kapalı). Backend (2a, commit 51beb6e) confirm/reject + proposed_by='haiku' yolunu zaten destekliyor; write-uçları KASITLI-DORMANT altyapı (dead code değil). Açık: in-context çıkış noktası (madde mi belge mi) — Haiku gelince kararlaştırılır.
+- **TB-30**: Chronology-level inactivate → event-görünürlük tutarlılığı. Bugün chronology-level inactivate endpoint'i YOK; list_events_by_type (chronology_repository) ve by_chronology_type (documents.py) ikisi de yalnız event-seviyesi is_active filtreliyor, parent chronologies.is_active DEĞİL — kasıtlı hizalı (tık===sayı). Chronology-level inactivate eklenirse HER İKİ yüzey birlikte .eq("chronologies.is_active", True) almalı; yoksa retire parent'ın event'leri proje-geneli listede sızar + kart sayısıyla diverge eder (parent-yaşamdöngüsü→çocuk-görünürlüğü; amendment-lifecycle fix 75657d5 kardeşi). Devir yorumu list_events_by_type içine gömülü.
+- **TB-31**: Kronoloji-event → kronolojiye deep-link. Diğer Belgeler kartında event satırına tıklayınca nav v1 modül-seviyesi (?module=chronologies); ilgili kronolojiye deep-link (Faz A amendment/contract &tab=inforce aynası) ertelendi. 2a endpoint'i (commit c3daa10) parent id'yi zaten taşıyor (chronologies!inner embed id) → veri hazır; eksik = /workspace/chronologies/:id route + Workspace deep-link plumbing + navTarget chronology dalının id geçirmesi. Faz B v1'de over-build kaçınmak için kasıtlı ertelendi.
+- **TB-32** (§6 status-vocab reconciliation): bucket→DB-status eşlemesi frontend'de üç yerde çoğaltılıyor (DocumentStatsPanel + In-Force panel + Faz A doSearch). Approved=agreed, Under Review=impact_submitted+under_negotiation, Disputed=disputed — tek kaynağa toplanmalı.

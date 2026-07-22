@@ -38,13 +38,20 @@ class ClauseOverrideRepository(BaseRepository):
         # JWT-scoped db already restricts to the caller's projects — the explicit
         # project_id filter narrows to the requested one.
         # Migration 043: select * returns subject_clause_id (registry FK).
+        # GOVERNING-STATE INVARIANT: an override may govern only while its amendment is live.
+        # amendments.is_deleted is the single source of truth; governing state is derived from it
+        # at read time. !inner + is_deleted filter drops overrides whose amendment was SOFT-deleted
+        # (soft-delete does NOT fire 037's ON DELETE CASCADE, so the override row physically remains;
+        # this filter — not cascade — keeps it non-governing, and restore re-lights it automatically).
+        # Safe because overriding_amendment_id is NOT NULL: !inner never drops a legitimately-governing row.
         result = (
             self.db.table("clause_overrides")
             .select(
-                "*, amendments(id, amendment_number, amendment_date, arrival_path)"
+                "*, amendments!inner(id, amendment_number, amendment_date, arrival_path)"
             )
             .eq("project_id", project_id)
             .eq("status", "confirmed")
+            .eq("amendments.is_deleted", False)
             .execute()
         )
         return result.data or []

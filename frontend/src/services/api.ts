@@ -225,6 +225,36 @@ export async function fetchLinkableDocuments(
   );
 }
 
+/** Project-wide chronology events by event_type.
+ *  manualOnly=true mirrors by_chronology_type (document_ref_id IS NULL). */
+export async function listEventsByType(
+  projectId: string,
+  eventType: string,
+  manualOnly = true,
+): Promise<ChronologyEventByType[]> {
+  const qs = new URLSearchParams({
+    event_type: eventType,
+    manual_only: String(manualOnly),
+  });
+  return api.get(
+    `/projects/${projectId}/chronologies/events?${qs.toString()}`
+  );
+}
+
+export interface ChronologyEventByType {
+  id: string;
+  chronology_id: string;
+  event_date: string;
+  event_type: string;
+  subject: string | null;
+  document_ref_id: string | null;
+  chronologies: {
+    id: string;
+    title: string;
+    entity_type: string;
+  };
+}
+
 /** 627: authored RFI 'draft' dogar; onay onu 'open'a cikarir.
  *  Onay = belgenin muhataba cikisi. submitted_date ve response_due_date
  *  onay aninda sunucuda atanir. version optimistic locking icindir.

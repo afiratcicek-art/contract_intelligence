@@ -37,6 +37,7 @@ class ChronologyRepository(BaseRepository):
         project_id: str,
         event_type: str,
         include_inactive: bool = False,
+        manual_only: bool = False,
     ) -> list[dict]:
         # PROJECT-SCOPE INVARIANT: chronology_events has NO project_id column (only chronology_id).
         # Project scope is enforced via the parent chronology join, NOT a direct .eq("project_id").
@@ -59,6 +60,10 @@ class ChronologyRepository(BaseRepository):
         # count diverges (parent-lifecycle → child-visibility, cf. the amendment-lifecycle fix). TB-30
         if not include_inactive:
             query = query.eq("is_active", True)
+        # tık===sayı: mirrors by_chronology_type's manual-event definition (document_ref_id IS NULL).
+        # Optional so the endpoint stays general for future callers.
+        if manual_only:
+            query = query.is_("document_ref_id", "null")
         result = query.order("event_date").execute()
         return result.data or []
 

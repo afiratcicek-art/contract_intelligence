@@ -45,18 +45,29 @@ const RFI_DISCIPLINES: Array<{ key: string; label: string }> = [
   { key: "Other",         label: "Other"         },
 ];
 
-// Kronoloji bağımsız kayıtlar — rfi + correspondence hariç
-// TB-24: Yeni kayıt tipleri eklendiğinde burası güncellenecek
-const CHRONOLOGY_INDEPENDENT_TYPES: Array<{ key: string; label: string }> = [
-  { key: "notice",        label: "Notice"                 },
-  { key: "submission",    label: "Submission"             },
-  { key: "response",      label: "Response"               },
-  { key: "meeting",       label: "Meeting / MOM"          },
-  { key: "inspection",    label: "Inspection (WIR/MIR)"  },
-  { key: "work_permit",   label: "Work Permit"            },
-  { key: "status_change", label: "Status Change"          },
-  { key: "other",         label: "Diğer"                  },
-];
+// Kronoloji bağımsız kayıtlar — tip→görünen-etiket sözlüğü (satır otoritesi değil;
+// satırlar Object.entries(stats.by_chronology_type) ile histogramdan sürülür).
+const CHRONOLOGY_INDEPENDENT_TYPES: Record<string, string> = {
+  notice:        "Notice",
+  submission:    "Submission",
+  response:      "Response",
+  meeting:       "Meeting / MOM",
+  inspection:    "Inspection (WIR/MIR)",
+  work_permit:   "Work Permit",
+  status_change: "Status Change",
+  other:         "Diğer",
+  drawing:       "Drawing",
+  spec:          "Spec",
+  specialist:    "Specialist",
+  dispute_step:  "Dispute Step",
+};
+
+function chronologyTypeLabel(eventType: string): string {
+  return CHRONOLOGY_INDEPENDENT_TYPES[eventType]
+    ?? eventType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export { chronologyTypeLabel };
 
 // ── Props ─────────────────────────────────────────────────────────────────
 
@@ -67,7 +78,8 @@ type StatsFilterType =
   | "location"
   | "changeStatus"
   | "amendment"
-  | "contractDoc";
+  | "contractDoc"
+  | "chronologyType";
 
 interface Props {
   stats: DocumentStats;
@@ -102,11 +114,11 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
   const isActive = (type: string, value: string) =>
     activeFilter?.type === type && activeFilter?.value === value;
 
-  // Tıklanabilir alt satır (CORR/RFI + Contract & Amendments govern-record)
+  // Tıklanabilir alt satır (CORR/RFI + Contract & Amendments + Diğer Belgeler)
   const filterRow = (
     label: string,
     count: number,
-    filterType: "corrType" | "rfiDiscipline" | "changeStatus" | "amendment" | "contractDoc",
+    filterType: "corrType" | "rfiDiscipline" | "changeStatus" | "amendment" | "contractDoc" | "chronologyType",
     key: string,
     italic = false,
   ) => {
@@ -146,36 +158,6 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
       </button>
     );
   };
-
-  // Salt bilgi satırı (Diğer Belgeler — Faz B'ye kadar tıklanamaz)
-  const infoRow = (label: string, count: number, italic = false) => (
-    <div
-      key={label}
-      style={{
-        display: "flex", justifyContent: "space-between",
-        alignItems: "center", padding: "4px 0",
-        borderBottom: "1px solid var(--color-border-light)",
-      }}
-    >
-      <span style={{
-        fontSize: 11, fontStyle: italic ? "italic" : "normal",
-        color: count > 0 ? "var(--color-text-primary)"
-          : "var(--color-text-secondary)",
-        fontFamily: "Inter, sans-serif",
-      }}>
-        {label}
-      </span>
-      <span style={{
-        fontSize: 11,
-        fontFamily: "JetBrains Mono, monospace",
-        color: count > 0 ? "var(--color-accent-text)"
-          : "var(--color-text-secondary)",
-        minWidth: 20, textAlign: "right",
-      }}>
-        {count}
-      </span>
-    </div>
-  );
 
   // Ana kart
   const card = (
@@ -221,8 +203,13 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
     (stats.changes_disputed ?? 0) +
     (stats.other_amendments_count ?? 0);
 
-  // Diğer Belgeler toplam
+  // Diğer Belgeler toplam — locked: manual_count, NOT sum of histogram rows
   const otherTotal = stats.manual_count;
+
+  // Histogram-driven rows (count desc). Label from CHRONOLOGY_INDEPENDENT_TYPES
+  // dictionary; unknown keys humanized — never show a bare snake_case key.
+  const chronologyRows = Object.entries(stats.by_chronology_type ?? {})
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
   return (
     <div style={{ padding: "24px 32px" }}>
@@ -281,10 +268,15 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
           {filterRow("Other Amendments", stats.other_amendments_count ?? 0, "amendment", "all", true)}
         </>)}
 
-        {/* DİĞER BELGELER */}
-        {card("Diğer Belgeler", otherTotal, false,
-          CHRONOLOGY_INDEPENDENT_TYPES.map(({ key, label }) =>
-            infoRow(label, stats.by_chronology_type?.[key] ?? 0)
+        {/* DİĞER BELGELER — data-driven from by_chronology_type histogram */}
+        {card("Diğer Belgeler", otherTotal, true,
+          chronologyRows.map(([eventType, count]) =>
+            filterRow(
+              chronologyTypeLabel(eventType),
+              count,
+              "chronologyType",
+              eventType,
+            )
           )
         )}
       </div>

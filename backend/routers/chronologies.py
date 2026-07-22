@@ -196,12 +196,13 @@ def list_linkable_documents(
 def list_events_by_type(
     project_id: UUID,
     event_type: str,
+    manual_only: bool = False,
     access: dict = Depends(verify_project_access),
 ):
     """Project-wide chronology events filtered by event_type (member read)."""
     db = access["db"]
     return ChronologyRepository(db).list_events_by_type(
-        str(project_id), event_type
+        str(project_id), event_type, manual_only=manual_only
     )
 
 

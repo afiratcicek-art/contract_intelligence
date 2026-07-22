@@ -5,12 +5,14 @@ import {
   api,
   fetchContractResolution,
   fetchDocumentStats,
+  listEventsByType,
   type AmendmentRow,
   type ChangeRow,
   type ContractDocumentRef,
+  type ChronologyEventByType,
   type DocumentStats,
 } from "../services/api";
-import DocumentStatsPanel from "./DocumentStatsPanel";
+import DocumentStatsPanel, { chronologyTypeLabel } from "./DocumentStatsPanel";
 import FocusedRelationGraph from "./FocusedRelationGraph";
 
 /* ── Local types ───────────────────────────────────────────
@@ -38,7 +40,7 @@ interface CorrRow {
 }
 
 interface DocSearchResult {
-  module: "rfi" | "correspondence" | "change" | "amendment" | "contract";
+  module: "rfi" | "correspondence" | "change" | "amendment" | "contract" | "chronology";
   ref: string;
   subject: string;
   status: string;
@@ -53,9 +55,10 @@ interface DocSearchResult {
  *  A keyword or location chip carries a search term. A card row carries a
  *  FIELD of a specific entity — the RFI card's rows are disciplines, the
  *  correspondence card's rows are types, Contract & Amendments rows are
- *  changeStatus / amendment / contractDoc. doSearch switches on this, and the
- *  switch is exhaustiveness-checked, so adding a member here without handling
- *  it there is a compile error rather than a silent keyword search. */
+ *  changeStatus / amendment / contractDoc, Diğer Belgeler rows are
+ *  chronologyType. doSearch switches on this, and the switch is
+ *  exhaustiveness-checked, so adding a member here without handling it
+ *  there is a compile error rather than a silent keyword search. */
 type FilterType =
   | "corrType"
   | "rfiDiscipline"
@@ -63,7 +66,8 @@ type FilterType =
   | "location"
   | "changeStatus"
   | "amendment"
-  | "contractDoc";
+  | "contractDoc"
+  | "chronologyType";
 
 interface ActiveFilter {
   type: FilterType;
@@ -143,7 +147,7 @@ export default function DocumentsModule({ projectId }: Props) {
      Local mirror of Workspace.tsx generalNavTarget.
      Kept here so DocumentsModule has no page-level deps.  */
   const navTarget = (
-    mod: "rfi" | "correspondence" | "change" | "amendment" | "contract",
+    mod: "rfi" | "correspondence" | "change" | "amendment" | "contract" | "chronology",
     id: string,
   ) => {
     if (mod === "correspondence")
@@ -156,6 +160,8 @@ export default function DocumentsModule({ projectId }: Props) {
       return `/projects/${projectId}/workspace?module=changes&tab=inforce`;
     if (mod === "contract")
       return `/projects/${projectId}/workspace?module=changes&tab=inforce`;
+    if (mod === "chronology")
+      return `/projects/${projectId}/workspace?module=chronologies`;
     return `/projects/${projectId}/workspace`;
   };
 
@@ -183,6 +189,7 @@ export default function DocumentsModule({ projectId }: Props) {
         let changeUrl: string | null = null;
         let amendmentUrl: string | null = null;
         let fetchContracts = false;
+        let chronologyType: string | null = null;
 
         if (filter) {
           switch (filter.type) {
@@ -224,6 +231,13 @@ export default function DocumentsModule({ projectId }: Props) {
               corrUrl = null;
               break;
             }
+            case "chronologyType": {
+              /* tık===sayı: manual_only=true mirrors by_chronology_type. */
+              chronologyType = filter.value;
+              rfiUrl = null;
+              corrUrl = null;
+              break;
+            }
             case "keyword":
             case "location":
               /* Both stay text searches across both lists. Neither endpoint has
@@ -242,7 +256,7 @@ export default function DocumentsModule({ projectId }: Props) {
           }
         }
 
-        const [rfis, corrs, changes, amendments, resolution] = await Promise.all([
+        const [rfis, corrs, changes, amendments, resolution, chronoEvents] = await Promise.all([
           rfiUrl ? api.get<RFIRow[]>(rfiUrl) : Promise.resolve<RFIRow[]>([]),
           corrUrl ? api.get<CorrRow[]>(corrUrl) : Promise.resolve<CorrRow[]>([]),
           changeUrl ? api.get<ChangeRow[]>(changeUrl) : Promise.resolve<ChangeRow[]>([]),
@@ -252,6 +266,9 @@ export default function DocumentsModule({ projectId }: Props) {
           fetchContracts
             ? fetchContractResolution(projectId)
             : Promise.resolve(null),
+          chronologyType
+            ? listEventsByType(projectId, chronologyType, true)
+            : Promise.resolve<ChronologyEventByType[]>([]),
         ]);
 
         const rfiResults: DocSearchResult[] = (rfis ?? []).map((r) => ({
@@ -311,14 +328,24 @@ export default function DocumentsModule({ projectId }: Props) {
             };
           });
 
+        const chronologyResults: DocSearchResult[] = (chronoEvents ?? []).map((e) => ({
+          module: "chronology" as const,
+          ref:     e.chronologies?.title ?? e.event_type,
+          subject: e.subject ?? e.chronologies?.title ?? "",
+          status:  e.chronologies?.entity_type ?? "",
+          date:    e.event_date,
+          id:      e.id,
+        }));
+
         /* Correspondence first — mirrors General Search ordering; then RFI;
-           then govern-record sections (change / amendment / contract). */
+           then govern-record sections (change / amendment / contract / chronology). */
         setResults([
           ...corrResults,
           ...rfiResults,
           ...changeResults,
           ...amendmentResults,
           ...contractResults,
+          ...chronologyResults,
         ]);
       } catch {
         setResults([]);
@@ -364,10 +391,10 @@ export default function DocumentsModule({ projectId }: Props) {
       setActiveFilter({ type: filterType, value });
       setQuery(value);
     } else {
-      /* Card rows (corrType, rfiDiscipline, changeStatus, amendment, contractDoc)
-         become a pinned badge. The filter leaves the box so the user can type a
-         keyword ON TOP of it (where the endpoint supports q); the badge, not
-         the box, now holds the filter value. */
+      /* Card rows (corrType, rfiDiscipline, changeStatus, amendment, contractDoc,
+         chronologyType) become a pinned badge. The filter leaves the box so the
+         user can type a keyword ON TOP of it (where the endpoint supports q);
+         the badge, not the box, now holds the filter value. */
       setActiveFilter({ type: filterType, value });
       setQuery("");
       setResults([]);
@@ -693,6 +720,7 @@ export default function DocumentsModule({ projectId }: Props) {
   const changeGroup     = results.filter((r) => r.module === "change");
   const amendmentGroup  = results.filter((r) => r.module === "amendment");
   const contractGroup   = results.filter((r) => r.module === "contract");
+  const chronologyGroup = results.filter((r) => r.module === "chronology");
 
   /* ── Render ──────────────────────────────────────────── */
   return (
@@ -730,6 +758,7 @@ export default function DocumentsModule({ projectId }: Props) {
         || activeFilter.type === "changeStatus"
         || activeFilter.type === "amendment"
         || activeFilter.type === "contractDoc"
+        || activeFilter.type === "chronologyType"
       ) && (
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
@@ -740,6 +769,7 @@ export default function DocumentsModule({ projectId }: Props) {
               : activeFilter.type === "corrType" ? "Yazışma türü"
               : activeFilter.type === "changeStatus" ? "Değişiklik durumu"
               : activeFilter.type === "amendment" ? "Amendments"
+              : activeFilter.type === "chronologyType" ? "Diğer belge türü"
               : "Sözleşmeler"}:
           </span>
           <span style={{
@@ -747,7 +777,9 @@ export default function DocumentsModule({ projectId }: Props) {
             padding: "4px 10px", background: accent,
             color: "var(--color-bg-primary)", fontSize: 12, fontWeight: 500,
           }}>
-            {activeFilter.value}
+            {activeFilter.type === "chronologyType"
+              ? chronologyTypeLabel(activeFilter.value)
+              : activeFilter.value}
             <button
               onClick={() => { setActiveFilter(null); }}
               aria-label="Filtreyi kaldır"
@@ -837,6 +869,12 @@ export default function DocumentsModule({ projectId }: Props) {
           {renderRecordSection(changeGroup, "Değişiklikler")}
           {renderRecordSection(amendmentGroup, "Amendments")}
           {renderRecordSection(contractGroup, "Sözleşmeler")}
+          {renderRecordSection(
+            chronologyGroup,
+            activeFilter?.type === "chronologyType"
+              ? chronologyTypeLabel(activeFilter.value)
+              : "Diğer Belgeler",
+          )}
         </div>
       )}
 

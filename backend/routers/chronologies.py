@@ -192,6 +192,19 @@ def list_linkable_documents(
     return documents
 
 
+@router.get("/events")
+def list_events_by_type(
+    project_id: UUID,
+    event_type: str,
+    access: dict = Depends(verify_project_access),
+):
+    """Project-wide chronology events filtered by event_type (member read)."""
+    db = access["db"]
+    return ChronologyRepository(db).list_events_by_type(
+        str(project_id), event_type
+    )
+
+
 @router.get("/{chronology_id}", response_model=ChronologyResponse)
 def get_chronology(
     project_id: UUID,

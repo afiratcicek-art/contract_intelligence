@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:8501"
     BASE_URL: str = "http://localhost:8000"
 
+    # PDF preview render (null | gotenberg)
+    RENDER_PROVIDER: str = "null"
+    GOTENBERG_URL: str = "http://localhost:3000"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

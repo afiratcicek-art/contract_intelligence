@@ -4,6 +4,7 @@ Prefix: /projects/{project_id}/authoring
 Auth: verify_project_access (reads) / require_cm_role (writes).
 All DB I/O via access["db"] — no admin_client here (AuditService + file_handler excepted).
 """
+import io
 import logging
 import uuid
 from datetime import date, datetime, timezone
@@ -12,6 +13,7 @@ from typing import Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from backend.core.dependencies import require_cm_role, verify_project_access
 from backend.core.exceptions import ConflictError, NotFoundError, RaceConditionError, ValidationError
@@ -34,7 +36,7 @@ from backend.services.audit_service import AuditService
 from backend.services.docx_builder import build_docx
 from backend.services.image_sanitize import reencode_chrome_image
 from backend.services.render_provider import get_render_provider
-from backend.utils.file_handler import get_signed_url, upload_document
+from backend.utils.file_handler import download_document, get_signed_url, upload_document
 
 logger = logging.getLogger(__name__)
 
@@ -167,8 +169,6 @@ def _attach_docx_to_entity(
 ) -> str:
     """Mirror documents.upload_pdf pending_record + attachment reference — JWT db."""
     # Copy: storage already holds the draft docx; re-upload under entity path
-    from backend.utils.file_handler import download_document
-
     file_bytes = download_document(docx_path)
     entity_path = upload_document(
         file_bytes=file_bytes,
@@ -516,6 +516,51 @@ def draft_docx_url(
     except RuntimeError as exc:
         raise ValidationError(str(exc)) from exc
     return {"draft_id": str(draft_id), "signed_url": url, "expires_in": expires_in}
+
+
+@router.get("/drafts/{draft_id}/preview")
+def preview_draft(
+    project_id: UUID,
+    draft_id: UUID,
+    access: dict = Depends(verify_project_access),
+):
+    """PDF preview of the draft DOCX via configured render provider."""
+    db = access["db"]
+    draft = DocumentDraftRepository(db).get_with_template(str(draft_id))
+    if not draft:
+        raise NotFoundError()
+    _assert_draft_in_project(draft, str(project_id))
+
+    docx_bytes: Optional[bytes] = None
+    path = draft.get("docx_path")
+    if path:
+        try:
+            docx_bytes = download_document(path)
+        except RuntimeError:
+            docx_bytes = None
+
+    if docx_bytes is None:
+        template = None
+        if draft.get("template_id"):
+            template = DocumentTemplateRepository(db).get(draft["template_id"])
+        elif draft.get("document_templates"):
+            template = draft["document_templates"]
+        docx_bytes = build_docx(
+            body_html=sanitize_body_html(draft.get("body_html") or ""),
+            field_values=draft.get("field_values") or {},
+            template=template,
+        )
+
+    pdf_bytes = get_render_provider().render_to_pdf(docx_bytes)
+    if pdf_bytes is None:
+        return JSONResponse(
+            status_code=501,
+            content={"detail": "Preview unavailable — download the .docx"},
+        )
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+    )
 
 
 @router.get("/drafts/{draft_id}/provenance")

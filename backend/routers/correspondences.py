@@ -482,8 +482,22 @@ def generate_ai_draft(
     if corr["project_id"] != str(project_id):
         raise NotFoundError()
 
-    project = db.table("projects").select("*").eq("id", str(project_id)).single().execute()
-    project_context = project.data if project.data else {}
+    # DATA MINIMIZATION: only fields the model actually needs are sent to the external
+    # provider — never the whole project row. Masking (Faz C) will add identity
+    # pseudonymization ON TOP of this; minimization is independently required and is
+    # not a substitute for it, nor it for minimization.
+    project = (
+        db.table("projects")
+        .select("name, contract_type")
+        .eq("id", str(project_id))
+        .single()
+        .execute()
+    )
+    row = project.data or {}
+    project_context = {
+        "name": row.get("name"),
+        "contract_type": row.get("contract_type"),
+    }
 
     ai = get_ai_service(db)
     result = ai.generate_correspondence_draft(

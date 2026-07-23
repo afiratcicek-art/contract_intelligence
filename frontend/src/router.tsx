@@ -13,6 +13,7 @@ import ChangeDetail from "./pages/ChangeDetail";
 import NewChange from "./pages/NewChange";
 import NewRFI from "./pages/NewRFI";
 import DocumentView from "./pages/DocumentView";
+import AuthoringDraftPage from "./pages/AuthoringDraftPage";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<"checking" | "ok" | "denied">(
@@ -127,6 +128,26 @@ export default function Router() {
             <ErrorBoundary>
               <PrivateRoute>
                 <ChangeDetail />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/authoring/new"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <AuthoringDraftPage />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/authoring/:draftId"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <AuthoringDraftPage />
               </PrivateRoute>
             </ErrorBoundary>
           }

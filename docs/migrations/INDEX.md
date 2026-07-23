@@ -28,7 +28,7 @@ Format: `table | authoritative migration(s) | one-line history`
 | changes | 001 | created 001; indexes 003; RLS 002 |
 | change_references | 001 | created 001; RLS 002 |
 | change_event_documents | 009 | created 009 |
-| correspondences | 001 → 020 → 024 → 025 | created 001; search_vector 020/025; keywords 024 |
+| correspondences | 001 → 020 → 024 → 025 → **044** | created 001; search_vector 020/025; keywords 024; **entry_mode (nullable) 044** |
 | correspondence_references | 001 → 032 → 033 → 034 → 035 | created 001; type alignment 032; document link 033; doc type 034; ref_role 035 |
 | correspondence_drafts | 001 → 005 | created 001; gate fields 005 |
 | correspondence_documents | 001 | created 001; RLS 002 |
@@ -58,6 +58,15 @@ Format: `table | authoritative migration(s) | one-line history`
 | pdf_document | 006 → 007 → 013 → 017 → 019 → 020 → 036 | created 006; `contract_document` entity_type 007; `internal_alert` entity_type 013; metadata cols 017; doc_type 019; search_vector 020; **RLS source of truth 036** (supersedes 006/008 policies) |
 | document_embeddings | 018 | created 018 |
 | document_relations | 018 | created 018 |
+
+## Document authoring (writing module)
+
+| table | authoritative migration(s) | history |
+|---|---|---|
+| **document_templates** | **044** | **created 044 — project-scoped letterhead/field config; one active per (project, doc_type)** |
+| **document_drafts** | **044** | **created 044 — authored drafts + optimistic `version`; materializes to rfi/correspondence** |
+| **document_draft_versions** | **044** | **created 044 — meaningful-moment snapshots (manual/pre/post_generation/approval)** |
+| **document_provenance** | **044** | **created 044 — event+attribution only (never content); server-written** |
 
 ## Alerts
 
@@ -92,4 +101,4 @@ Format: `table | authoritative migration(s) | one-line history`
 
 ---
 
-*Last updated with 043 (contract_clauses + clause_incorporations; clause_overrides subject_key→subject_clause_id).*
+*Last updated with 044 (document authoring: templates/drafts/versions/provenance; correspondences.entry_mode).*

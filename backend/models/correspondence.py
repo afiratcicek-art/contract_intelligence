@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import Optional
+from typing import Optional, Literal
 from datetime import date, datetime
 from uuid import UUID
 from backend.models.common import Direction, DayType, DeadlineSource, ContractualStatus
@@ -24,6 +24,8 @@ class CorrespondenceCreate(BaseModel):
     response_due_day_type: Optional[DayType] = None
     external_ref: Optional[str] = None
     keywords: Optional[list[str]] = None
+    # Migration 044 — NULL-tolerant; authored materialization sets this.
+    entry_mode: Optional[Literal["authored", "recorded"]] = None
 
     @field_validator("corr_number", "external_ref", "response_due_clause", mode="before")
     @classmethod

@@ -9,6 +9,7 @@ import AlertsModule from "../components/AlertsModule";
 import ChronologiesModule from "../components/ChronologiesModule";
 import DocumentsModule from "../components/DocumentsModule";
 import ContractInForceView from "../components/ContractInForceView";
+import AuthoringTemplatesPanel from "../components/AuthoringTemplatesPanel";
 
 type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
@@ -546,6 +547,10 @@ export default function Workspace() {
                         style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
                         {lang === "tr" ? "Yeni Yazışma" : "New Correspondence"}
                       </button>
+                      <button onClick={() => { setCorrDropdown(false); navigate(`/projects/${projectId}/workspace/authoring/new?doc_type=letter`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
+                        {lang === "tr" ? "Yaz (Letterhead)" : "Write (Letterhead)"}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -641,6 +646,10 @@ export default function Workspace() {
                       <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=new`); }}
                         style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
                         {lang === "tr" ? "Yeni RFI" : "New RFI"}
+                      </button>
+                      <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/authoring/new?doc_type=rfi`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
+                        {lang === "tr" ? "Yaz (Letterhead)" : "Write (Letterhead)"}
                       </button>
                       <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=response`); }}
                         style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
@@ -819,9 +828,17 @@ export default function Workspace() {
               projectId={String(projectId)}
             />
           )}
+          {activeModule === "config" && (
+            <div>
+              <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
+                Config
+              </div>
+              <AuthoringTemplatesPanel projectId={String(projectId)} />
+            </div>
+          )}
           {!["general", "alerts", "correspondence",
             "rfis", "changes", "deliverables",
-            "chronologies", "documents"].includes(activeModule) && (
+            "chronologies", "documents", "config"].includes(activeModule) && (
             <div style={{
               display: "flex",
               alignItems: "center",

@@ -288,3 +288,28 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   olmalı. Şimdilik ikisi de yazılıyor; senkron drift riski bilinçli ertelendi.
   Ne zaman: contract surface stabilize olduktan sonra, ilk veri-migration
   penceresinde.
+
+---
+
+## Document authoring — Faz 0/A/B (2026-07)
+
+- **TB-33**: Watermark docx'e gömülmüyor. python-docx'in first-class watermark
+  API'si yok; ham OOXML behind-text çapalama kırılgan çıktı
+  (`docx_builder.py` ~159). `watermark_image_path` saklanıyor ve FE'de CSS
+  önizleme opaklığı için dönüyor, ama .docx'e eklenmiyor. Header/footer gömme
+  çalışıyor.
+- **TB-34**: `bleach` bakımsız (Mozilla 2023'te bıraktı) ama güvenlik-kritik
+  `body_html` sanitizasyonunu o taşıyor (`backend/core/html_sanitizer.py`).
+  Bakımlı alternatif: `nh3`. Önceden-var platform tercihi (kök
+  `requirements.txt`), authoring işinin getirdiği bir borç değil.
+- **TB-35**: Şablon chrome görseli değiştirilince eskisi Storage'da yetim
+  kalıyor — `upload_template_chrome` yeni yolu yazıyor, eskisini silmiyor.
+- **TB-36**: `sanitize_body_html` sondaki `cleaned[:LIMITS["content"]]` kesmesi
+  HTML'i etiket ortasından bölebilir → bozuk markup. Limit uygulanacaksa
+  etiket-farkında kesilmeli.
+- **TB-37**: `create_template` içinde "önce eskisini deactive et, sonra yenisini
+  oluştur" transactional değil — `repo.create` hata verirse proje aktif
+  şablonsuz kalır.
+- **TB-38** (izleme): materyalizasyondaki referans insert'i `rdata` ile client
+  anahtarlarını doğrudan geçiriyor. `create_rfi` aynısını yapıyorsa miras
+  davranış; yapmıyorsa allow-list'e daraltılmalı.

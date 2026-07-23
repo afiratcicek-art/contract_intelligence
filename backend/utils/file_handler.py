@@ -91,6 +91,18 @@ def get_signed_url(path: str, expires_in: int = 3600) -> str:
         raise RuntimeError(f"Signed URL oluşturma hatası: {exc}") from exc
 
 
+def download_document(storage_path: str) -> bytes:
+    """
+    Storage'dan dosya baytlarını indirir (chrome görselleri / docx rebuild).
+    Admin client singleton — upload_document ile aynı desen.
+    """
+    try:
+        data = get_admin_client().storage.from_(STORAGE_BUCKET).download(storage_path)
+        return data
+    except Exception as exc:
+        raise RuntimeError(f"Storage indirme hatası: {exc}") from exc
+
+
 def _content_type(ext: str) -> str:
     mapping = {
         "pdf":  "application/pdf",

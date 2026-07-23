@@ -17,6 +17,7 @@ from backend.routers import config as config_router
 from backend.routers import documents
 from backend.routers import alerts as alerts_router
 from backend.routers import notice_config as notice_config_router
+from backend.routers import document_authoring
 from backend.database import get_admin_client as _get_admin_for_startup
 
 logging.basicConfig(
@@ -176,6 +177,7 @@ app.include_router(config_router.router, prefix=API_V1)
 app.include_router(documents.router, prefix=API_V1)
 app.include_router(alerts_router.router, prefix=API_V1)
 app.include_router(notice_config_router.router, prefix=API_V1)
+app.include_router(document_authoring.router, prefix=API_V1)
 
 # ── Health check ───────────────────────────────────────────────────────────
 @app.get("/", tags=["health"])

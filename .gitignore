@@ -33,3 +33,6 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+
+.cursor/*
+!.cursor/rules/

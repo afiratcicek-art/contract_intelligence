@@ -1,0 +1,64 @@
+---
+description: ClauseIQ Design System v1.1 — tokens, typography, geometry; UI audit commands
+globs: frontend/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# ClauseIQ Design System (UI)
+
+Canonical source: `frontend/src/index.css` — **ClauseIQ Design System v1.1** (approved 19 Jun 2026). Do not invent new hex values; extend tokens in `index.css` only with owner approval.
+
+## Tokens
+
+- Colors: `var(--color-*)` only in components (bg, text, border, accent, alert, success, warning, ai, priority, z-index).
+- Prefer CSS variables over Tailwind arbitrary colors (`bg-[#…]`, `hover:bg-[rgba(…)]`).
+- Tailwind `theme.extend.colors` in `tailwind.config.js` mirrors the palette for rare utility use — do not introduce a third hex set.
+- No fallback hex outside the palette (e.g. `#c0392b`, `#e67e22` are forbidden).
+
+## Typography
+
+| Role | Family | Typical size |
+|------|--------|----------------|
+| Display / page title | Playfair Display, Georgia, serif | 20–22 |
+| Section / modal title | Playfair | 16–18 |
+| UI body / controls | Inter, sans-serif | 12–13 |
+| Meta / chips / labels | Inter | 11 |
+| IDs, numbers, lang toggle | JetBrains Mono, monospace | 11 |
+
+Do not use Playfair at meta scale (≤12). Do not add Inter/Roboto/Arial/system as primary UI fonts beyond Inter stack.
+
+## Geometry
+
+- `borderRadius: 0` / `rounded-none` — sharp corners. Exception: `borderRadius: "50%"` for status dots only.
+- Card/nav selection: **3px** left border `var(--color-accent)` (not 4px).
+- Prefer `0.5px` hairline borders with `var(--color-border-*)`.
+- Avoid decorative `boxShadow` unless already established on that surface; prefer flat borders.
+
+## Patterns
+
+- Inline styles + CSS variables (house style). Mirror existing modules (Workspace, DocumentStatsPanel, ContractInForcePanel).
+- Status chips: map to `--color-alert-*` / `--color-success*` / `--color-warning*` / `--color-ai*`.
+
+## Audit commands (re-run before UI sign-off)
+
+```bash
+# Hardcoded hex outside the token file
+rg -n "#[0-9A-Fa-f]{3,8}\b" frontend/src -g "*.{tsx,ts,css}"
+
+# Radius drift
+rg -n "borderRadius:\s*[1-9]|rounded-sm|rounded-full|rounded-md|rounded-lg" frontend/src -g "*.{tsx,ts,css}"
+
+# Font stacks
+rg -n "fontFamily\s*:" frontend/src -g "*.{tsx,ts}"
+
+# Size ladder sample
+rg -oN "fontSize:\s*\d+" frontend/src -g "*.{tsx,ts}"
+
+# Shadows / overlays
+rg -n "boxShadow|rgba\(" frontend/src -g "*.{tsx,ts}"
+
+# Token adoption
+rg -l "var\(--color" frontend/src -g "*.{tsx,ts}"
+```
+
+Compare findings against `:root` / `html.dark` in `index.css`. Chart series and hover states must also resolve to tokens (or new named tokens), not one-off hex.

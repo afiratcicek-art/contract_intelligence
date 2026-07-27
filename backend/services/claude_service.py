@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Protocol, runtime_checkable
 from backend.core.config import settings
 from backend.core.sanitizer import sanitize_contract_text
+from backend.services.masking_service import MaskSession, MaskingProvider
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,7 @@ class GateBlockedResult:
         "Lütfen birkaç saniye bekleyip tekrar deneyin."
     )
     audit_logged: bool = True
+    reason: str | None = None
 
 
 @runtime_checkable
@@ -194,6 +196,44 @@ class ClaudeService:
     def _sanitize_contract(text: str) -> str:
         return sanitize_contract_text(text)
 
+    def _mask_session_or_block(
+        self,
+        project_id: Optional[str],
+        user_id: Optional[str],
+    ) -> MaskSession | GateBlockedResult:
+        """INV-3/5: request-scoped session from project_id; never on self/cache/DB.
+        Masking is deterministic exact-match (stopgap, TB-41); target = local-NER hybrid.
+        """
+        if not project_id:
+            return self._handle_gate_block(
+                reason="mask_unavailable",
+                user_id=user_id or "",
+                project_id="",
+            )
+        db = self.db or self.admin_db
+        if db is None:
+            return self._handle_gate_block(
+                reason="mask_unavailable",
+                user_id=user_id or "",
+                project_id=project_id,
+            )
+        try:
+            session = MaskingProvider(db).build(project_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("masking build failed: %s", exc)
+            return self._handle_gate_block(
+                reason="mask_unavailable",
+                user_id=user_id or "",
+                project_id=project_id,
+            )
+        if session is None:
+            return self._handle_gate_block(
+                reason="mask_unavailable",
+                user_id=user_id or "",
+                project_id=project_id,
+            )
+        return session
+
     def _log_call(
         self,
         call_type: str,
@@ -243,16 +283,31 @@ class ClaudeService:
         user_text: str,
         request_kind: str,
         project_context: dict,
+        session: MaskSession,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
         contract_excerpt: str = "",
-    ) -> GateResult:
+    ) -> GateResult | GateBlockedResult:
         try:
             client = self._get_client()
+            masked_text = session.mask(user_text)
+            masked_ctx = session.mask_context(project_context)
+            masked_excerpt = (
+                session.mask(contract_excerpt) if contract_excerpt else ""
+            )
             gate_input = (
                 f"Request kind: {request_kind}\n"
-                f"Project context: {project_context}\n"
-                f"Contract excerpt: {contract_excerpt[:2000] if contract_excerpt else 'None'}\n"
-                f"User text:\n{user_text}"
+                f"Project context: {masked_ctx}\n"
+                f"Contract excerpt: {masked_excerpt[:2000] if masked_excerpt else 'None'}\n"
+                f"User text:\n{masked_text}"
             )
+            # INV-2: fail-closed on residual raw identity before provider call
+            if session.has_leak(gate_input):
+                return self._handle_gate_block(
+                    reason="mask_leak",
+                    user_id=user_id or "",
+                    project_id=project_id or "",
+                )
             message = client.messages.create(
                 model=settings.GATE_MODEL,
                 max_tokens=512,
@@ -276,7 +331,7 @@ class ClaudeService:
                 blocked=False,
                 injection_detected=False,
                 objectivity_flag=gate_dict.get("objectivity_flag", False),
-                corrected_text=gate_dict.get("corrected_text", user_text),
+                corrected_text=gate_dict.get("corrected_text", masked_text),
                 detected_language=gate_dict.get("detected_language", "en"),
                 complexity=gate_dict.get("complexity", "complex"),
                 intent=gate_dict.get("intent", ""),
@@ -322,7 +377,7 @@ class ClaudeService:
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("audit_log write failed (non-blocking): %s", exc)
-        return GateBlockedResult()
+        return GateBlockedResult(reason=reason)
 
     def _run_analysis_layer(
         self,
@@ -330,7 +385,10 @@ class ClaudeService:
         user_content: str,
         max_tokens: int,
         gate: GateResult,
-    ) -> object:
+        session: MaskSession,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+    ) -> object | GateBlockedResult:
         if gate.objectivity_flag:
             user_content = (
                 "[OBJECTIVITY WARNING: Respond strictly "
@@ -343,6 +401,13 @@ class ClaudeService:
                 "talep edilmiş olabilir. ClauseIQ kontratı "
                 "objektif yorumlar. Nihai karar ve "
                 "sorumluluk size aittir."
+            )
+        # INV-2: fail-closed before qualified provider call
+        if session.has_leak(user_content):
+            return self._handle_gate_block(
+                reason="mask_leak",
+                user_id=user_id or "",
+                project_id=project_id or "",
             )
         client = self._get_client()
         return client.messages.create(
@@ -357,7 +422,8 @@ class ClaudeService:
         text: str,
         project_id: str,
         user_id: str,
-    ) -> str:
+        session: MaskSession,
+    ) -> str | GateBlockedResult:
         import re
         prohibited = [
             r"\bcertainly\b", r"\bdefinitely\b",
@@ -374,20 +440,28 @@ class ClaudeService:
         for i, sentence in enumerate(sentences):
             if pattern.search(sentence):
                 client = self._get_client()
+                revision_content = (
+                    "Revise only this sentence. "
+                    "Remove certainty language. "
+                    "Preserve all contractual "
+                    "references exactly. "
+                    "Return only the revised sentence.\n\n"
+                    f"Sentence: {sentence}"
+                )
+                # INV-1/2: revision prompt stays in masked domain
+                if session.has_leak(revision_content):
+                    return self._handle_gate_block(
+                        reason="mask_leak",
+                        user_id=user_id or "",
+                        project_id=project_id or "",
+                    )
                 revision = client.messages.create(
                     model=settings.ANALYSIS_MODEL,
                     max_tokens=200,
                     system="You revise a single sentence.",
                     messages=[{
                         "role": "user",
-                        "content": (
-                            "Revise only this sentence. "
-                            "Remove certainty language. "
-                            "Preserve all contractual "
-                            "references exactly. "
-                            "Return only the revised sentence.\n\n"
-                            f"Sentence: {sentence}"
-                        ),
+                        "content": revision_content,
                     }],
                 )
                 revised = revision.content[0].text.strip()
@@ -500,6 +574,11 @@ class ClaudeService:
         entity_id: Optional[str] = None,
     ) -> DraftResult | GateBlockedResult:
         start = time.time()
+        session_or_block = self._mask_session_or_block(project_id, user_id)
+        if isinstance(session_or_block, GateBlockedResult):
+            return session_or_block
+        session = session_or_block
+
         safe_text = self._sanitize_input(user_instructions)
 
         cache_key = self._simple_lookup_cache_key(safe_text, project_id or "")
@@ -507,7 +586,7 @@ class ClaudeService:
         if cached:
             confidence = self._calculate_confidence()
             return DraftResult(
-                draft_text=cached,
+                draft_text=session.demask(cached),
                 confidence_score=confidence,
                 clause_citations=clause_references,
                 review_required=confidence < self.REVIEW_THRESHOLD,
@@ -518,7 +597,12 @@ class ClaudeService:
             user_text=safe_text,
             request_kind="draft",
             project_context={"id": project_id, **project_context},
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
         )
+        if isinstance(gate, GateBlockedResult):
+            return gate
 
         if gate.blocked:
             return self._resolve_gate_block(gate, user_id, project_id)
@@ -535,7 +619,7 @@ class ClaudeService:
             )
             confidence = self._calculate_confidence()
             return DraftResult(
-                draft_text=gate.simple_lookup_answer,
+                draft_text=session.demask(gate.simple_lookup_answer),
                 confidence_score=confidence,
                 clause_citations=clause_references,
                 review_required=confidence < self.REVIEW_THRESHOLD,
@@ -544,12 +628,17 @@ class ClaudeService:
             )
 
         effective_language = gate.detected_language or language
+        masked_ctx = session.mask_context(project_context)
+        masked_refs = [
+            session.mask(str(r)) for r in (clause_references or [])
+        ]
+        masked_instructions = session.mask(gate.corrected_text)
         user_content = (
-            f"Correspondence Type: {correspondence_type}\n"
-            f"Project Context: {project_context}\n"
-            f"Clause References: {', '.join(clause_references) if clause_references else 'None'}\n"
+            f"Correspondence Type: {session.mask(correspondence_type)}\n"
+            f"Project Context: {masked_ctx}\n"
+            f"Clause References: {', '.join(masked_refs) if masked_refs else 'None'}\n"
             f"Language: {effective_language}\n"
-            f"Instructions: {gate.corrected_text}\n\n"
+            f"Instructions: {masked_instructions}\n\n"
             "Generate a professional correspondence draft. "
             "Cite every clause reference used. "
             "If confidence is below 0.7, flag for human review."
@@ -560,13 +649,21 @@ class ClaudeService:
             user_content=user_content,
             max_tokens=2000,
             gate=gate,
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
         )
+        if isinstance(message, GateBlockedResult):
+            return message
 
         clean_text = self._run_post_processor(
             message.content[0].text,
             project_id=project_id or "",
             user_id=user_id or "",
+            session=session,
         )
+        if isinstance(clean_text, GateBlockedResult):
+            return clean_text
 
         duration_ms = int((time.time() - start) * 1000)
         confidence = self._calculate_confidence()
@@ -582,7 +679,7 @@ class ClaudeService:
         )
 
         return DraftResult(
-            draft_text=clean_text,
+            draft_text=session.demask(clean_text),
             confidence_score=confidence,
             clause_citations=clause_references,
             review_required=confidence < self.REVIEW_THRESHOLD,
@@ -599,13 +696,23 @@ class ClaudeService:
         user_id: Optional[str] = None,
     ) -> NarrativeResult | GateBlockedResult:
         start = time.time()
+        session_or_block = self._mask_session_or_block(project_id, user_id)
+        if isinstance(session_or_block, GateBlockedResult):
+            return session_or_block
+        session = session_or_block
+
         user_text = f"Event: {event}\nChange Context: {change_context}"
 
         gate = self._run_gate_layer(
             user_text=user_text,
             request_kind="narrative",
             project_context={"id": project_id},
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
         )
+        if isinstance(gate, GateBlockedResult):
+            return gate
 
         if gate.blocked:
             return self._resolve_gate_block(gate, user_id, project_id)
@@ -619,17 +726,23 @@ class ClaudeService:
             )
             confidence = self._calculate_confidence()
             return NarrativeResult(
-                narrative_text=gate.simple_lookup_answer,
+                narrative_text=session.demask(gate.simple_lookup_answer),
                 confidence_score=confidence,
                 review_required=confidence < self.REVIEW_THRESHOLD,
                 resolved_by_gate=True,
                 warnings=gate.warnings,
             )
 
+        masked_change = session.mask_context(change_context)
+        masked_event = session.mask_context(event)
+        masked_preceding = [
+            session.mask_context(e) if isinstance(e, dict) else session.mask(str(e))
+            for e in (preceding_events or [])[:5]
+        ]
         user_content = (
-            f"Change Context: {change_context}\n"
-            f"Event: {event}\n"
-            f"Preceding Events (most recent first): {preceding_events[:5]}\n\n"
+            f"Change Context: {masked_change}\n"
+            f"Event: {masked_event}\n"
+            f"Preceding Events (most recent first): {masked_preceding}\n\n"
             "Generate a concise, factual chronology narrative for this event. "
             "Write in third person, past tense. Cite document references."
         )
@@ -639,13 +752,21 @@ class ClaudeService:
             user_content=user_content,
             max_tokens=500,
             gate=gate,
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
         )
+        if isinstance(message, GateBlockedResult):
+            return message
 
         clean_text = self._run_post_processor(
             message.content[0].text,
             project_id=project_id or "",
             user_id=user_id or "",
+            session=session,
         )
+        if isinstance(clean_text, GateBlockedResult):
+            return clean_text
 
         duration_ms = int((time.time() - start) * 1000)
         confidence = self._calculate_confidence()
@@ -661,7 +782,7 @@ class ClaudeService:
         )
 
         return NarrativeResult(
-            narrative_text=clean_text,
+            narrative_text=session.demask(clean_text),
             confidence_score=confidence,
             review_required=confidence < self.REVIEW_THRESHOLD,
             warnings=gate.warnings,
@@ -677,6 +798,11 @@ class ClaudeService:
         user_id: Optional[str] = None,
     ) -> ClauseAnalysisResult | GateBlockedResult:
         start = time.time()
+        session_or_block = self._mask_session_or_block(project_id, user_id)
+        if isinstance(session_or_block, GateBlockedResult):
+            return session_or_block
+        session = session_or_block
+
         safe_text = self._sanitize_input(query)
         safe_contract = self._sanitize_contract(contract_text)
 
@@ -685,7 +811,7 @@ class ClaudeService:
         if cached:
             confidence = self._calculate_confidence()
             return ClauseAnalysisResult(
-                analysis_text=cached,
+                analysis_text=session.demask(cached),
                 confidence_score=confidence,
                 review_required=confidence < self.REVIEW_THRESHOLD,
                 resolved_by_gate=True,
@@ -695,8 +821,13 @@ class ClaudeService:
             user_text=safe_text,
             request_kind="clause_analysis",
             project_context={"id": project_id, **project_context},
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
             contract_excerpt=safe_contract[:8000],
         )
+        if isinstance(gate, GateBlockedResult):
+            return gate
 
         if gate.blocked:
             return self._resolve_gate_block(gate, user_id, project_id)
@@ -713,17 +844,20 @@ class ClaudeService:
             )
             confidence = self._calculate_confidence()
             return ClauseAnalysisResult(
-                analysis_text=gate.simple_lookup_answer,
+                analysis_text=session.demask(gate.simple_lookup_answer),
                 confidence_score=confidence,
                 review_required=confidence < self.REVIEW_THRESHOLD,
                 resolved_by_gate=True,
                 warnings=gate.warnings,
             )
 
+        masked_ctx = session.mask_context(project_context)
+        masked_contract = session.mask(safe_contract[:8000])
+        masked_query = session.mask(gate.corrected_text)
         user_content = (
-            f"Project Context: {project_context}\n"
-            f"Contract Excerpt:\n{safe_contract[:8000]}\n\n"
-            f"Query: {gate.corrected_text}\n\n"
+            f"Project Context: {masked_ctx}\n"
+            f"Contract Excerpt:\n{masked_contract}\n\n"
+            f"Query: {masked_query}\n\n"
             "Analyze the relevant contract clauses. "
             "Every statement must cite a specific clause. "
             "If no clause supports a claim, do not make the claim. "
@@ -735,13 +869,21 @@ class ClaudeService:
             user_content=user_content,
             max_tokens=1500,
             gate=gate,
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
         )
+        if isinstance(message, GateBlockedResult):
+            return message
 
         clean_text = self._run_post_processor(
             message.content[0].text,
             project_id=project_id or "",
             user_id=user_id or "",
+            session=session,
         )
+        if isinstance(clean_text, GateBlockedResult):
+            return clean_text
 
         duration_ms = int((time.time() - start) * 1000)
         confidence = self._calculate_confidence()
@@ -757,7 +899,7 @@ class ClaudeService:
         )
 
         return ClauseAnalysisResult(
-            analysis_text=clean_text,
+            analysis_text=session.demask(clean_text),
             confidence_score=confidence,
             review_required=confidence < self.REVIEW_THRESHOLD,
             warnings=gate.warnings,
@@ -773,6 +915,11 @@ class ClaudeService:
         user_id: str,
     ) -> ClauseAnalysisResult | GateBlockedResult:
         start = time.time()
+        session_or_block = self._mask_session_or_block(project_id, user_id)
+        if isinstance(session_or_block, GateBlockedResult):
+            return session_or_block
+        session = session_or_block
+
         safe_text = self._sanitize_input(scenario_query)
         safe_contract = self._sanitize_contract(contract_text)
 
@@ -781,7 +928,7 @@ class ClaudeService:
         if cached:
             confidence = self._calculate_confidence()
             return ClauseAnalysisResult(
-                analysis_text=cached,
+                analysis_text=session.demask(cached),
                 confidence_score=confidence,
                 review_required=confidence < self.REVIEW_THRESHOLD,
                 resolved_by_gate=True,
@@ -791,8 +938,13 @@ class ClaudeService:
             user_text=safe_text,
             request_kind="what_if",
             project_context={"id": project_id, **project_context},
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
             contract_excerpt=safe_contract[:8000],
         )
+        if isinstance(gate, GateBlockedResult):
+            return gate
 
         if gate.blocked:
             return self._resolve_gate_block(gate, user_id, project_id)
@@ -809,17 +961,20 @@ class ClaudeService:
             )
             confidence = self._calculate_confidence()
             return ClauseAnalysisResult(
-                analysis_text=gate.simple_lookup_answer,
+                analysis_text=session.demask(gate.simple_lookup_answer),
                 confidence_score=confidence,
                 review_required=confidence < self.REVIEW_THRESHOLD,
                 resolved_by_gate=True,
                 warnings=gate.warnings,
             )
 
+        masked_ctx = session.mask_context(project_context)
+        masked_contract = session.mask(safe_contract[:8000])
+        masked_scenario = session.mask(gate.corrected_text)
         user_content = (
-            f"Project Context: {project_context}\n"
-            f"Contract Excerpt:\n{safe_contract[:8000]}\n\n"
-            f"What-if Scenario: {gate.corrected_text}\n\n"
+            f"Project Context: {masked_ctx}\n"
+            f"Contract Excerpt:\n{masked_contract}\n\n"
+            f"What-if Scenario: {masked_scenario}\n\n"
             "Analyze this hypothetical scenario against the contract. "
             "Present both parties' positions objectively. "
             "Every statement must cite a specific clause. "
@@ -832,13 +987,21 @@ class ClaudeService:
             user_content=user_content,
             max_tokens=2000,
             gate=gate,
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
         )
+        if isinstance(message, GateBlockedResult):
+            return message
 
         clean_text = self._run_post_processor(
             message.content[0].text,
             project_id=project_id,
             user_id=user_id,
+            session=session,
         )
+        if isinstance(clean_text, GateBlockedResult):
+            return clean_text
 
         duration_ms = int((time.time() - start) * 1000)
         confidence = self._calculate_confidence()
@@ -854,7 +1017,7 @@ class ClaudeService:
         )
 
         return ClauseAnalysisResult(
-            analysis_text=clean_text,
+            analysis_text=session.demask(clean_text),
             confidence_score=confidence,
             review_required=confidence < self.REVIEW_THRESHOLD,
             warnings=gate.warnings,

@@ -31,7 +31,7 @@ def get_current_user(request: Request) -> dict:
     cache_key = _auth_cache_key(token)
     cached = cache_get(cache_key)
     if cached is not None and cached.get("is_active"):
-        return cached
+        return {**cached, "_meta": {"token": token}}
 
     try:
         db = get_anon_client()
@@ -52,11 +52,12 @@ def get_current_user(request: Request) -> dict:
             raise ForbiddenError()
 
         user_data = result.data
-        # Cache'e yaz — sadece active kullanıcılar
-        # _meta (raw token) cache'e yazılmaz — memory exposure riski
+        # Cache yalnız profili tutar. _meta (ham JWT) cache'e ASLA girmez:
+        # cache_set referansla saklar; user_data'yı mutate etmek cached objeyi
+        # alias'lar ve token'ı TTL boyunca tutardı. Bunun yerine bu isteğin
+        # token'ını taşıyan taze bir kopya döndürülür (hit yolu da aynısını yapar).
         cache_set(cache_key, user_data, _AUTH_CACHE_TTL)
-        user_data["_meta"] = {"token": token}
-        return user_data
+        return {**user_data, "_meta": {"token": token}}
 
     except (UnauthorizedError, ForbiddenError):
         raise

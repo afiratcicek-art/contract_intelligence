@@ -19,7 +19,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Request
 from fastapi.responses import JSONResponse
 
-from backend.core.dependencies import verify_project_access
+from backend.core.dependencies import verify_project_access, require_cm_role
 from backend.core.guards import assert_target_in_project
 from backend.core.limiter import limiter
 from backend.database import get_admin_client
@@ -1436,7 +1436,7 @@ def approve_metadata(
     project_id: str,
     doc_id: str,
     body: DocumentMetadataApprove,
-    access=Depends(verify_project_access),
+    access=Depends(require_cm_role),
 ):
     """HITL: CM approves or corrects Haiku-extracted metadata.
     Approved values replace the draft extraction.

@@ -313,3 +313,39 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
 - **TB-38** (izleme): materyalizasyondaki referans insert'i `rdata` ile client
   anahtarlarını doğrudan geçiriyor. `create_rfi` aynısını yapıyorsa miras
   davranış; yapmıyorsa allow-list'e daraltılmalı.
+- **TB-40**: C1a masking — `_load_contract_parties` / `_load_project_parties`
+  hata durumunda `[]` dönüyor (fail-open). Projeler satırı birincil garanti;
+  yardımcı kaynak yüklenemezse o kimlikler maskelenmez ve sızabilir.
+  Supplementary mask-source yüklemesini fail-closed'a çek ya da
+  completeness-check ekle (`masking_service.py`).
+
+## TB-41 — Deterministic masking is a STOPGAP; target is hybrid (deterministic backbone + local NER)
+
+Status: accepted stopgap (Faz C1a). Blocks zero-leak guarantee. Unblocks at: local model availability (Faz-3).
+
+What ships now (C1a): `masking_service.py` masks project/party identities before any text
+reaches the AI provider, by EXACT-matching names from the registry (projects
+employer/contractor/engineer/name, contract_parties, project_parties) case-insensitively
+and whole-word, replacing them with stable tokens (⟦EMPLOYER⟧, ⟦CONTRACTOR⟧, ⟦PARTY_n⟧…).
+Model output is de-masked before the user sees it. Empty/failed registry → fail-closed.
+
+Why it's a stopgap (the recall gap): exact-match only finds a name spelled EXACTLY as
+stored. It CANNOT catch: typos ("Acme Developement LLC"), abbreviations/variants
+("Acme Dev.", "ADL"), OCR-corrupted names, or any party not in the registry. Such a name
+reaches the provider UNMASKED and `has_leak()` will NOT flag it (`has_leak` only knows registry
+names). Inherent to exact-match masking, not a bug. Acceptance bar today = "cover known
+canonical identities," NOT zero-leak.
+
+Target (hybrid): add a LOCAL NER/LLM detector as a front-end to `MaskingProvider`. It finds
+identity spans regardless of spelling and feeds the EXISTING deterministic backbone (token
+assignment + bijection + de-mask + `has_leak` unchanged). LLM decides WHERE to mask;
+deterministic code assigns stable, reversible tokens. This closes the recall gap.
+
+Hard constraint: the mask model MUST be LOCAL / in-region. A cloud model (e.g. Haiku) used
+for masking would send raw contract text to the provider in order to mask it — exactly the
+S-H4 leak this layer prevents. Cloud masking is self-defeating.
+
+Dependency/timing: no local model runs today; local inference is the Faz-3 (GPU) workstream.
+When Faz-3 lands, wire the local NER in front of `MaskingProvider` without touching the backbone.
+
+Related: TB-40 (supplementary mask-source loads currently fail-open).

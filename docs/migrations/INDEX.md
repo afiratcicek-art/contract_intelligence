@@ -86,7 +86,7 @@ Format: `table | authoritative migration(s) | one-line history`
 | project_keyword_stats | 026 | created 026 |
 | project_location_stats | 026 | created 026 |
 | simple_lookup_cache | 005 | created 005 |
-| audit_log | 001 → 005 → 006 → 008 → 011 → 013 → 014 → 017 → 018 → 031 | created 001; action-check expansions across listed migrations |
+| audit_log | 001 → 005 → 006 → 008 → 011 → 013 → 014 → 017 → 018 → 031 → **046** | created 001; action-check expansions across listed migrations; **046 adds `ai_disabled` (C1b provider gate)** |
 | llm_calls | 001 → 005 → 006 → 017 | created 001; call-type expansions 005/006/017 |
 | **ai_policy** | **045** | **created 045 — per-project AI chat-provider gate (C1b); project_id NULL = tenant default; no seed (AI off until set)** |
 
@@ -103,4 +103,4 @@ Format: `table | authoritative migration(s) | one-line history`
 
 ---
 
-*Last updated with 045 (ai_policy table + effective_provider() + RLS — C1b chat-provider gate).*
+*Last updated with 046 (audit_log action-check + `ai_disabled` — C1b provider gate audit).*

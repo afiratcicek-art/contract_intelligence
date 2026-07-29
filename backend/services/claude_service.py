@@ -196,6 +196,70 @@ class ClaudeService:
     def _sanitize_contract(text: str) -> str:
         return sanitize_contract_text(text)
 
+    # C1b provider gate — restrictiveness rank (mirrors effective_provider())
+    _PROVIDER_RANK = {"none": 2, "local": 1, "anthropic": 0}
+
+    def _provider_gate_or_block(
+        self,
+        project_id: str,
+        user_id: Optional[str],
+    ) -> GateBlockedResult | None:
+        """C1b: per-project AI provider gate. Runs BEFORE mask build.
+        Reads ai_policy (tenant-default where project_id IS NULL + project override),
+        takes MOST RESTRICTIVE (none>local>anthropic); no rows → 'none' (fail-closed).
+        Blocks unless effective provider == 'anthropic' (local = no adapter yet).
+        Fail-closed on any error / missing db.
+        """
+        gate_db = self.admin_db or self.db  # authoritative read (mirrors mask-source access)
+        if gate_db is None:
+            return self._block_ai_disabled(project_id, user_id)
+        try:
+            # tenant_id for this project
+            proj = (
+                gate_db.table("projects")
+                .select("tenant_id")
+                .eq("id", project_id)
+                .single()
+                .execute()
+            )
+            tenant_id = proj.data["tenant_id"] if proj.data else None
+            if tenant_id is None:
+                return self._block_ai_disabled(project_id, user_id)
+
+            rows = (
+                gate_db.table("ai_policy")
+                .select("provider, project_id")
+                .eq("tenant_id", tenant_id)
+                .execute()
+            )
+            # tenant-default = row with project_id IS NULL; override = row with this project_id
+            tenant_default = next(
+                (r["provider"] for r in (rows.data or []) if r["project_id"] is None),
+                "none",  # fail-closed: absent default
+            )
+            override = next(
+                (r["provider"] for r in (rows.data or []) if r["project_id"] == project_id),
+                None,
+            )
+            candidates = [tenant_default] + ([override] if override else [])
+            effective = max(candidates, key=lambda p: self._PROVIDER_RANK.get(p, 2))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("provider gate check failed: %s", exc)
+            return self._block_ai_disabled(project_id, user_id)
+
+        if effective != "anthropic":
+            return self._block_ai_disabled(project_id, user_id)
+        return None
+
+    def _block_ai_disabled(
+        self, project_id: str, user_id: Optional[str],
+    ) -> GateBlockedResult:
+        block = self._handle_gate_block(
+            reason="ai_disabled", user_id=user_id or "", project_id=project_id,
+        )
+        block.warning_message = "Bu proje için yapay zeka özellikleri etkin değil."
+        return block
+
     def _mask_session_or_block(
         self,
         project_id: Optional[str],
@@ -210,6 +274,10 @@ class ClaudeService:
                 user_id=user_id or "",
                 project_id="",
             )
+        # C1b provider gate — fail-closed BEFORE mask build
+        provider_block = self._provider_gate_or_block(project_id, user_id)
+        if provider_block is not None:
+            return provider_block
         db = self.db or self.admin_db
         if db is None:
             return self._handle_gate_block(

@@ -14,8 +14,9 @@ semantik arama canlı değil (sorgu-embed yazılmamış) → greenfield. GCC/KSA
 
 ## Karar
 Embedding, dış sağlayıcı (OpenAI) yerine YEREL, in-process ONNX modeliyle (fastembed) üretilecek.
-Model = bge-m3 (çok-dilli EN/AR, dense+sparse, 1024-dim) — sözleşmeler iki-dilli olabildiği ve
-Arapça prevail edebildiği için çok-dilli zorunlu.
+Model = intfloat/multilingual-e5-large (çok-dilli EN/AR, 1024-dim, fastembed-ONNX) — sözleşmeler iki-dilli
+olabildiği ve Arapça prevail edebildiği için çok-dilli zorunlu. (bge-m3 fastembed dense API'sinde yok; e5-large
+eşdeğer kalite + aynı 1024-dim, ölçüldü dim=1024.)
 
 ## Gerekçe
 Ölçülmüş: fastembed torch-SUZ (~200MB lib, marjinal ~130MB), CPU embed ~10ms/chunk (Ali laptop),
@@ -34,12 +35,13 @@ yükü + KSA'da zorunlu sökme.
 4. Ham chunk metni DB'de saklı kalır (chunk_text, zaten böyle); retrieval vektörle bulur, ham metni
    çeker; kullanıcıya/LLM'e giden metin ayrı katmanda (C1a) maskelenir.
 5. Sorgu-tarafı embed (yazıldığında) AYNI lokal modeli kullanır — vektör-uzay tutarlılığı.
-6. Vektör boyutu nihai modele göre BİR KEZ kilitlenir (018 dim-migration); sonraki model değişimi =
+6. e5 önek-konvansiyonu ZORUNLU: ingest chunk'ları "passage:", sorgu "query:" önekiyle embed edilir — ingest ve sorgu AYNI model + AYNI önek (aksi halde vektör-uzay tutarsız).
+7. Vektör boyutu nihai modele göre BİR KEZ kilitlenir (018 dim-migration); sonraki model değişimi =
    bilinçli re-embed operasyonu.
 
 ## İzleme-tetikleri (EK-19 faz-sınırında kontrol)
 - Korpus büyüdükçe model-swap/re-embed maliyeti.
-- ✅ Çok-dilli (EN/AR) KARŞILANDI: bge-m3 seçildi; sonraki dil-genişlemesi → yeniden değerlendir.
+- ✅ Çok-dilli (EN/AR) KARŞILANDI: multilingual-e5-large seçildi (fastembed-ONNX, dim=1024); sonraki dil-genişlemesi → yeniden değerlendir.
 - Prod-grade altyapıya geçiş → kapasite/deployment revizyonu.
 - Belirgin üstün yeni model → dim-migration kararı.
 

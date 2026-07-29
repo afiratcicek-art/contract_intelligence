@@ -15,8 +15,8 @@ semantik arama canlı değil (sorgu-embed yazılmamış) → greenfield. GCC/KSA
 ## Karar
 Embedding, dış sağlayıcı (OpenAI) yerine YEREL, in-process ONNX modeliyle (fastembed) üretilecek.
 Model = intfloat/multilingual-e5-large (çok-dilli EN/AR, 1024-dim, fastembed-ONNX) — sözleşmeler iki-dilli
-olabildiği ve Arapça prevail edebildiği için çok-dilli zorunlu. (bge-m3 fastembed dense API'sinde yok; e5-large
-eşdeğer kalite + aynı 1024-dim, ölçüldü dim=1024.)
+olabildiği ve Arapça prevail edebildiği için çok-dilli zorunlu. (dense+sparse aday fastembed TextEmbedding
+API'sinde yok; e5-large eşdeğer kalite + aynı 1024-dim, ölçüldü dim=1024.)
 
 ## Gerekçe
 Ölçülmüş: fastembed torch-SUZ (~200MB lib, marjinal ~130MB), CPU embed ~10ms/chunk (Ali laptop),
@@ -46,7 +46,7 @@ yükü + KSA'da zorunlu sökme.
 - Belirgin üstün yeni model → dim-migration kararı.
 
 ## Doğurduğu TB'ler
-- 018 dim-migration (1536 → 1024, bge-m3) + re-embed.
+- 018 dim-migration (1536 → 1024, multilingual-e5-large) + re-embed.
 - get_embedding_service singleton refactor.
 - openai==1.59.9 paketini düşür (yalnız embedding'de kullanılıyordu).
 - model dosyası vendoring + sürüm pinning.

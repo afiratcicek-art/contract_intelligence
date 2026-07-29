@@ -359,3 +359,11 @@ Ertelendi: embedding kanalı dormant (OPENAI_API_KEY yok + sorgu-embed yok). Bui
 - **TB-45**: e5-large model dosyasını vendor'la + fastembed sürümünü pin'le (laptop→prod birebir vektör uzayı + in-region/residency). ADR-0001 invariant-3.
 
 - **TB-46**: tenant-default `ai_policy` satırını yönetecek user-facing yüzey yok (tenant-admin rolü yok); pilotta service_role/seed ile set; ileride tenant-admin gelince açılır. `045_ai_policy`.
+
+## TB-47 — provider-restrictiveness sırası çift-tanımlı (drift riski)
+Status: open. C1b app-gate ile geldi.
+`_PROVIDER_RANK` (Python, claude_service.py) ve `effective_provider` (SQL, migration 045)
+provider kısıtlılık sırasını (none > local > anthropic) İKİ yerde tanımlıyor. Biri değişip
+öbürü kalırsa app-gate ile DB farklı karar verir (sessiz drift). Şu an docstring
+"mirrors effective_provider()" ile hafifletildi. SQL-tarafı kullanım artarsa tek-kaynağa
+konsolide et (ör. gate'i effective_provider rpc'sine çevir, ya da rank'ı tek yerden üret).

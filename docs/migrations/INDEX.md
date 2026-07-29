@@ -88,6 +88,7 @@ Format: `table | authoritative migration(s) | one-line history`
 | simple_lookup_cache | 005 | created 005 |
 | audit_log | 001 → 005 → 006 → 008 → 011 → 013 → 014 → 017 → 018 → 031 | created 001; action-check expansions across listed migrations |
 | llm_calls | 001 → 005 → 006 → 017 | created 001; call-type expansions 005/006/017 |
+| **ai_policy** | **045** | **created 045 — per-project AI chat-provider gate (C1b); project_id NULL = tenant default; no seed (AI off until set)** |
 
 ## Cross-cutting (not tables)
 
@@ -98,7 +99,8 @@ Format: `table | authoritative migration(s) | one-line history`
 | default role permissions seed | 004 | seeds `project_role_permissions` |
 | search / chain RPCs | 020 → 021 → 022 → 023 | FTS helpers 020; chain search 021/022; similar-docs 023 |
 | pdf_document RLS rewrite | 036 | current policy names/source of truth for `pdf_document` |
+| **effective_provider(project_id)** | **045** | **most-restrictive(tenant-default, project-override); absent default → none (fail-closed); C1b chat gate** |
 
 ---
 
-*Last updated with 044 (document authoring: templates/drafts/versions/provenance; correspondences.entry_mode).*
+*Last updated with 045 (ai_policy table + effective_provider() + RLS — C1b chat-provider gate).*

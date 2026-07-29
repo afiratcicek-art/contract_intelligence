@@ -349,3 +349,13 @@ Dependency/timing: no local model runs today; local inference is the Faz-3 (GPU)
 When Faz-3 lands, wire the local NER in front of `MaskingProvider` without touching the backbone.
 
 Related: TB-40 (supplementary mask-source loads currently fail-open).
+
+## ADR-0001 (local embedding) — build backlog  [EK-20 loop ile izleniyor]
+Ertelendi: embedding kanalı dormant (OPENAI_API_KEY yok + sorgu-embed yok). Build, RAG/embedding aktive olunca. Ref: docs/adr/0001-local-embedding.md.
+
+- **TB-42**: 018 dim-migration — `document_embeddings.embedding` vector(1536)→vector(1024) (multilingual-e5-large); IVFFlat index DROP/CREATE (vector_cosine_ops, lists=100); re-embed (greenfield → veri maliyeti sıfır). Build anında yeni migration dosyası. ADR-0001.
+- **TB-43**: `get_embedding_service()` her çağrıda yeni instance (embedding_service.py); lokal modelde model bir kez yüklenip modül/süreç-ömrü cache'lenmeli (lazy singleton). ADR-0001 invariant-2.
+- **TB-44**: `openai==1.59.9` (requirements.txt:19) düşür — `_embed_chunks` fastembed'e geçince; OpenAI yalnız embedding'de kullanılıyordu. ADR-0001.
+- **TB-45**: e5-large model dosyasını vendor'la + fastembed sürümünü pin'le (laptop→prod birebir vektör uzayı + in-region/residency). ADR-0001 invariant-3.
+
+- **TB-46**: tenant-default `ai_policy` satırını yönetecek user-facing yüzey yok (tenant-admin rolü yok); pilotta service_role/seed ile set; ileride tenant-admin gelince açılır. `045_ai_policy`.

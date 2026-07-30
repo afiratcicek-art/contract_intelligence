@@ -133,6 +133,34 @@ export async function patchAuthoringDraft(
   return api.patch(`/projects/${projectId}/authoring/drafts/${draftId}`, body);
 }
 
+export type AiDraftResult = {
+  body_html: string;
+  version: number;
+  confidence_score: number;
+  warnings: string[];
+  review_required: boolean;
+  objectivity_flag: boolean;
+};
+
+export async function aiDraft(
+  projectId: string,
+  draftId: string,
+  body: {
+    user_instructions?: string;
+    language?: "en" | "ar" | "tr";
+    version: number;
+  }
+): Promise<AiDraftResult> {
+  const params = new URLSearchParams();
+  params.set("version", String(body.version));
+  if (body.language) params.set("language", body.language);
+  if (body.user_instructions) params.set("user_instructions", body.user_instructions);
+  return api.post(
+    `/projects/${projectId}/authoring/drafts/${draftId}/ai-draft?${params}`,
+    {}
+  );
+}
+
 export async function generateAuthoringDocx(
   projectId: string,
   draftId: string

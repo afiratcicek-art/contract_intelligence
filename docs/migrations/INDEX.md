@@ -65,7 +65,7 @@ Format: `table | authoritative migration(s) | one-line history`
 |---|---|---|
 | **document_templates** | **044** | **created 044 — project-scoped letterhead/field config; one active per (project, doc_type)** |
 | **document_drafts** | **044** | **created 044 — authored drafts + optimistic `version`; materializes to rfi/correspondence** |
-| **document_draft_versions** | **044** | **created 044 — meaningful-moment snapshots (manual/pre/post_generation/approval)** |
+| **document_draft_versions** | **044 → 047** | **created 044 — meaningful-moment snapshots; 047 adds `pre_ai_draft`/`post_ai_draft` (C2-A)** |
 | **document_provenance** | **044** | **created 044 — event+attribution only (never content); server-written** |
 
 ## Alerts
@@ -103,4 +103,4 @@ Format: `table | authoritative migration(s) | one-line history`
 
 ---
 
-*Last updated with 046 (audit_log action-check + `ai_disabled` — C1b provider gate audit).*
+*Last updated with 047 (document_draft_versions snapshot_reason + `pre_ai_draft`/`post_ai_draft` — C2-A editor↔AI).*

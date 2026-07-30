@@ -4,6 +4,7 @@ import RichTextEditor from "../components/editor/RichTextEditor";
 import { useLanguage } from "../context/LanguageContext";
 import { ApiError, fetchLinkableDocuments, type LinkableDoc } from "../services/api";
 import {
+  aiDraft,
   approveAuthoringDraft,
   createAuthoringDraft,
   fetchAuthoringDocxUrl,
@@ -43,6 +44,8 @@ export default function AuthoringDraftPage() {
   const [busy, setBusy] = useState(false);
   const [refSearch, setRefSearch] = useState("");
   const [linkable, setLinkable] = useState<LinkableDoc[]>([]);
+  const [aiInstructions, setAiInstructions] = useState("");
+  const [aiHints, setAiHints] = useState<string | null>(null);
 
   const versionRef = useRef(version);
   versionRef.current = version;
@@ -182,6 +185,53 @@ export default function AuthoringDraftPage() {
       }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Generate failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAiDraft() {
+    if (!projectId || !draftIdRef.current) return;
+    setBusy(true);
+    setAiHints(null);
+    try {
+      const language = lang === "tr" || lang === "ar" ? lang : "en";
+      const res = await aiDraft(projectId, draftIdRef.current, {
+        user_instructions: aiInstructions.trim() || undefined,
+        language,
+        version: versionRef.current,
+      });
+      skipNextAutosave.current = true;
+      setBodyHtml(res.body_html);
+      setVersion(res.version);
+      setDraft((prev) =>
+        prev ? { ...prev, body_html: res.body_html, version: res.version } : prev
+      );
+      setError(null);
+      const hints: string[] = [];
+      if (res.review_required) {
+        hints.push(lang === "tr" ? "İnceleme gerekli" : "Review required");
+      }
+      if (res.objectivity_flag) {
+        hints.push(lang === "tr" ? "Nesnellik uyarısı" : "Objectivity flag");
+      }
+      if (res.warnings?.length) {
+        hints.push(...res.warnings);
+      }
+      setAiHints(hints.length ? hints.join(" · ") : null);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 422) {
+        setError(typeof e.message === "string" ? e.message : String(e.message));
+      } else if (e instanceof ApiError && e.status === 409) {
+        setSaveState("conflict");
+        setError(
+          lang === "tr"
+            ? "Taslak değişti, yenile"
+            : "Draft changed — please reload"
+        );
+      } else {
+        setError(e instanceof ApiError ? e.message : "AI draft failed");
+      }
     } finally {
       setBusy(false);
     }
@@ -425,6 +475,30 @@ export default function AuthoringDraftPage() {
             alignItems: "flex-end",
           }}
         >
+          <div style={{ flex: "1 1 220px", minWidth: 180 }}>
+            <label style={fieldLabel}>
+              {lang === "tr" ? "AI talimatı (opsiyonel)" : "AI instructions (optional)"}
+            </label>
+            <input
+              value={aiInstructions}
+              onChange={(e) => setAiInstructions(e.target.value)}
+              disabled={busy}
+              placeholder={
+                lang === "tr"
+                  ? "Örn. gecikme bildirimi, nazik ton"
+                  : "e.g. delay notice, polite tone"
+              }
+              style={{ ...fieldInput, marginBottom: 0 }}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={busy || saveState === "conflict"}
+            onClick={() => void handleAiDraft()}
+            style={btnSecondary}
+          >
+            {lang === "tr" ? "AI ile taslak oluştur" : "Generate with AI"}
+          </button>
           <button
             type="button"
             disabled={busy}
@@ -461,6 +535,18 @@ export default function AuthoringDraftPage() {
             {lang === "tr" ? "Geri" : "Back"}
           </button>
         </div>
+      )}
+      {aiHints && (
+        <p
+          style={{
+            marginTop: 12,
+            fontSize: 12,
+            color: "var(--color-text-secondary)",
+            fontFamily: "Inter, sans-serif",
+          }}
+        >
+          {aiHints}
+        </p>
       )}
     </div>
   );

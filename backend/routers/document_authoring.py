@@ -4,6 +4,7 @@ Prefix: /projects/{project_id}/authoring
 Auth: verify_project_access (reads) / require_cm_role (writes).
 All DB I/O via access["db"] — no admin_client here (AuditService + file_handler excepted).
 """
+import html
 import io
 import logging
 import uuid
@@ -12,13 +13,14 @@ from datetime import date, datetime, timezone
 from typing import Literal, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from backend.core.dependencies import require_cm_role, verify_project_access
 from backend.core.exceptions import ConflictError, NotFoundError, RaceConditionError, ValidationError
 from backend.core.guards import assert_target_in_project, assert_document_not_already_linked
 from backend.core.html_sanitizer import sanitize_body_html
+from backend.core.limiter import limiter
 from backend.models.document_authoring import (
     DraftApprove,
     DraftCreate,
@@ -33,10 +35,12 @@ from backend.repositories.document_draft_repository import DocumentDraftReposito
 from backend.repositories.document_template_repository import DocumentTemplateRepository
 from backend.repositories.rfi_repository import RFIRepository
 from backend.services.audit_service import AuditService
+from backend.services.claude_service import GateBlockedResult, get_ai_service
 from backend.services.docx_builder import build_docx
 from backend.services.image_sanitize import reencode_chrome_image
 from backend.services.render_provider import get_render_provider
 from backend.utils.file_handler import download_document, get_signed_url, upload_document
+from backend.utils.sanitizer import sanitize_user_input
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +57,14 @@ def _assert_draft_in_project(draft: dict, project_id: str) -> None:
 def _assert_template_in_project(tpl: dict, project_id: str) -> None:
     if tpl.get("project_id") != str(project_id):
         raise NotFoundError()
+
+
+def _plaintext_to_body_html(text: str) -> str:
+    """Escape first, then structural newlines → paragraphs/br, then sanitize."""
+    escaped = html.escape(text or "").replace("\r\n", "\n").replace("\r", "\n")
+    paragraphs = escaped.split("\n\n")
+    inner = "</p><p>".join(p.replace("\n", "<br>") for p in paragraphs)
+    return sanitize_body_html(f"<p>{inner}</p>")
 
 
 def _autofill_fields(db, project_id: str) -> dict:
@@ -453,6 +465,113 @@ def update_draft(
             metadata={"version": updated["version"]},
         )
     return updated
+
+
+@router.post("/drafts/{draft_id}/ai-draft")
+@limiter.limit("10/minute")
+def generate_ai_draft(
+    request: Request,
+    project_id: UUID,
+    draft_id: UUID,
+    user_instructions: str = "",
+    language: str = Query("en", enum=["en", "ar", "tr"]),
+    version: int = Query(...),
+    access: dict = Depends(require_cm_role),
+):
+    """C2-A: LLM draft → replace body_html. Mask+gate via generate_correspondence_draft."""
+    db = access["db"]
+    user_id = access["user"]["id"]
+    repo = DocumentDraftRepository(db)
+    draft = repo.get_or_404(str(draft_id))
+    _assert_draft_in_project(draft, str(project_id))
+    if draft.get("status") != "drafting":
+        raise ConflictError("Onaylanmış veya iptal edilmiş taslak güncellenemez.")
+
+    field_values = draft.get("field_values") or {}
+    previous_body = draft.get("body_html") or ""
+
+    # DATA MINIMIZATION: only fields the model needs — never the whole project row.
+    project = (
+        db.table("projects")
+        .select("name, contract_type")
+        .eq("id", str(project_id))
+        .single()
+        .execute()
+    )
+    row = project.data or {}
+    project_context = {
+        "name": row.get("name"),
+        "contract_type": row.get("contract_type"),
+    }
+
+    ai = get_ai_service(db)
+    result = ai.generate_correspondence_draft(
+        correspondence_type=draft["doc_type"],
+        project_context=project_context,
+        clause_references=[],
+        user_instructions=sanitize_user_input(user_instructions or ""),
+        language=language,
+        project_id=str(project_id),
+        user_id=user_id,
+        entity_id=str(draft_id),
+    )
+
+    if isinstance(result, GateBlockedResult):
+        raise HTTPException(
+            status_code=422,
+            detail=result.warning_message,
+        )
+
+    body_html = _plaintext_to_body_html(result.draft_text)
+    updated = repo.update_with_version_check(
+        str(draft_id),
+        {"body_html": body_html},
+        version,
+    )
+    if not updated:
+        raise RaceConditionError()
+
+    # Snapshots are written only AFTER a successful body replace: a 409, a gate
+    # block, or an LLM abort all occur earlier and leave zero orphan version rows.
+    # pre carries the previous body (undo point), post carries the new body;
+    # inserted in this order so created_at keeps pre before post.
+    repo.create_version_snapshot(
+        str(draft_id),
+        previous_body,
+        field_values,
+        "pre_ai_draft",
+        user_id,
+    )
+    repo.create_version_snapshot(
+        str(draft_id),
+        body_html,
+        field_values,
+        "post_ai_draft",
+        user_id,
+    )
+    repo.add_provenance(
+        str(draft_id),
+        "llm_generation",
+        target="body",
+        actor_user_id=user_id,
+        llm_role="qualified",
+        metadata={
+            "version": updated["version"],
+            "review_required": result.review_required,
+            "objectivity_flag": result.objectivity_flag,
+            "resolved_by_gate": result.resolved_by_gate,
+            "confidence_score": result.confidence_score,
+        },
+    )
+
+    return {
+        "body_html": body_html,
+        "version": updated["version"],
+        "confidence_score": result.confidence_score,
+        "warnings": result.warnings,
+        "review_required": result.review_required,
+        "objectivity_flag": result.objectivity_flag,
+    }
 
 
 @router.post("/drafts/{draft_id}/snapshot", status_code=201)

@@ -24,6 +24,14 @@ export default function Login() {
     }
   }, []);
 
+  const inputStyle = {
+    backgroundColor: "var(--color-bg-primary)",
+    border: "1px solid var(--color-border-medium)",
+    color: "var(--color-text-primary)",
+    fontFamily: "var(--font-ui)",
+    borderRadius: 0,
+  } as const;
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -52,86 +60,122 @@ export default function Login() {
       className="min-h-screen flex"
       style={{ backgroundColor: "var(--color-bg-primary)" }}
     >
-      {/* Sol panel — marka */}
+      {/* Sol panel — antetli kağıt: letterhead / gövde bildiri / dip meta */}
       <div
-        className="hidden lg:flex flex-col justify-between w-2/5 p-12"
-        style={{ backgroundColor: "var(--color-bg-secondary)" }}
+        className="hidden lg:flex flex-col w-2/5 p-12"
+        style={{
+          backgroundColor: "var(--color-bg-secondary)",
+          borderRight: "1px solid var(--color-border-medium)",
+        }}
       >
-        {/* Üst — logo ve imza çizgisi */}
-        <div className="flex items-start gap-6">
-          <div
-            className="shrink-0 mt-1"
-            style={{
-              width: "2px",
-              height: "72px",
-              background:
-                "linear-gradient(to bottom, transparent 0%, var(--color-accent) 20%, var(--color-accent) 80%, transparent 100%)",
-            }}
-          />
+        {/* Üst — letterhead */}
+        <div className="flex items-start gap-6 shrink-0">
+          <div className="gold-line gold-line-stage mt-2" />
           <div>
             <h1
-              className="text-3xl tracking-tight"
-              style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}
+              className="tracking-tight"
+              style={{
+                fontFamily: "var(--font-brand)",
+                fontSize: "var(--type-brand-stage)",
+                color: "var(--color-text-primary)",
+                fontWeight: 600,
+                lineHeight: 1.1,
+              }}
             >
               ClauseIQ
             </h1>
             <p
-              className="mt-1 text-sm"
-              style={{ color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}
+              className="mt-2 text-base"
+              style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}
             >
-              Contract & Operational Intelligence
+              {t("brand.tagline")}
             </p>
           </div>
         </div>
 
-        {/* Alt — tagline */}
-        <div>
+        {/* Orta — resmi bildiri (dikey merkez) */}
+        <div className="flex-1 flex flex-col justify-center min-h-0 py-8">
           <p
-            className="text-xs uppercase tracking-widest mb-3"
-            style={{ color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}
+            className="text-xl uppercase tracking-widest mb-4"
+            style={{
+              color: "var(--color-text-primary)",
+              fontFamily: "var(--font-ui)",
+              fontWeight: 500,
+              letterSpacing: "0.12em",
+            }}
           >
-            Precision. Compliance. Control.
+            {t("brand.motto")}
           </p>
           <p
-            className="text-sm leading-relaxed"
-            style={{ color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}
+            className="text-base leading-relaxed"
+            style={{
+              color: "var(--color-text-secondary)",
+              fontFamily: "var(--font-ui)",
+              maxWidth: "26em",
+            }}
           >
-            Every notice, every deadline, every correspondence —
-            managed with contractual precision.
+            {t("brand.motto_body")}
           </p>
         </div>
+
+        {/* Alt — sayfa meta (motto değil) */}
+        <p
+          className="shrink-0 text-xs"
+          style={{
+            color: "var(--color-text-tertiary)",
+            fontFamily: "var(--font-meta)",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {t("brand.footer")}
+        </p>
       </div>
 
       {/* Sağ panel — form */}
       <div className="relative flex flex-1 items-center justify-center px-8">
         <div className="absolute top-4 right-4 flex items-center gap-2">
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
         </div>
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="lg:hidden mb-10 flex items-center gap-4">
-            <div
+          {/* Mobile brand + short motto */}
+          <div className="lg:hidden mb-10">
+            <div className="flex items-center gap-4">
+              <div className="gold-line gold-line-nav" style={{ height: 64 }} />
+              <h1
+                className="text-4xl tracking-tight"
+                style={{
+                  fontFamily: "var(--font-brand)",
+                  color: "var(--color-text-primary)",
+                  fontWeight: 600,
+                  lineHeight: 1.1,
+                }}
+              >
+                ClauseIQ
+              </h1>
+            </div>
+            <p
+              className="mt-4 text-xs uppercase tracking-widest"
               style={{
-                width: "2px",
-                height: "48px",
-                background:
-                  "linear-gradient(to bottom, transparent 0%, var(--color-accent) 20%, var(--color-accent) 80%, transparent 100%)",
+                color: "var(--color-text-secondary)",
+                fontFamily: "var(--font-ui)",
+                fontWeight: 500,
+                letterSpacing: "0.1em",
               }}
-            />
-            <h1
-              className="text-2xl"
-              style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}
             >
-              ClauseIQ
-            </h1>
+              {t("brand.motto")}
+            </p>
           </div>
 
           <h2
-            className="text-xl mb-1"
-            style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}
+            className="mb-1"
+            style={{
+              fontFamily: "var(--font-brand)",
+              fontSize: "var(--type-h1)",
+              color: "var(--color-text-primary)",
+            }}
           >
             {t("login.title")}
           </h2>
@@ -157,14 +201,9 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-4 text-sm outline-none transition-colors"
-                style={{
-                  backgroundColor: "var(--color-bg-secondary)",
-                  border: "1px solid var(--color-border-light)",
-                  color: "var(--color-text-primary)",
-                  fontFamily: "Inter, sans-serif",
-                }}
+                style={inputStyle}
                 onFocus={(e) => (e.target.style.borderColor = "var(--color-accent)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--color-border-light)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--color-border-medium)")}
               />
             </div>
 
@@ -185,18 +224,12 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-4 text-sm outline-none transition-colors"
-                style={{
-                  backgroundColor: "var(--color-bg-secondary)",
-                  border: "1px solid var(--color-border-light)",
-                  color: "var(--color-text-primary)",
-                  fontFamily: "Inter, sans-serif",
-                }}
+                style={inputStyle}
                 onFocus={(e) => (e.target.style.borderColor = "var(--color-accent)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--color-border-light)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--color-border-medium)")}
               />
             </div>
 
-            {/* Hata */}
             {/* Beni hatırla */}
             <div className="flex items-center gap-3 mt-1">
               <input
@@ -204,7 +237,7 @@ export default function Login() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 cursor-pointer accent-gold"
+                className="w-4 h-4 cursor-pointer"
                 style={{ accentColor: "var(--color-accent)" }}
               />
               <label

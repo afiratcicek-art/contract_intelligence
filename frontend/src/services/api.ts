@@ -201,12 +201,14 @@ export async function fetchReadAlertIds(
 
 export interface LinkableDoc {
   id: string;
-  type: "rfi" | "correspondence";
+  type: "rfi" | "correspondence" | "contract_document" | "amendment";
   ref_number: string;
   subject: string;
   date: string;
   status: string;
   parent_id: string | null;
+  /** From pdf_document when known (>0); null if unparsed / non-PDF instrument. */
+  page_count?: number | null;
 }
 
 export async function fetchChronologies(

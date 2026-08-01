@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "../hooks/useDebounce";
 import { api } from "../services/api";
 import ThemeToggle from "../components/ThemeToggle";
+import Button from "../components/Button";
+import StatusChip from "../components/StatusChip";
 import { getAuth, clearAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
 import AlertsModule from "../components/AlertsModule";
@@ -26,20 +28,6 @@ const MODULE_LABELS: Record<Module, string> = {
   // "Contracts & Amendments" section, whose Changes list is the Working sub-tab.
   changes: "Contracts & Amendments", deliverables: "Deliverables", chronologies: "Chronologies",
   documents: "Documents", config: "Config",
-};
-
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  open:         { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
-  draft:        { bg: "var(--color-bg-secondary)",  text: "var(--color-text-secondary)" },
-  overdue:      { bg: "var(--color-alert-red-bg)",  text: "var(--color-alert-red)" },
-  closed:       { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
-  approved:     { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
-  rejected:     { bg: "var(--color-alert-red-bg)",  text: "var(--color-alert-red)" },
-  published:    { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
-  under_review: { bg: "var(--color-warning-bg)",    text: "var(--color-warning)" },
-  pending:      { bg: "var(--color-warning-bg)",    text: "var(--color-warning)" },
-  in_progress:  { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
-  responded:    { bg: "var(--color-success-bg)",    text: "var(--color-success)" },
 };
 
 const dateInRange = (dateStr: string | null | undefined, from: string, to: string): boolean => {
@@ -144,7 +132,7 @@ export default function Workspace() {
 
   const inputStyle: React.CSSProperties = {
     background: cardBg, border: `0.5px solid ${border}`, color: textPrimary,
-    fontSize: 11, fontFamily: "Inter, sans-serif", padding: "4px 8px",
+    fontSize: 11, fontFamily: "var(--font-ui)", padding: "4px 8px",
     borderRadius: 0, outline: "none", height: 28,
   };
 
@@ -223,13 +211,8 @@ export default function Workspace() {
 
   const handleLogout = () => { clearAuth(); navigate("/login"); };
 
-  const statusPill = (status: string) => {
-    const c = STATUS_COLORS[status] ?? { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" };
-    return <span style={{ background: c.bg, color: c.text, fontSize: 11, fontWeight: 500, padding: "2px 6px", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{status}</span>;
-  };
-
   const chip = (label: string, active: boolean, onClick: () => void) => (
-    <button key={label} onClick={onClick} style={{ padding: "4px 10px", border: `0.5px solid ${active ? "var(--color-accent)" : border}`, fontSize: 11, color: active ? "var(--color-bg-primary)" : textSecondary, background: active ? "var(--color-accent)" : cardBg, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+    <button key={label} onClick={onClick} style={{ padding: "4px 10px", border: `0.5px solid ${active ? "var(--color-accent)" : border}`, fontSize: 11, color: active ? "var(--color-bg-primary)" : textSecondary, background: active ? "var(--color-accent)" : cardBg, cursor: "pointer", borderRadius: 0, fontFamily: "var(--font-ui)" }}>
       {label}
     </button>
   );
@@ -247,7 +230,7 @@ export default function Workspace() {
   const keywordSearch = (value: string, onChange: (v: string) => void) => (
     <div style={{ display: "flex", alignItems: "center", gap: 6, background: cardBg, border: `0.5px solid ${border}`, padding: "8px 10px", maxWidth: 280 }}>
       <span style={{ color: textSecondary, fontSize: 13 }}>⌕</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={t("filter.search")} style={{ background: "none", border: "none", outline: "none", fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif", width: "100%" }} />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={t("filter.search")} style={{ background: "none", border: "none", outline: "none", fontSize: 12, color: textPrimary, fontFamily: "var(--font-ui)", width: "100%" }} />
       {value && <button onClick={() => onChange("")} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
     </div>
   );
@@ -258,8 +241,12 @@ export default function Workspace() {
 
   const moduleHeader = (title: string, onNew?: () => void, newLabel?: string) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-      <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>{title}</div>
-      {onNew && <button onClick={onNew} style={{ background: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>{newLabel}</button>}
+      <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500 }}>{title}</div>
+      {onNew && (
+        <Button size="sm" type="button" onClick={onNew}>
+          {newLabel}
+        </Button>
+      )}
     </div>
   );
 
@@ -317,7 +304,7 @@ export default function Workspace() {
     <div style={{ minHeight: "100vh", backgroundColor: bg, display: "flex", flexDirection: "column" }}>
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
-          <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, transparent, var(--color-accent) 20%, var(--color-accent) 80%, transparent)" }} />
+          <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
           <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{projectName || t("nav.overview")}</span>
@@ -326,7 +313,7 @@ export default function Workspace() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecondary }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${border}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${border}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -335,54 +322,90 @@ export default function Workspace() {
       </nav>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        {/* File-divider nav: stacked modules, 3px accent tab marker */}
         <aside style={{ width: 200, backgroundColor: bg, borderRight: `0.5px solid ${border}`, padding: "16px 0", flexShrink: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "0 16px 12px", borderBottom: `0.5px solid ${border}`, marginBottom: 8 }}>
-            <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 12, color: textPrimary, fontWeight: 500, lineHeight: 1.3 }}>{projectName}</div>
-            <div style={{ fontSize: 11, color: textSecondary, marginTop: 2 }}>{t("nav.workspace")}</div>
+            <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: textPrimary, fontWeight: 500, lineHeight: 1.3 }}>{projectName}</div>
+            <div style={{ fontSize: 11, color: textSecondary, marginTop: 2, fontFamily: "var(--font-meta)" }}>{t("nav.workspace")}</div>
           </div>
-          {SIDEBAR_MAIN.map((mod) => (
-            <button
-              key={mod}
-              onClick={() => {
-                setActiveModule(mod);
-              }}
-              style={{
-                display: "flex", alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%", textAlign: "left" as const,
-                padding: mod === "general" ? "8px 16px" : "8px 16px",
-                fontSize: mod === "general" ? 13 : 12,
-                fontWeight: activeModule === mod ? 500 : 400,
-                fontFamily: "Inter, sans-serif",
-                background: activeModule === mod ? cardBg : "none",
-                borderLeft: activeModule === mod ? `3px solid ${"var(--color-accent)"}` : "3px solid transparent",
-                border: "none", cursor: "pointer",
-                color: activeModule === mod ? textPrimary : textSecondary,
-              }}
-            >
-              <span>{MODULE_LABELS[mod]}</span>
-              {mod === "alerts" && alertCount > 0 && (
-                <span style={{
-                  fontSize: 11, fontWeight: 500,
-                  backgroundColor: "var(--color-alert-red)",
-                  color: "var(--color-bg-primary)",
-                  borderRadius: "50%",
-                  padding: "1px 6px",
-                  minWidth: 16,
-                  textAlign: "center" as const,
-                }}>
-                  {alertCount}
-                </span>
-              )}
-            </button>
-          ))}
+          {SIDEBAR_MAIN.map((mod) => {
+            const active = activeModule === mod;
+            return (
+              <button
+                key={mod}
+                type="button"
+                onClick={() => setActiveModule(mod)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 16px",
+                  fontSize: 12,
+                  fontWeight: active ? 500 : 400,
+                  fontFamily: "var(--font-ui)",
+                  background: active ? cardBg : "transparent",
+                  borderTop: "none",
+                  borderRight: "none",
+                  borderBottom: "none",
+                  borderLeft: active ? "3px solid var(--color-accent)" : "3px solid transparent",
+                  cursor: "pointer",
+                  color: active ? textPrimary : textSecondary,
+                  borderRadius: 0,
+                }}
+              >
+                <span>{MODULE_LABELS[mod]}</span>
+                {mod === "alerts" && alertCount > 0 && (
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    fontFamily: "var(--font-meta)",
+                    backgroundColor: "var(--color-alert-red)",
+                    color: "var(--color-bg-primary)",
+                    borderRadius: "50%",
+                    padding: "1px 6px",
+                    minWidth: 16,
+                    textAlign: "center",
+                  }}>
+                    {alertCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
           <div style={{ height: "0.5px", background: border, margin: "8px 16px" }} />
-          <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: textSecondary, padding: "4px 16px" }}>System</div>
-          {SIDEBAR_SYS.map((mod) => (
-            <button key={mod} onClick={() => setActiveModule(mod)} style={{ display: "flex", alignItems: "center", padding: "8px 16px", fontSize: 12, fontWeight: activeModule === mod ? 500 : 400, color: activeModule === mod ? textPrimary : textSecondary, background: activeModule === mod ? cardBg : "none", border: "none", borderLeft: activeModule === mod ? `3px solid ${"var(--color-accent)"}` : "3px solid transparent", cursor: "pointer", width: "100%", textAlign: "left", fontFamily: "Inter, sans-serif" }}>
-              {MODULE_LABELS[mod]}
-            </button>
-          ))}
+          <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-tertiary)", padding: "4px 16px", fontFamily: "var(--font-meta)" }}>System</div>
+          {SIDEBAR_SYS.map((mod) => {
+            const active = activeModule === mod;
+            return (
+              <button
+                key={mod}
+                type="button"
+                onClick={() => setActiveModule(mod)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "8px 16px",
+                  fontSize: 12,
+                  fontWeight: active ? 500 : 400,
+                  color: active ? textPrimary : textSecondary,
+                  background: active ? cardBg : "transparent",
+                  borderTop: "none",
+                  borderRight: "none",
+                  borderBottom: "none",
+                  borderLeft: active ? "3px solid var(--color-accent)" : "3px solid transparent",
+                  cursor: "pointer",
+                  width: "100%",
+                  textAlign: "left",
+                  fontFamily: "var(--font-ui)",
+                  borderRadius: 0,
+                }}
+              >
+                {MODULE_LABELS[mod]}
+              </button>
+            );
+          })}
         </aside>
 
         <main style={{ flex: 1, padding: 24, overflowY: "auto", backgroundColor: bg }}>
@@ -393,7 +416,7 @@ export default function Workspace() {
               {moduleHeader(t("general.title"))}
               <div style={{ display: "flex", alignItems: "center", gap: 8, background: cardBg, border: "1px solid var(--color-border-light)", padding: "10px 14px", maxWidth: 560, marginBottom: 16 }}>
                 <span style={{ color: textSecondary, fontSize: 16 }}>⌕</span>
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t("general.placeholder")} style={{ background: "none", border: "none", outline: "none", fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", width: "100%" }} />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t("general.placeholder")} style={{ background: "none", border: "none", outline: "none", fontSize: 13, color: textPrimary, fontFamily: "var(--font-ui)", width: "100%" }} />
                 {searching && <span style={{ fontSize: 11, color: textSecondary }}>{t("general.searching")}</span>}
                 {searchQuery && <button onClick={() => { setSearchQuery(""); handleSearch(""); }} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
               </div>
@@ -438,7 +461,7 @@ export default function Workspace() {
                         }}
                       >
                         <div>
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
                             {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                             {r.ref}
                             {r.has_response && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>↩</span>}
@@ -446,7 +469,7 @@ export default function Workspace() {
                           <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
                           <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
                         </div>
-                        {statusPill(r.status)}
+                        <StatusChip status={r.status} />
                       </div>
                       {(corrChildMap.get(r.id) ?? []).map(child => renderCorrRow(child, true))}
                     </div>
@@ -484,7 +507,7 @@ export default function Workspace() {
                         }}
                       >
                         <div>
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
                             {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                             {r.ref}
                             {r.rfi_type && r.rfi_type !== "original" && (
@@ -497,8 +520,8 @@ export default function Workspace() {
                           <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
                         </div>
                         {r.rfi_type === "response"
-                          ? <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
-                          : statusPill(r.status)}
+                          ? <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-bg-secondary)", color: "var(--color-text-secondary)", textTransform: "uppercase" as const, letterSpacing: "0.04em", fontFamily: "var(--font-ui)", borderRadius: 0 }}>RESPONSE</span>
+                          : <StatusChip status={r.status} />}
                       </div>
                       {(rfiSChildMap.get(r.id) ?? []).map(child => renderRfiRow(child, true))}
                     </div>
@@ -519,11 +542,11 @@ export default function Workspace() {
                     {group.map((r) => (
                       <div key={r.id} onClick={() => navigate(generalNavTarget(mod, r.id))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: cardBg, marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                         <div>
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>{r.ref}</span>
+                          <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary }}>{r.ref}</span>
                           <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
                           <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
                         </div>
-                        {statusPill(r.status)}
+                        <StatusChip status={r.status} />
                       </div>
                     ))}
                   </div>
@@ -536,20 +559,20 @@ export default function Workspace() {
           {activeModule === "correspondence" && (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
-                <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>Correspondence</div>
+                <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500 }}>Correspondence</div>
                 <div style={{ position: "relative" as const }}>
-                  <button onClick={() => setCorrDropdown(!corrDropdown)} style={{ background: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                  <Button size="sm" type="button" onClick={() => setCorrDropdown(!corrDropdown)}>
                     {t("action.newcorrespondence")} ▾
-                  </button>
+                  </Button>
                   {corrDropdown && (
-                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: "var(--z-dropdown)" as unknown as number, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
-                      <button onClick={() => { setCorrDropdown(false); navigate(`/projects/${projectId}/workspace/correspondence/new?mode=new`); }}
-                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
-                        {lang === "tr" ? "Yeni Yazışma" : "New Correspondence"}
+                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: "var(--z-dropdown)" as unknown as number, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2, borderRadius: 0 }}>
+                      <button type="button" onClick={() => { setCorrDropdown(false); navigate(`/projects/${projectId}/workspace/correspondence/new?mode=new`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", borderRadius: 0 }}>
+                        {t("action.register")}
                       </button>
-                      <button onClick={() => { setCorrDropdown(false); navigate(`/projects/${projectId}/workspace/authoring/new?doc_type=letter`); }}
-                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
-                        {lang === "tr" ? "Yaz (Letterhead)" : "Write (Letterhead)"}
+                      <button type="button" onClick={() => { setCorrDropdown(false); navigate(`/projects/${projectId}/workspace/authoring/new?doc_type=letter`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", borderRadius: 0 }}>
+                        {t("action.create")}
                       </button>
                     </div>
                   )}
@@ -603,7 +626,7 @@ export default function Workspace() {
                           : `2px solid ${c.status === "overdue" ? "var(--color-alert-red)" : c.status === "open" ? "var(--color-accent)" : c.status === "responded" ? ("var(--color-success)") : "transparent"}`,
                       }}
                     >
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontFamily: "var(--font-meta)", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
                         {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                         {c.corr_number}
                         {c.has_response && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>🔗</span>}
@@ -615,7 +638,7 @@ export default function Workspace() {
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const }}>{c.direction}</span>
                       <span style={{ fontSize: 11, color: textSecondary }}>{c.correspondence_date?.slice(0, 10)}</span>
                       <span style={{ fontSize: 11, color: c.response_due_date && c.response_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{c.response_due_date?.slice(0, 10) ?? "—"}</span>
-                      {statusPill(c.status)}
+                      <StatusChip status={c.status} />
                     </div>
                     {/* Children */}
                     {(childMap.get(c.id) ?? []).map(child => corrRow(child, true))}
@@ -636,28 +659,30 @@ export default function Workspace() {
           {activeModule === "rfis" && (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
-                <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500 }}>RFIs</div>
+                <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500 }}>RFIs</div>
                 <div style={{ position: "relative" as const }}>
-                  <button onClick={() => setRfiDropdown(!rfiDropdown)} style={{ background: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+                  <Button size="sm" type="button" onClick={() => setRfiDropdown(!rfiDropdown)}>
                     {t("action.newrfi")} ▾
-                  </button>
+                  </Button>
                   {rfiDropdown && (
-                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: "var(--z-dropdown)" as unknown as number, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2 }}>
-                      <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=new`); }}
-                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
-                        {lang === "tr" ? "Yeni RFI" : "New RFI"}
+                    <div style={{ position: "absolute" as const, right: 0, top: "100%", zIndex: "var(--z-dropdown)" as unknown as number, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, minWidth: 200, marginTop: 2, borderRadius: 0 }}>
+                      <button type="button" onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=new`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", borderBottom: `0.5px solid ${border}`, borderRadius: 0 }}>
+                        {t("action.register")}
                       </button>
-                      <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/authoring/new?doc_type=rfi`); }}
-                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
-                        {lang === "tr" ? "Yaz (Letterhead)" : "Write (Letterhead)"}
+                      <button type="button" onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/authoring/new?doc_type=rfi`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", borderBottom: `0.5px solid ${border}`, borderRadius: 0 }}>
+                        {t("action.create")}
                       </button>
-                      <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=response`); }}
-                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", borderBottom: `0.5px solid ${border}` }}>
-                        {lang === "tr" ? "↩ Yanıt Ekle" : "↩ Add Response"}
+                      {/* Response/revision without parent: list shortcut → register only.
+                          Parent-aware Create lives on RFI detail (EntryModeMenu). */}
+                      <button type="button" onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=response`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", borderBottom: `0.5px solid ${border}`, borderRadius: 0 }}>
+                        {t("action.addresponse")}
                       </button>
-                      <button onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=revision`); }}
-                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
-                        {lang === "tr" ? "↺ Revize Ekle" : "↺ Add Revision"}
+                      <button type="button" onClick={() => { setRfiDropdown(false); navigate(`/projects/${projectId}/workspace/rfis/new?mode=revision`); }}
+                        style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left" as const, fontSize: 12, color: textPrimary, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", borderRadius: 0 }}>
+                        {t("action.addrevision")}
                       </button>
                     </div>
                   )}
@@ -707,7 +732,7 @@ export default function Workspace() {
                           : `2px solid ${r.status === "overdue" ? "var(--color-alert-red)" : r.status === "open" ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "transparent"}`,
                       }}
                     >
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontFamily: "var(--font-meta)", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
                         {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
                         {r.rfi_number}
                         {r.rfi_type && r.rfi_type !== "original" && (
@@ -726,7 +751,7 @@ export default function Workspace() {
                         {r.rfi_type === "response" && (
                           <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
                         )}
-                        {statusPill(r.status)}
+                        <StatusChip status={r.status} />
                       </span>
                     </div>
                     {(rfiChildMap.get(r.id) ?? []).map(child => rfiRow(child, true))}
@@ -771,11 +796,11 @@ export default function Workspace() {
                   {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.title"), width: "1fr" }, { label: t("col.origin"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
                   {filteredChanges.map((c) => (
                     <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/changes/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px 80px", gap: 8, padding: "8px 12px", background: cardBg, marginBottom: 4, cursor: "pointer", borderLeft: `2px solid ${c.status === "open" ? "var(--color-accent)" : "transparent"}` }}>
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>{c.change_number}</span>
+                      <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary }}>{c.change_number}</span>
                       <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{c.title}</p>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{c.origin}</span>
                       <span style={{ fontSize: 11, color: textSecondary, whiteSpace: "nowrap" }}>{c.created_at?.slice(0, 10)}</span>
-                      {statusPill(c.status)}
+                      <StatusChip status={c.status} />
                     </div>
                   ))}
                 </div>
@@ -806,7 +831,7 @@ export default function Workspace() {
                       <div><p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{d.title}</p>{d.is_pre_completion && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>{t("state.precompletion")}</span>}</div>
                       <span style={{ fontSize: 11, color: textSecondary }}>{d.category ?? "—"}</span>
                       <span style={{ fontSize: 11, color: d.due_date && d.due_date < today ? "var(--color-alert-red)" : textSecondary }}>{d.due_date ?? "—"}</span>
-                      {statusPill(d.status)}
+                      <StatusChip status={d.status} />
                     </div>
                   ))}
                 </div>
@@ -830,7 +855,7 @@ export default function Workspace() {
           )}
           {activeModule === "config" && (
             <div>
-              <div style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 20, color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
+              <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
                 Config
               </div>
               <AuthoringTemplatesPanel projectId={String(projectId)} />
@@ -848,7 +873,7 @@ export default function Workspace() {
               <div style={{ textAlign: "center" }}>
                 <p style={{
                   fontFamily:
-                    "Playfair Display, Georgia, serif",
+                    "var(--font-brand)",
                   fontSize: 16,
                   color: textPrimary,
                   marginBottom: 8,

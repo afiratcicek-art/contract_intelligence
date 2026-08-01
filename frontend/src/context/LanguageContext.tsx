@@ -75,6 +75,12 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   "action.newrfi": { tr: "+ Yeni RFI", en: "+ New RFI" },
   "action.newchange": { tr: "+ Yeni Değişiklik", en: "+ New Change" },
   "action.newdeliverable": { tr: "+ Yeni Teslimat", en: "+ New Deliverable" },
+  "action.register": { tr: "Kayıt Et", en: "Register" },
+  "action.create": { tr: "Oluştur", en: "Create" },
+  "action.addresponse": { tr: "↩ Yanıt Ekle", en: "↩ Add Response" },
+  "action.addrevision": { tr: "↺ Revize Ekle", en: "↺ Add Revision" },
+  "action.writeresponse": { tr: "↩ Yanıt Yaz", en: "↩ Write Response" },
+  "action.addfollowup": { tr: "+ Followup Ekle", en: "+ Add Followup" },
   // States
   "state.loading": { tr: "Yükleniyor...", en: "Loading..." },
   "state.comingsoon": { tr: "Yakında burada olacak.", en: "Coming soon." },
@@ -91,6 +97,24 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   "login.remember": { tr: "E-posta adresimi hatırla", en: "Remember my email" },
   "login.button": { tr: "Giriş Yap", en: "Sign In" },
   "login.loading": { tr: "Giriş yapılıyor...", en: "Signing in..." },
+  "brand.tagline": {
+    tr: "Sözleşme & Operasyonel Zeka",
+    en: "Contract & Operational Intelligence",
+  },
+  "brand.motto": {
+    tr: "Hassasiyet. Uyum. Kontrol.",
+    en: "Precision. Compliance. Control.",
+  },
+  "brand.motto_body": {
+    tr: "Her bildirim, her süre, her yazışma — sözleşmesel hassasiyetle yönetilir.",
+    en: "Every notice, every deadline, every correspondence — managed with contractual precision.",
+  },
+  "brand.footer": { tr: "ClauseIQ · 2026", en: "ClauseIQ · 2026" },
+  "inforce.loading": { tr: "Yükleniyor...", en: "Loading..." },
+  "inforce.error": {
+    tr: "Yürürlük bilgisi yüklenemedi.",
+    en: "Could not load in-force resolution.",
+  },
   // Dashboard
   "dashboard.title": { tr: "Projeler", en: "Projects" },
   "dashboard.subtitle": { tr: "Devam etmek için bir proje seçin.", en: "Select a project to continue." },

@@ -96,7 +96,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
   const label = {
     fontSize: 11,
     color: "var(--color-text-secondary)",
-    fontFamily: "Inter, sans-serif",
+    fontFamily: "var(--font-ui)",
     display: "block",
     marginBottom: 4,
   } as const;
@@ -107,7 +107,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
     background: "var(--color-bg-primary)",
     color: "var(--color-text-primary)",
     fontSize: 12,
-    fontFamily: "Inter, sans-serif",
+    fontFamily: "var(--font-ui)",
     boxSizing: "border-box" as const,
   };
 
@@ -115,7 +115,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
     <div style={{ marginTop: 32 }}>
       <h3
         style={{
-          fontFamily: "Playfair Display, Georgia, serif",
+          fontFamily: "var(--font-brand)",
           fontSize: 16,
           color: "var(--color-text-primary)",
           fontWeight: 500,
@@ -124,7 +124,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
       >
         {lang === "tr" ? "Belge Şablonları (Letterhead)" : "Document Templates (Letterhead)"}
       </h3>
-      <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 16, fontFamily: "Inter, sans-serif" }}>
+      <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 16, fontFamily: "var(--font-ui)" }}>
         {lang === "tr"
           ? "Yazışma ve RFI yazma yüzeyinde kullanılacak antetli şablonlar."
           : "Letterhead templates used by the letter and RFI authoring surfaces."}
@@ -179,7 +179,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
               padding: "8px 16px",
               fontSize: 12,
               cursor: busy ? "wait" : "pointer",
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
             }}
           >
             {lang === "tr" ? "Şablon Oluştur" : "Create Template"}
@@ -210,7 +210,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
                 <div>
                   <div style={{ fontSize: 13, color: "var(--color-text-primary)", fontWeight: 500 }}>
                     {tpl.name}{" "}
-                    <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-text-secondary)" }}>
+                    <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: "var(--color-text-secondary)" }}>
                       ({tpl.doc_type})
                     </span>
                   </div>

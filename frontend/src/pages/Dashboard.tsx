@@ -24,14 +24,14 @@ export default function Dashboard() {
         style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-bg-primary)" }}
       >
         <div className="flex items-center gap-4">
-          <div style={{ width: "2px", height: "32px", background: "linear-gradient(to bottom, transparent 0%, var(--color-accent) 20%, var(--color-accent) 80%, transparent 100%)" }} />
-          <span className="text-lg" style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}>
+          <div className="gold-line gold-line-nav" />
+          <span className="text-lg" style={{ fontFamily: "var(--font-brand)", color: "var(--color-text-primary)" }}>
             ClauseIQ
           </span>
         </div>
         <div className="flex items-center gap-6">
           <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -43,7 +43,14 @@ export default function Dashboard() {
       <main className="max-w-4xl mx-auto px-8 py-10">
         <div className="flex items-end justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold" style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}>
+            <h1
+              className="font-semibold"
+              style={{
+                fontFamily: "var(--font-brand)",
+                fontSize: "var(--type-h1)",
+                color: "var(--color-text-primary)",
+              }}
+            >
               {t("dashboard.title")}
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
@@ -57,8 +64,8 @@ export default function Dashboard() {
         {loading && <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{t("state.loading")}</p>}
         {error && <p className="text-sm" style={{ color: "var(--color-alert-red)" }}>{error}</p>}
         {!loading && !error && projects.length === 0 && (
-          <div className="text-center py-16 rounded-sm" style={{ backgroundColor: "var(--color-bg-secondary)" }}>
-            <p className="text-base mb-1" style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}>
+          <div className="text-center py-16 rounded-none" style={{ backgroundColor: "var(--color-bg-secondary)" }}>
+            <p className="mb-1" style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-title-card)", color: "var(--color-text-primary)" }}>
               {lang === "tr" ? "Henüz proje yok" : "No projects yet"}
             </p>
             <p className="text-sm mb-6" style={{ color: "var(--color-text-secondary)" }}>

@@ -38,8 +38,11 @@ from backend.services.audit_service import AuditService
 from backend.services.claude_service import GateBlockedResult, get_ai_service
 from backend.services.docx_builder import build_docx
 from backend.services.image_sanitize import reencode_chrome_image
+from backend.services.linkable_service import list_linkable_documents
+from backend.services.reference_bundle import build_reference_bundle_pdf
 from backend.services.render_provider import get_render_provider
 from backend.utils.file_handler import download_document, get_signed_url, upload_document
+from backend.utils.pdf_utils import validate_document_bytes
 from backend.utils.sanitizer import sanitize_user_input
 
 logger = logging.getLogger(__name__)
@@ -57,6 +60,53 @@ def _assert_draft_in_project(draft: dict, project_id: str) -> None:
 def _assert_template_in_project(tpl: dict, project_id: str) -> None:
     if tpl.get("project_id") != str(project_id):
         raise NotFoundError()
+
+
+def _resolve_chain_link(
+    *,
+    doc_type: str,
+    body_parent_id: Optional[UUID],
+    body_relation: Optional[str],
+    field_values: dict,
+) -> tuple[Optional[UUID], Optional[str]]:
+    """Resolve parent/relation for materialize. Approve body is authoritative;
+    field_values may supply fallback but must not disagree with body.
+    """
+    fv_parent = field_values.get("parent_id")
+    fv_relation = field_values.get("relation")
+
+    if body_parent_id and fv_parent and str(fv_parent) != str(body_parent_id):
+        raise ConflictError("parent_id taslak ile onay gövdesi uyuşmuyor.")
+    if body_relation and fv_relation and str(fv_relation) != str(body_relation):
+        raise ConflictError("relation taslak ile onay gövdesi uyuşmuyor.")
+
+    parent_id = body_parent_id
+    if parent_id is None and fv_parent:
+        try:
+            parent_id = UUID(str(fv_parent))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("Geçersiz parent_id.") from exc
+
+    relation = body_relation or (str(fv_relation) if fv_relation else None)
+
+    if bool(parent_id) != bool(relation):
+        raise ValidationError("parent_id ve relation birlikte gerekir.")
+
+    if not parent_id:
+        return None, None
+
+    if doc_type == "rfi":
+        if relation not in ("response", "revision"):
+            raise ValidationError("RFI relation yalnızca response veya revision olabilir.")
+    elif doc_type == "letter":
+        if relation not in ("response", "followup"):
+            raise ValidationError(
+                "Correspondence relation yalnızca response veya followup olabilir."
+            )
+    else:
+        raise ValidationError("Bilinmeyen doc_type.")
+
+    return parent_id, relation
 
 
 def _plaintext_to_body_html(text: str) -> str:
@@ -108,6 +158,88 @@ def _autofill_fields(db, project_id: str) -> dict:
     }
 
 
+def _strip_ref_ui_keys(ref: dict) -> dict:
+    """Drop UI-only keys (leading _) before reference table insert."""
+    return {k: v for k, v in ref.items() if not str(k).startswith("_") and v is not None}
+
+
+def _validate_page_ranges(ranges, page_count: Optional[int]) -> Optional[list]:
+    """Validate + normalize page_ranges JSONB. None/[] → None (whole document).
+    Each item: {from:int>=1, to:int>=from OR null(open-ended)}.
+    When page_count is known, enforce upper bounds; when None (defense /
+    race before page-count cache), skip upper-bound checks only.
+    """
+    if not ranges:
+        return None
+    if not isinstance(ranges, list):
+        raise ValidationError("page_ranges bir liste olmalı.")
+    out = []
+    for r in ranges:
+        if not isinstance(r, dict) or "from" not in r:
+            raise ValidationError("Geçersiz sayfa aralığı.")
+        f = r.get("from")
+        t = r.get("to")
+        # JSON may decode whole numbers as int; reject bool (bool is int subclass).
+        if isinstance(f, bool) or not isinstance(f, int) or f < 1:
+            raise ValidationError("Sayfa başlangıcı 1 veya daha büyük olmalı.")
+        if t is not None:
+            if isinstance(t, bool) or not isinstance(t, int) or t < f:
+                raise ValidationError("Sayfa bitişi başlangıçtan küçük olamaz.")
+            if page_count is not None and t > page_count:
+                raise ValidationError(
+                    f"Sayfa aralığı belgeyi aşıyor (max {page_count})."
+                )
+        if page_count is not None and f > page_count:
+            raise ValidationError(
+                f"Sayfa başlangıcı belgeyi aşıyor (max {page_count})."
+            )
+        out.append({"from": f, "to": t})
+    return out or None
+
+
+def _pdf_document_page_count(db, document_id: str) -> Optional[int]:
+    res = (
+        db.table("pdf_document")
+        .select("page_count")
+        .eq("id", str(document_id))
+        .limit(1)
+        .execute()
+    )
+    if not res.data:
+        return None
+    pc = res.data[0].get("page_count")
+    try:
+        n = int(pc) if pc is not None else None
+    except (TypeError, ValueError):
+        return None
+    return n if n is not None and n > 0 else None
+
+
+def _apply_page_ranges_to_rdata(db, ref: dict, rdata: dict) -> None:
+    """Set validated page_ranges on rdata, or clear when no primary document."""
+    if not rdata.get("document_id"):
+        rdata.pop("page_ranges", None)
+        return
+    page_count = _pdf_document_page_count(db, rdata["document_id"])
+    rdata["page_ranges"] = _validate_page_ranges(ref.get("page_ranges"), page_count)
+
+
+def _validate_field_values_page_ranges(db, field_values: dict) -> None:
+    """Validate page_ranges of every reference in a draft's field_values.
+    Mirrors approve-time _apply_page_ranges_to_rdata; raises on invalid range
+    so the draft save (autosave) rejects it immediately.
+    """
+    for ref in (field_values or {}).get("references") or []:
+        if not isinstance(ref, dict):
+            continue
+        doc_id = ref.get("document_id")
+        if not doc_id:
+            ref.pop("page_ranges", None)  # dosyasız ref → aralık anlamsız
+            continue
+        page_count = _pdf_document_page_count(db, doc_id)
+        ref["page_ranges"] = _validate_page_ranges(ref.get("page_ranges"), page_count)
+
+
 def _generate_and_store_docx(
     db,
     draft: dict,
@@ -115,7 +247,7 @@ def _generate_and_store_docx(
     user_id: str,
     snapshot_reason: Optional[str] = None,
 ) -> dict:
-    """Build docx, upload to Storage, update draft.docx_path. Returns updated draft."""
+    """Build docx + reference bundle PDF, upload, update draft paths."""
     draft_repo = DocumentDraftRepository(db)
     template = None
     if draft.get("template_id"):
@@ -152,13 +284,36 @@ def _generate_and_store_docx(
     # Preview path (Null provider returns None — FE shows download-docx message)
     pdf_preview = get_render_provider().render_to_pdf(docx_bytes)
 
+    bundle_path = None
+    refs = field_values.get("references") or []
+    if refs:
+        try:
+            bundle_bytes = build_reference_bundle_pdf(
+                db,
+                project_id=draft["project_id"],
+                references=refs,
+                letter_pdf_bytes=pdf_preview,
+            )
+            if bundle_bytes:
+                bundle_name = f"draft_{draft['id'][:8]}_{uuid.uuid4().hex[:8]}_bundle.pdf"
+                bundle_path = upload_document(
+                    file_bytes=bundle_bytes,
+                    file_name=bundle_name,
+                    project_id=draft["project_id"],
+                    entity_type="draft",
+                    entity_id=draft["id"],
+                )
+        except Exception as exc:
+            logger.error("Reference bundle build failed: %s", exc)
+
+    patch = {"docx_path": storage_path, "bundle_pdf_path": bundle_path}
     updated = (
         db.table("document_drafts")
-        .update({"docx_path": storage_path})
+        .update(patch)
         .eq("id", draft["id"])
         .execute()
     )
-    row = updated.data[0] if updated.data else {**draft, "docx_path": storage_path}
+    row = updated.data[0] if updated.data else {**draft, **patch}
 
     if snapshot_reason == "pre_generation":
         draft_repo.create_version_snapshot(
@@ -166,6 +321,7 @@ def _generate_and_store_docx(
         )
 
     row["_pdf_preview_available"] = pdf_preview is not None
+    row["_bundle_available"] = bool(bundle_path)
     return row
 
 
@@ -199,7 +355,11 @@ def _attach_docx_to_entity(
         "original_filename": original_filename,
         "storage_path": entity_path,
         "file_size_bytes": len(file_bytes),
-        "parse_status": "pending",
+        # We produced this docx/bundle — its content is already known from our own
+        # source (body_html / merged parts). Mark completed so the worker never
+        # ships it to the external parser (LlamaParse). Data-egress control
+        # (KVKK / ISO A.5.19-23 / SOC): no external re-parse of self-generated files.
+        "parse_status": "completed",
         "created_by": user_id,
         "created_at": now,
         "updated_at": now,
@@ -334,6 +494,25 @@ async def upload_template_chrome(
     return updated
 
 
+# ── Linkable references (authoring picker) ──────────────────────────────────
+
+@router.get("/linkable-references")
+def list_authoring_linkable_references(
+    project_id: UUID,
+    access: dict = Depends(verify_project_access),
+):
+    """RFI + Corr + filed contract documents + amendments for draft references.
+
+    Distinct from chronologies/linkable-documents (RFI+Corr only). Contract /
+    amendment items use pdf_document id as ``id`` (stored as reference
+    document_id). File-less rows are omitted.
+    """
+    db = access["db"]
+    return list_linkable_documents(
+        db, str(project_id), include_contract_instruments=True
+    )
+
+
 # ── Drafts ──────────────────────────────────────────────────────────────────
 
 @router.get("/drafts")
@@ -444,6 +623,10 @@ def update_draft(
     expected = data.pop("version")
     if "body_html" in data:
         data["body_html"] = sanitize_body_html(data["body_html"])
+    # Kusur A: page_ranges'i approve'a kadar bekletmeden, autosave/draft anında
+    # doğrula — geçersiz aralık draft'a bile yazılamaz (FE anında 400 alır).
+    if "field_values" in data:
+        _validate_field_values_page_ranges(db, data["field_values"])
 
     updated = repo.update_with_version_check(str(draft_id), data, expected)
     if not updated:
@@ -595,6 +778,59 @@ def snapshot_draft(
     return snap
 
 
+@router.post("/drafts/{draft_id}/reference-files", status_code=201)
+@limiter.limit("20/minute")
+async def upload_draft_reference_file(
+    request: Request,
+    project_id: UUID,
+    draft_id: UUID,
+    file: UploadFile = File(...),
+    access: dict = Depends(require_cm_role),
+):
+    """Upload primary file for a manual authoring reference (entity_type=draft)."""
+    db = access["db"]
+    draft = DocumentDraftRepository(db).get_or_404(str(draft_id))
+    _assert_draft_in_project(draft, str(project_id))
+    if draft.get("status") != "drafting":
+        raise ConflictError("Yalnızca drafting taslağa referans dosyası yüklenebilir.")
+
+    file_bytes = await file.read()
+    original_name = file.filename or "upload.pdf"
+    # Unique storage key; keep original_filename on pdf_document for display.
+    storage_name = f"{uuid.uuid4().hex[:8]}_{original_name}"
+    try:
+        validate_document_bytes(file_bytes, original_name)
+        storage_path = upload_document(
+            file_bytes=file_bytes,
+            file_name=storage_name,
+            project_id=str(project_id),
+            entity_type="draft",
+            entity_id=str(draft_id),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    doc_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    pending_record = {
+        "id": doc_id,
+        "project_id": str(project_id),
+        "entity_type": "draft",
+        "entity_id": str(draft_id),
+        "original_filename": original_name,
+        "storage_path": storage_path,
+        "file_size_bytes": len(file_bytes),
+        "parse_status": "pending",
+        "created_by": access["user"]["id"],
+        "created_at": now,
+        "updated_at": now,
+    }
+    db.table("pdf_document").insert(pending_record).execute()
+    return {"doc_id": doc_id, "original_filename": original_name}
+
+
 @router.post("/drafts/{draft_id}/generate-docx")
 def generate_docx(
     project_id: UUID,
@@ -613,7 +849,9 @@ def generate_docx(
     return {
         "draft": {k: v for k, v in result.items() if not k.startswith("_")},
         "docx_path": result.get("docx_path"),
+        "bundle_pdf_path": result.get("bundle_pdf_path"),
         "pdf_preview_available": result.get("_pdf_preview_available", False),
+        "bundle_available": result.get("_bundle_available", False),
     }
 
 
@@ -630,6 +868,26 @@ def draft_docx_url(
     path = draft.get("docx_path")
     if not path:
         raise NotFoundError("DOCX henüz üretilmedi.")
+    try:
+        url = get_signed_url(path, expires_in=expires_in)
+    except RuntimeError as exc:
+        raise ValidationError(str(exc)) from exc
+    return {"draft_id": str(draft_id), "signed_url": url, "expires_in": expires_in}
+
+
+@router.get("/drafts/{draft_id}/bundle-url")
+def draft_bundle_url(
+    project_id: UUID,
+    draft_id: UUID,
+    expires_in: int = Query(3600, le=86400),
+    access: dict = Depends(verify_project_access),
+):
+    db = access["db"]
+    draft = DocumentDraftRepository(db).get_or_404(str(draft_id))
+    _assert_draft_in_project(draft, str(project_id))
+    path = draft.get("bundle_pdf_path")
+    if not path:
+        raise NotFoundError("Referans e-bundle henüz üretilmedi.")
     try:
         url = get_signed_url(path, expires_in=expires_in)
     except RuntimeError as exc:
@@ -730,16 +988,32 @@ def approve_draft(
     result = _generate_and_store_docx(
         db, draft, user_id=access["user"]["id"], snapshot_reason="approval"
     )
-    draft = {**draft, "docx_path": result.get("docx_path")}
+    draft = {
+        **draft,
+        "docx_path": result.get("docx_path"),
+        "bundle_pdf_path": result.get("bundle_pdf_path"),
+    }
 
     subject = draft.get("subject") or "Untitled"
     fv = draft.get("field_values") or {}
     user_id = access["user"]["id"]
     pid = str(project_id)
 
+    parent_id, relation = _resolve_chain_link(
+        doc_type=draft["doc_type"],
+        body_parent_id=body.parent_id,
+        body_relation=body.relation,
+        field_values=fv,
+    )
+
     # 4. Materialize — mirror create_rfi / create_correspondence field construction
     if draft["doc_type"] == "rfi":
         rfi_repo = RFIRepository(db)
+        rfi_type = relation if relation in ("response", "revision") else "original"
+        if parent_id:
+            parent_rfi = rfi_repo.get(str(parent_id))
+            if not parent_rfi or parent_rfi.get("project_id") != pid:
+                raise HTTPException(403, "Geçersiz parent_id")
         rfi_data = {
             "project_id": pid,
             "rfi_number": body.document_number,
@@ -748,11 +1022,14 @@ def approve_draft(
             "discipline": body.discipline,
             "entry_mode": "authored",
             "status": "draft",
-            "rfi_type": "original",
+            "rfi_type": rfi_type,
             "created_by": user_id,
         }
+        if parent_id:
+            rfi_data["parent_id"] = str(parent_id)
         entity = rfi_repo.create(rfi_data)
         entity_type = "rfi"
+        # Authored draft child must NOT flip parent status (create_rfi parity).
         # Attach user-picked references — IDOR guards mirror create_rfi
         for ref in fv.get("references") or []:
             if not isinstance(ref, dict):
@@ -768,15 +1045,32 @@ def approve_draft(
                 assert_document_not_already_linked(
                     db, "rfi_references", "owner_rfi_id", entity["id"], ref["document_id"]
                 )
-            rdata = {k: v for k, v in ref.items() if k != "_display" and v is not None}
+            rdata = _strip_ref_ui_keys(ref)
             rdata["owner_rfi_id"] = entity["id"]
             rdata["added_by"] = user_id
             if "external_doc_date" in rdata:
                 rdata["external_doc_date"] = str(rdata["external_doc_date"])
+            _apply_page_ranges_to_rdata(db, ref, rdata)
+            if rdata.get("document_id"):
+                db.table("pdf_document").update({
+                    "entity_type": "rfi",
+                    "entity_id": entity["id"],
+                    # Approved now → release the user-attached reference file to the parse
+                    # queue (draft guard no longer applies once re-parented).
+                    "parse_status": "pending",
+                }).eq("id", rdata["document_id"]).eq(
+                    "entity_type", "draft"
+                ).eq("entity_id", str(draft_id)).execute()
             db.table("rfi_references").insert(rdata).execute()
     else:
         corr_repo = CorrespondenceRepository(db)
         corr_date = body.correspondence_date or date.today()
+        if parent_id:
+            parent_corr = corr_repo.get(str(parent_id))
+            if not parent_corr or parent_corr.get("project_id") != pid:
+                raise HTTPException(403, "Geçersiz parent_id")
+            if relation not in ("response", "followup"):
+                raise ValidationError("Geçersiz correspondence relation.")
         corr_data = {
             "project_id": pid,
             "corr_number": body.document_number,
@@ -788,8 +1082,16 @@ def approve_draft(
             "status": "draft",
             "created_by": user_id,
         }
+        if parent_id:
+            corr_data["parent_id"] = str(parent_id)
         entity = corr_repo.create(corr_data)
         entity_type = "correspondence"
+        # Mirror create_correspondence parent side-effect (Register parity).
+        if parent_id:
+            corr_repo.update_parent_response_status(
+                parent_id=str(parent_id),
+                response_corr_id=entity["id"],
+            )
         # Same IDOR guard set as create_rfi; owner table = correspondence_references
         for ref in fv.get("references") or []:
             if not isinstance(ref, dict):
@@ -805,11 +1107,22 @@ def approve_draft(
                 assert_document_not_already_linked(
                     db, "correspondence_references", "correspondence_id", entity["id"], ref["document_id"]
                 )
-            rdata = {k: v for k, v in ref.items() if k != "_display" and v is not None}
+            rdata = _strip_ref_ui_keys(ref)
             rdata["correspondence_id"] = entity["id"]
             rdata["added_by"] = user_id
             if "external_doc_date" in rdata:
                 rdata["external_doc_date"] = str(rdata["external_doc_date"])
+            _apply_page_ranges_to_rdata(db, ref, rdata)
+            if rdata.get("document_id"):
+                db.table("pdf_document").update({
+                    "entity_type": "correspondence",
+                    "entity_id": entity["id"],
+                    # Approved now → release the user-attached reference file to the parse
+                    # queue (draft guard no longer applies once re-parented).
+                    "parse_status": "pending",
+                }).eq("id", rdata["document_id"]).eq(
+                    "entity_type", "draft"
+                ).eq("entity_id", str(draft_id)).execute()
             db.table("correspondence_references").insert(rdata).execute()
 
     # Attach generated docx via pdf_document + Storage pattern
@@ -826,6 +1139,20 @@ def approve_draft(
             )
         except Exception as exc:
             logger.error("DOCX attachment failed after materialize: %s", exc)
+
+    if draft.get("bundle_pdf_path"):
+        try:
+            _attach_docx_to_entity(
+                db,
+                project_id=pid,
+                entity_type=entity_type,
+                entity_id=entity["id"],
+                docx_path=draft["bundle_pdf_path"],
+                user_id=user_id,
+                original_filename=f"{body.document_number}_references_bundle.pdf",
+            )
+        except Exception as exc:
+            logger.error("Bundle PDF attachment failed after materialize: %s", exc)
 
     # 5. Update draft status
     now = datetime.now(timezone.utc).isoformat()
@@ -846,6 +1173,8 @@ def approve_draft(
         metadata={
             "materialized_entity_type": entity_type,
             "materialized_entity_id": entity["id"],
+            "parent_id": str(parent_id) if parent_id else None,
+            "relation": relation,
         },
     )
     AuditService().log(
@@ -857,6 +1186,8 @@ def approve_draft(
         new_value={
             "materialized_entity_type": entity_type,
             "materialized_entity_id": entity["id"],
+            "parent_id": str(parent_id) if parent_id else None,
+            "relation": relation,
         },
     )
     return {

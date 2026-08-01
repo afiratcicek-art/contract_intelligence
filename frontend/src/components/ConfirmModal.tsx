@@ -19,7 +19,7 @@ export default function ConfirmModal({
       onClick={onCancel}
       style={{
         position: "fixed", inset: 0,
-        backgroundColor: "rgba(0,0,0,0.45)",
+        backgroundColor: "var(--color-overlay)",
         display: "flex", alignItems: "center",
         justifyContent: "center", zIndex: "var(--z-confirm)" as unknown as number,
       }}
@@ -31,7 +31,7 @@ export default function ConfirmModal({
           border: "1px solid var(--color-border-light)",
           borderLeft: "3px solid var(--color-accent)",
           padding: "24px 32px", maxWidth: 400, width: "100%",
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}
       >
         <p style={{
@@ -49,7 +49,7 @@ export default function ConfirmModal({
               color: "var(--color-text-secondary)",
               border: "1px solid var(--color-border-light)",
               borderRadius: 0, cursor: "pointer",
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
             }}
           >
             {cancelLabel}
@@ -62,7 +62,7 @@ export default function ConfirmModal({
               color: "var(--color-bg-primary)",
               border: "1px solid var(--color-accent)",
               borderRadius: 0, cursor: "pointer",
-              fontWeight: 500, fontFamily: "Inter, sans-serif",
+              fontWeight: 500, fontFamily: "var(--font-ui)",
             }}
           >
             {confirmLabel}

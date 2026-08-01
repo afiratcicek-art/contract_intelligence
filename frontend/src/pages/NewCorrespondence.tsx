@@ -183,7 +183,7 @@ export default function NewCorrespondence() {
     border: `1px solid ${border}`,
     color: textPrimary,
     fontSize: 13,
-    fontFamily: "Inter, sans-serif",
+    fontFamily: "var(--font-ui)",
     padding: "10px 12px",
     borderRadius: 0,
     outline: "none",
@@ -271,7 +271,7 @@ export default function NewCorrespondence() {
       {/* Nav */}
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
-          <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, transparent, var(--color-accent) 20%, var(--color-accent) 80%, transparent)" }} />
+          <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
           <span style={{ color: textSecondary }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
@@ -288,7 +288,7 @@ export default function NewCorrespondence() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
         </div>
@@ -299,7 +299,7 @@ export default function NewCorrespondence() {
         {/* Direction selector */}
         {!direction && (
           <div>
-            <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
+            <p style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1)", color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
               {lang === "tr" ? "Yeni Yazışma" : "New Correspondence"}
             </p>
             <p style={{ fontSize: 13, color: textSecondary, marginBottom: 32 }}>
@@ -310,15 +310,15 @@ export default function NewCorrespondence() {
                 onClick={() => setDirection("outgoing")}
                 style={{ padding: "20px 24px", backgroundColor: cardBg, border: `1px solid ${border}`, cursor: "pointer", textAlign: "left", borderRadius: 0 }}
               >
-                <p style={{ fontSize: 13, fontWeight: 500, color: textPrimary, marginBottom: 4, fontFamily: "Inter, sans-serif" }}>Outgoing →</p>
-                <p style={{ fontSize: 11, color: textSecondary, fontFamily: "Inter, sans-serif" }}>{lang === "tr" ? "Bizden karşı tarafa gönderilen yazışma" : "Outgoing correspondence to the other party"}</p>
+                <p style={{ fontSize: 13, fontWeight: 500, color: textPrimary, marginBottom: 4, fontFamily: "var(--font-ui)" }}>Outgoing →</p>
+                <p style={{ fontSize: 11, color: textSecondary, fontFamily: "var(--font-ui)" }}>{lang === "tr" ? "Bizden karşı tarafa gönderilen yazışma" : "Outgoing correspondence to the other party"}</p>
               </button>
               <button
                 onClick={() => setDirection("incoming")}
                 style={{ padding: "20px 24px", backgroundColor: cardBg, border: `1px solid ${border}`, cursor: "pointer", textAlign: "left", borderRadius: 0 }}
               >
-                <p style={{ fontSize: 13, fontWeight: 500, color: textPrimary, marginBottom: 4, fontFamily: "Inter, sans-serif" }}>← Incoming</p>
-                <p style={{ fontSize: 11, color: textSecondary, fontFamily: "Inter, sans-serif" }}>{lang === "tr" ? "Karşı taraftan bize gelen yazışma" : "Incoming correspondence from the other party"}</p>
+                <p style={{ fontSize: 13, fontWeight: 500, color: textPrimary, marginBottom: 4, fontFamily: "var(--font-ui)" }}>← Incoming</p>
+                <p style={{ fontSize: 11, color: textSecondary, fontFamily: "var(--font-ui)" }}>{lang === "tr" ? "Karşı taraftan bize gelen yazışma" : "Incoming correspondence from the other party"}</p>
               </button>
             </div>
           </div>
@@ -328,7 +328,7 @@ export default function NewCorrespondence() {
         {direction && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-              <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
+              <p style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1)", color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
                 {mode === "response"
                   ? (lang === "tr" ? `Yanıt: ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
                   : mode === "followup"
@@ -339,7 +339,7 @@ export default function NewCorrespondence() {
               </p>
               <button
                 onClick={() => setDirection(null)}
-                style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "Inter, sans-serif" }}
+                style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-ui)" }}
               >
                 {lang === "tr" ? "Değiştir" : "Change"}
               </button>
@@ -440,7 +440,7 @@ export default function NewCorrespondence() {
               <div>
                 <label style={labelStyle}>{lang === "tr" ? "Referanslar" : "References"}</label>
                 {pendingRefs.length === 0 && (
-                  <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic", margin: "0 0 12px", fontFamily: "Inter, sans-serif" }}>
+                  <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic", margin: "0 0 12px", fontFamily: "var(--font-ui)" }}>
                     {lang === "tr" ? "Henüz referans yok." : "No references yet."}
                   </p>
                 )}
@@ -448,7 +448,7 @@ export default function NewCorrespondence() {
                   <div key={idx}
                     style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, background: bg }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>
+                      <div style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary }}>
                         {r._display}
                         {DOCUMENT_TYPE_LABELS[r.ref_type] && (
                           <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500,
@@ -484,7 +484,7 @@ export default function NewCorrespondence() {
                       color: textPrimary,
                       fontSize: 12, borderRadius: 0,
                       boxSizing: "border-box" as const,
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                     }}
                   />
                   {showRefDropdown && filteredLinkable.length > 0 && (
@@ -505,10 +505,10 @@ export default function NewCorrespondence() {
                             borderBottom: `1px solid ${border}`,
                             cursor: "pointer",
                             fontSize: 12, color: textPrimary,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                           }}
                         >
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>
+                          <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary }}>
                             {doc.ref_number}
                           </span>
                           {" "}{doc.subject}
@@ -524,7 +524,7 @@ export default function NewCorrespondence() {
                     border: `1px solid ${border}`,
                     color: textSecondary, cursor: "pointer",
                     padding: "4px 12px", borderRadius: 0,
-                    fontFamily: "Inter, sans-serif",
+                    fontFamily: "var(--font-ui)",
                   }}
                 >
                   {showManualRef
@@ -548,7 +548,7 @@ export default function NewCorrespondence() {
                         border: `1px solid ${border}`, background: "var(--color-bg-primary)",
                         color: manualRef.type ? textPrimary : textSecondary,
                         fontSize: 12, borderRadius: 0, boxSizing: "border-box" as const,
-                        fontFamily: "Inter, sans-serif" }}
+                        fontFamily: "var(--font-ui)" }}
                     >
                       <option value="" disabled>
                         {lang === "tr" ? "— Seçiniz —" : "— Select —"}
@@ -572,7 +572,7 @@ export default function NewCorrespondence() {
                             color: textPrimary,
                             fontSize: 12, borderRadius: 0,
                             boxSizing: "border-box" as const,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                           }}
                         />
                       </div>
@@ -591,7 +591,7 @@ export default function NewCorrespondence() {
                             color: textPrimary,
                             fontSize: 12, borderRadius: 0,
                             boxSizing: "border-box" as const,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                           }}
                         />
                       </div>
@@ -609,7 +609,7 @@ export default function NewCorrespondence() {
                         color: textPrimary,
                         fontSize: 12, borderRadius: 0,
                         boxSizing: "border-box" as const,
-                        fontFamily: "Inter, sans-serif",
+                        fontFamily: "var(--font-ui)",
                       }}
                     />
                     {manualRef.type === "other" && (
@@ -626,7 +626,7 @@ export default function NewCorrespondence() {
                           style={{ width: "100%", padding: "8px 10px", marginBottom: 12,
                             border: `1px solid ${border}`, background: "var(--color-bg-primary)",
                             color: textPrimary, fontSize: 12, borderRadius: 0,
-                            boxSizing: "border-box" as const, fontFamily: "Inter, sans-serif" }}
+                            boxSizing: "border-box" as const, fontFamily: "var(--font-ui)" }}
                         />
                       </>
                     )}
@@ -639,7 +639,7 @@ export default function NewCorrespondence() {
                         color: canAddManual ? "var(--color-bg-primary)" : textSecondary,
                         border: "none", borderRadius: 0,
                         cursor: !canAddManual ? "not-allowed" : "pointer",
-                        fontWeight: 500, fontFamily: "Inter, sans-serif",
+                        fontWeight: 500, fontFamily: "var(--font-ui)",
                       }}
                     >
                       {lang === "tr" ? "Referans Ekle" : "Add Reference"}
@@ -694,7 +694,7 @@ export default function NewCorrespondence() {
                       border: `1px solid ${border}`,
                       color: textSecondary,
                       fontSize: 12,
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                       cursor: "pointer",
                       borderRadius: 0,
                       whiteSpace: "nowrap",
@@ -759,13 +759,13 @@ export default function NewCorrespondence() {
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
-                  style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
+                  style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "var(--font-ui)", opacity: loading ? 0.7 : 1 }}
                 >
                   {loading ? (lang === "tr" ? "Kaydediliyor..." : "Saving...") : (lang === "tr" ? "Kaydet" : "Save")}
                 </button>
                 <button
                   onClick={() => navigate(`/projects/${projectId}/workspace`)}
-                  style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}
+                  style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "var(--font-ui)" }}
                 >
                   {lang === "tr" ? "İptal" : "Cancel"}
                 </button>

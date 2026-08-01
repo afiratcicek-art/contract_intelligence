@@ -40,6 +40,10 @@ def fetch_pending(admin_client) -> list[dict]:
         admin_client.table("pdf_document")
         .select("*")
         .eq("parse_status", "pending")
+        # Draft-stage authoring references are NOT parsed pre-approval: they must
+        # not reach the external parser (LlamaParse). On approve, materialize
+        # re-parents them to rfi/correspondence, which the worker then picks up.
+        .neq("entity_type", "draft")
         .order("created_at")
         .limit(BATCH_SIZE)
         .execute()

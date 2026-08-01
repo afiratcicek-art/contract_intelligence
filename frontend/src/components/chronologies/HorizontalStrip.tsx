@@ -56,7 +56,7 @@ function HorizontalStrip({
             padding: "12px 14px",
             minWidth: 240,
             maxWidth: 380,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+            boxShadow: "0 4px 16px var(--color-shadow)",
             resize: "both",
             overflow: "auto",
             minHeight: 80,
@@ -75,7 +75,7 @@ function HorizontalStrip({
               textTransform: "uppercase",
               letterSpacing: "0.08em",
               color: "var(--color-text-secondary)",
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
               margin: 0,
             }}>
               {activeEvent.label} · {activeEvent.date}
@@ -100,7 +100,7 @@ function HorizontalStrip({
               fontSize: 11,
               color: "var(--color-text-secondary)",
               fontStyle: "italic",
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
               margin: "0 0 6px",
             }}>
               {activeEvent.subject}
@@ -111,7 +111,7 @@ function HorizontalStrip({
               fontSize: 12,
               color: "var(--color-text-primary)",
               lineHeight: 1.6,
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
               margin: 0,
             }}>
               {activeEvent.narrative}
@@ -121,7 +121,7 @@ function HorizontalStrip({
               fontSize: 12,
               color: "var(--color-text-secondary)",
               fontStyle: "italic",
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
               margin: 0,
             }}>
               No narrative yet.
@@ -198,7 +198,7 @@ function HorizontalStrip({
             }} />
             <p style={{
               fontSize: 11,
-              fontFamily: "JetBrains Mono, monospace",
+              fontFamily: "var(--font-meta)",
               color: "var(--color-text-secondary)",
               margin: "3px 0 1px",
               textAlign: "center",
@@ -211,7 +211,7 @@ function HorizontalStrip({
             </p>
             <p style={{
               fontSize: 11,
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
               color: "var(--color-text-secondary)",
               margin: 0,
               textAlign: "center",

@@ -9,6 +9,7 @@
  */
 import type { RefObject, MutableRefObject } from "react";
 import { MANUAL_EVENT_TYPE_LABELS } from "../../types/chronology";
+import AiActionButton from "../AiActionButton";
 import HorizontalStrip from "./HorizontalStrip";
 import { toPendingStripEvents } from "./mappers";
 import type { PendingEvent, usePendingEvents } from "./usePendingEvents";
@@ -22,7 +23,7 @@ const SECTION_LABEL = {
   color: "var(--color-text-secondary)",
   fontWeight: 500,
   marginBottom: 10,
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
 };
 
 function formatDate(dateStr: string): string {
@@ -84,8 +85,8 @@ export default function ChronologyDraftView({
           justifyContent: "space-between", marginBottom: 24,
         }}>
           <h2 style={{
-            fontFamily: "Playfair Display, Georgia, serif",
-            fontSize: 22, fontWeight: 500,
+            fontFamily: "var(--font-brand)",
+            fontSize: "var(--type-h1)", fontWeight: 500,
             color: "var(--color-text-primary)", margin: 0,
           }}>
             {isCreate ? "New Chronology" : "Edit Chronology"}
@@ -103,7 +104,7 @@ export default function ChronologyDraftView({
                 fontSize: 12, fontWeight: 500, borderRadius: 0,
                 cursor: saving ? "not-allowed" : "pointer",
                 opacity: saving ? 0.6 : 1,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             >
               {saving
@@ -119,7 +120,7 @@ export default function ChronologyDraftView({
                 color: "var(--color-text-secondary)",
                 padding: "8px 16px", fontSize: 12,
                 cursor: "pointer", borderRadius: 0,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             >
               Cancel
@@ -145,7 +146,7 @@ export default function ChronologyDraftView({
               color: "var(--color-text-primary)",
               fontSize: 13, borderRadius: 0,
               boxSizing: "border-box" as const,
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
             }}
           />
         </div>
@@ -172,7 +173,7 @@ export default function ChronologyDraftView({
                 color: "var(--color-text-primary)",
                 fontSize: 12, borderRadius: 0,
                 boxSizing: "border-box" as const,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             />
             {showDocDropdown && filteredDocs.length > 0 && (
@@ -197,11 +198,11 @@ export default function ChronologyDraftView({
                         fontSize: 12,
                         color: "var(--color-text-primary)",
                         opacity: already ? 0.4 : 1,
-                        fontFamily: "Inter, sans-serif",
+                        fontFamily: "var(--font-ui)",
                       }}
                     >
                       <span style={{
-                        fontFamily: "JetBrains Mono, monospace",
+                        fontFamily: "var(--font-meta)",
                         fontSize: 11, color: "var(--color-text-secondary)",
                       }}>
                         {doc.ref_number}
@@ -225,7 +226,7 @@ export default function ChronologyDraftView({
               border: "1px solid var(--color-border-light)",
               color: "var(--color-text-secondary)", cursor: "pointer",
               padding: "4px 12px", borderRadius: 0,
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
             }}
           >
             {showManualEntry ? "Cancel manual entry" : "+ Add entry not in system"}
@@ -256,7 +257,7 @@ export default function ChronologyDraftView({
                     color: "var(--color-text-primary)",
                     fontSize: 12, borderRadius: 0,
                     boxSizing: "border-box" as const,
-                    fontFamily: "Inter, sans-serif",
+                    fontFamily: "var(--font-ui)",
                   }}
                 />
               </div>
@@ -272,7 +273,7 @@ export default function ChronologyDraftView({
                     color: "var(--color-text-primary)",
                     fontSize: 12, borderRadius: 0,
                     boxSizing: "border-box" as const,
-                    fontFamily: "Inter, sans-serif",
+                    fontFamily: "var(--font-ui)",
                   }}
                 >
                   {Object.entries(MANUAL_EVENT_TYPE_LABELS).map(([k, v]) => (
@@ -293,7 +294,7 @@ export default function ChronologyDraftView({
                 color: "var(--color-text-primary)",
                 fontSize: 12, borderRadius: 0,
                 boxSizing: "border-box" as const,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             />
             <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>
@@ -310,7 +311,7 @@ export default function ChronologyDraftView({
                 color: "var(--color-text-primary)",
                 fontSize: 12, borderRadius: 0, resize: "vertical",
                 boxSizing: "border-box" as const,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             />
             <button
@@ -320,7 +321,7 @@ export default function ChronologyDraftView({
                 background: ACCENT, color: "var(--color-bg-primary)",
                 border: "none", borderRadius: 0,
                 cursor: "pointer", fontWeight: 500,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             >
               Add to Timeline
@@ -337,7 +338,7 @@ export default function ChronologyDraftView({
         {pendingEvents.length === 0 && (
           <p style={{
             fontSize: 12, color: "var(--color-text-secondary)",
-            fontStyle: "italic", fontFamily: "Inter, sans-serif",
+            fontStyle: "italic", fontFamily: "var(--font-ui)",
           }}>
             No events yet. Search and add documents above.
           </p>
@@ -384,7 +385,7 @@ export default function ChronologyDraftView({
               }}>
                 <div>
                   <span style={{
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-meta)",
                     fontSize: 11, color: "var(--color-text-secondary)",
                   }}>
                     {pe.doc.ref_number}
@@ -393,7 +394,7 @@ export default function ChronologyDraftView({
                   <span style={{
                     fontSize: 11, textTransform: "uppercase",
                     color: "var(--color-text-secondary)",
-                    fontFamily: "Inter, sans-serif",
+                    fontFamily: "var(--font-ui)",
                   }}>
                     {pe.doc.type ?? (MANUAL_EVENT_TYPE_LABELS[pe.manualEventType ?? "other"] ?? "manual")}
                   </span>
@@ -401,7 +402,7 @@ export default function ChronologyDraftView({
                     <span style={{
                       marginLeft: 8, fontSize: 11,
                       color: "var(--color-text-secondary)", fontStyle: "italic",
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                     }}>
                       existing
                     </span>
@@ -409,13 +410,13 @@ export default function ChronologyDraftView({
                   <p style={{
                     fontSize: 13, fontWeight: 500,
                     color: "var(--color-text-primary)", margin: "3px 0 0",
-                    fontFamily: "Inter, sans-serif",
+                    fontFamily: "var(--font-ui)",
                   }}>
                     {pe.doc.subject}
                   </p>
                   <p style={{
                     fontSize: 11, color: "var(--color-text-secondary)",
-                    margin: "2px 0 0", fontFamily: "Inter, sans-serif",
+                    margin: "2px 0 0", fontFamily: "var(--font-ui)",
                   }}>
                     {pe.doc.date ? formatDate(pe.doc.date) : ""}
                   </p>
@@ -439,7 +440,7 @@ export default function ChronologyDraftView({
                           borderRadius: 0,
                           background: "var(--color-bg-primary)",
                           color: "var(--color-text-primary)",
-                          fontFamily: "Inter, sans-serif",
+                          fontFamily: "var(--font-ui)",
                         }}
                       >
                         {Object.entries(MANUAL_EVENT_TYPE_LABELS).map(([k, v]) => (
@@ -449,7 +450,7 @@ export default function ChronologyDraftView({
                       <label style={{
                         display: "flex", alignItems: "center", gap: 4,
                         fontSize: 11, color: "var(--color-text-secondary)",
-                        fontFamily: "Inter, sans-serif", cursor: "pointer",
+                        fontFamily: "var(--font-ui)", cursor: "pointer",
                         whiteSpace: "nowrap",
                       }}>
                         <input
@@ -476,7 +477,7 @@ export default function ChronologyDraftView({
                             borderRadius: 0,
                             background: "var(--color-bg-primary)",
                             color: "var(--color-text-primary)",
-                            fontFamily: "Inter, sans-serif", width: "100%",
+                            fontFamily: "var(--font-ui)", width: "100%",
                           }}
                         />
                         <input
@@ -492,7 +493,7 @@ export default function ChronologyDraftView({
                             borderRadius: 0,
                             background: "var(--color-bg-primary)",
                             color: "var(--color-text-primary)",
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                             width: "100%", boxSizing: "border-box",
                           }}
                         />
@@ -516,24 +517,9 @@ export default function ChronologyDraftView({
               {/* Narrative */}
               {!pe.narrativeMode && !pe.approved && (
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    onClick={() => requestLlmNarrative(pe)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 4,
-                      fontSize: 11, padding: "8px 12px",
-                      background: "var(--color-ai-bg)",
-                      color: "var(--color-ai)",
-                      border: "1px solid var(--color-ai)",
-                      borderRadius: 6, fontWeight: 500, cursor: "pointer",
-                      fontFamily: "Inter, sans-serif",
-                    }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 7 7c0 2.5-1.5 4.5-3 6l-1 1H9l-1-1C6.5 13.5 5 11.5 5 9a7 7 0 0 1 7-7z"/>
-                    </svg>
+                  <AiActionButton onClick={() => requestLlmNarrative(pe)}>
                     LLM Narrative
-                  </button>
+                  </AiActionButton>
                   <button
                     onClick={() =>
                       updatePending(pe.doc.id, { narrativeMode: "manual" })
@@ -544,7 +530,7 @@ export default function ChronologyDraftView({
                       color: "var(--color-text-secondary)",
                       border: "1px solid var(--color-border-light)",
                       borderRadius: 0, cursor: "pointer",
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                     }}
                   >
                     Write Manually
@@ -566,7 +552,7 @@ export default function ChronologyDraftView({
                       borderRadius: 0, background: "var(--color-bg-primary)",
                       color: "var(--color-text-primary)", resize: "vertical",
                       boxSizing: "border-box" as const,
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                     }}
                   />
                   <button
@@ -589,7 +575,7 @@ export default function ChronologyDraftView({
                         : "var(--color-border-light)"}`,
                       borderRadius: 0,
                       cursor: pe.manualText.trim() ? "pointer" : "not-allowed",
-                      fontWeight: 500, fontFamily: "Inter, sans-serif",
+                      fontWeight: 500, fontFamily: "var(--font-ui)",
                     }}
                   >
                     Approve Narrative
@@ -603,7 +589,7 @@ export default function ChronologyDraftView({
                   background: "var(--color-success-bg, var(--color-bg-secondary))",
                   border: "1px solid var(--color-success)",
                   fontSize: 12, color: "var(--color-text-primary)",
-                  fontFamily: "Inter, sans-serif",
+                  fontFamily: "var(--font-ui)",
                 }}>
                   ✓ {pe.approvedText || pe.autoNarrative || pe.manualText}
                   <button

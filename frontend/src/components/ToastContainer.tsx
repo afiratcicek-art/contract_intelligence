@@ -7,13 +7,13 @@ const TYPE_STYLES: Record<ToastType, { border: string; color: string; bg: string
     bg:     "var(--color-success-bg, var(--color-bg-secondary))",
   },
   error: {
-    border: "var(--color-danger, #c0392b)",
-    color:  "var(--color-danger, #c0392b)",
+    border: "var(--color-danger)",
+    color:  "var(--color-danger)",
     bg:     "var(--color-bg-secondary)",
   },
   warning: {
-    border: "var(--color-warning, #e67e22)",
-    color:  "var(--color-warning, #e67e22)",
+    border: "var(--color-warning)",
+    color:  "var(--color-warning)",
     bg:     "var(--color-bg-secondary)",
   },
   info: {
@@ -48,8 +48,8 @@ export default function ToastContainer({ toasts, onDismiss }: Props) {
               background: s.bg,
               border: `1px solid ${s.border}`,
               borderLeft: `3px solid ${s.border}`,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-              fontFamily: "Inter, sans-serif",
+              boxShadow: "0 4px 16px var(--color-shadow)",
+              fontFamily: "var(--font-ui)",
             }}
           >
             <span style={{ fontSize: 12, color: "var(--color-text-primary)", flex: 1, lineHeight: 1.5 }}>

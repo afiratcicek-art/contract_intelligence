@@ -1,9 +1,11 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "destructive";
+type Size = "default" | "sm";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
+  size?: Size;
   loading?: boolean;
   loadingText?: string;
   children: ReactNode;
@@ -11,42 +13,39 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const styles: Record<Variant, string> = {
   primary: [
-    "bg-gold text-stone-paper",
-    "hover:bg-[#5C5038]",
-    "active:bg-[#4A3D28] active:scale-[0.98]",
-    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-    "dark:bg-copper dark:text-off-white",
-    "dark:hover:bg-[#A0714A]",
-    "dark:focus-visible:outline-copper",
+    "bg-[var(--color-accent)] text-[var(--color-bg-primary)]",
+    "hover:bg-[var(--color-accent-hover)]",
+    "active:bg-[var(--color-accent-active)] active:scale-[0.98]",
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]",
     "disabled:opacity-40 disabled:cursor-not-allowed",
   ].join(" "),
   secondary: [
-    "bg-transparent border border-gold text-gold",
-    "hover:bg-[rgba(92,80,56,0.08)]",
+    "bg-transparent border border-[var(--color-accent)] text-[var(--color-accent-text)]",
+    "hover:bg-[var(--color-accent-wash)]",
     "active:scale-[0.98]",
-    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-    "dark:border-copper dark:text-copper",
-    "dark:hover:bg-[rgba(160,113,74,0.08)]",
-    "dark:focus-visible:outline-copper",
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]",
     "disabled:opacity-40 disabled:cursor-not-allowed",
   ].join(" "),
   destructive: [
-    "bg-transparent border border-alert-red text-alert-red",
-    "hover:bg-[rgba(169,50,38,0.08)]",
+    "bg-transparent border border-[var(--color-alert-red)] text-[var(--color-alert-red)]",
+    "hover:bg-[var(--color-alert-wash)]",
     "active:scale-[0.98]",
-    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-alert-red",
-    "dark:border-alert-red-dark dark:text-alert-red-dark",
-    "dark:hover:bg-[rgba(224,112,96,0.08)]",
-    "dark:focus-visible:outline-alert-red-dark",
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-alert-red)]",
     "disabled:opacity-40 disabled:cursor-not-allowed",
   ].join(" "),
 };
 
+const sizes: Record<Size, string> = {
+  default: "px-6 py-2 text-sm",
+  sm: "px-3 py-1.5 text-xs",
+};
+
 const base =
-  "inline-flex items-center justify-center px-6 py-2 text-sm font-medium tracking-[0.5px] rounded-none transition-all duration-150 select-none";
+  "inline-flex items-center justify-center font-medium tracking-[0.5px] rounded-none transition-all duration-150 select-none";
 
 export default function Button({
   variant = "primary",
+  size = "default",
   loading = false,
   loadingText,
   disabled,
@@ -58,7 +57,7 @@ export default function Button({
     <button
       {...props}
       disabled={disabled || loading}
-      className={`${base} ${styles[variant]} ${className}`}
+      className={`${base} ${sizes[size]} ${styles[variant]} ${className}`}
     >
       {loading ? (
         <span className="flex items-center gap-2">

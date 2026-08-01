@@ -56,7 +56,7 @@ const SECTION_LABEL: CSSProperties = {
   color: "var(--color-text-secondary)",
   fontWeight: 500,
   marginBottom: 10,
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
 };
 
 function formatDate(dateStr: string): string {
@@ -78,13 +78,13 @@ function formatAlertType(type: string): string {
 function InfoRow({ label, value, status }: { label: string; value: string; status?: boolean }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-      <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>{label}</span>
+      <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>{label}</span>
       <span
         style={{
           fontSize: 11,
           color: status ? ACCENT_TEXT : "var(--color-text-primary)",
           fontWeight: 500,
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
           textAlign: "left",
           maxWidth: "60%",
         }}
@@ -239,7 +239,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
 
     if (!entityType) {
       return (
-        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
+        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
           No source document.
         </p>
       );
@@ -247,7 +247,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
 
     if (!entity) {
       return (
-        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
+        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
           Loading...
         </p>
       );
@@ -299,7 +299,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               padding: "4px 10px",
               cursor: "pointer",
               marginTop: 10,
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
             }}
           >
             <i className="ti ti-external-link" style={{ fontSize: 11 }} />
@@ -330,7 +330,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 cursor: "pointer",
                 marginTop: 8,
                 marginLeft: 8,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             >
               <i className="ti ti-file" style={{ fontSize: 13 }} />
@@ -345,7 +345,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                       fontSize: 11,
                       color: "var(--color-text-secondary)",
                       marginBottom: 4,
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                     }}
                   >
                     {doc.document_id}
@@ -375,7 +375,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               borderBottom: statusFilter === tab ? `2px solid ${ACCENT}` : "2px solid transparent",
               padding: "8px 16px",
               fontSize: 12,
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
               color: statusFilter === tab ? "var(--color-text-primary)" : "var(--color-text-secondary)",
               fontWeight: statusFilter === tab ? 500 : 400,
               cursor: "pointer",
@@ -388,17 +388,17 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
       </div>
 
       {loading && (
-        <p style={{ textAlign: "center", fontFamily: "Inter, sans-serif", color: "var(--color-text-secondary)", fontSize: 13 }}>
+        <p style={{ textAlign: "center", fontFamily: "var(--font-ui)", color: "var(--color-text-secondary)", fontSize: 13 }}>
           Loading alerts...
         </p>
       )}
 
       {!loading && alerts.length === 0 && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>
-          <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 16, color: "var(--color-text-primary)", marginBottom: 8 }}>
+          <p style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-title-card)", color: "var(--color-text-primary)", marginBottom: 8 }}>
             No {statusFilter} alerts.
           </p>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "var(--color-text-secondary)" }}>
+          <p style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--color-text-secondary)" }}>
             All clear for now.
           </p>
         </div>
@@ -450,7 +450,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   }}
                 />
               )}
-              <span style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 14, color: "var(--color-text-primary)", fontWeight: 500 }}>
+              <span style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--color-text-primary)", fontWeight: 500 }}>
                 {formatAlertType(alertItem.alert_type)}
               </span>
               <span
@@ -460,7 +460,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   textTransform: "uppercase",
                   background: badge.bg,
                   color: badge.color,
-                  fontFamily: "Inter, sans-serif",
+                  fontFamily: "var(--font-ui)",
                   fontWeight: 500,
                   letterSpacing: "0.04em",
                   borderRadius: 0,
@@ -482,7 +482,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   fontSize: 12,
                   color: "var(--color-text-secondary)",
                   marginTop: 8,
-                  fontFamily: "Inter, sans-serif",
+                  fontFamily: "var(--font-ui)",
                 }}
               >
                 From: {alertItem.source_entity_type.toUpperCase()}
@@ -496,7 +496,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   fontSize: 13,
                   color: "var(--color-text-primary)",
                   marginTop: 8,
-                  fontFamily: "Inter, sans-serif",
+                  fontFamily: "var(--font-ui)",
                   overflow: "hidden",
                   display: "-webkit-box",
                   WebkitLineClamp: 3,
@@ -509,14 +509,14 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
 
             {/* Row D */}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-              <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
+              <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
                 Flagged: {formatDate(alertItem.flagged_at)}
               </span>
               {alertItem.notice_deadline && (
                 <span
                   style={{
                     fontSize: 11,
-                    fontFamily: "Inter, sans-serif",
+                    fontFamily: "var(--font-ui)",
                     color: isWithin7Days(alertItem.notice_deadline) ? "var(--color-danger)" : "var(--color-text-secondary)",
                   }}
                 >
@@ -544,7 +544,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 paddingBottom: 8,
                 paddingLeft: 16,
                 paddingRight: 16,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
                 textAlign: "left",
               }}
             >
@@ -585,7 +585,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   <div style={SECTION_LABEL}>ACTIONS</div>
 
                   {actions.length === 0 && (
-                    <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>No actions yet.</p>
+                    <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>No actions yet.</p>
                   )}
                   {actions.map((action) => (
                     <div
@@ -600,7 +600,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                         paddingBottom: 8,
                         paddingTop: 8,
                         borderBottom: "0.5px solid var(--color-border-light)",
-                        fontFamily: "Inter, sans-serif",
+                        fontFamily: "var(--font-ui)",
                       }}
                     >
                       {action.action_type === "note" && (
@@ -650,7 +650,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                       borderRadius: 0,
                       fontSize: 12,
                       cursor: "pointer",
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                     }}
                   >
                     Add Action
@@ -678,7 +678,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                               padding: "8px 14px",
                               fontSize: 12,
                               cursor: "pointer",
-                              fontFamily: "Inter, sans-serif",
+                              fontFamily: "var(--font-ui)",
                               textTransform: "capitalize",
                               marginRight: 4,
                             }}
@@ -698,7 +698,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                             border: "0.5px solid var(--color-border-secondary)",
                             padding: 8,
                             fontSize: 13,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                             borderRadius: 0,
                             resize: "vertical",
                             boxSizing: "border-box",
@@ -717,7 +717,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                               padding: 6,
                               fontSize: 13,
                               width: "100%",
-                              fontFamily: "Inter, sans-serif",
+                              fontFamily: "var(--font-ui)",
                               borderRadius: 0,
                               boxSizing: "border-box",
                               background: "var(--color-bg-secondary)",
@@ -740,7 +740,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                               border: "0.5px solid var(--color-border-tertiary)",
                               padding: 6,
                               fontSize: 13,
-                              fontFamily: "Inter, sans-serif",
+                              fontFamily: "var(--font-ui)",
                               borderRadius: 0,
                               boxSizing: "border-box",
                               background: "var(--color-bg-secondary)",
@@ -762,7 +762,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                             borderRadius: 0,
                             fontSize: 12,
                             cursor: submitting ? "not-allowed" : "pointer",
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                             opacity: submitting ? 0.6 : 1,
                           }}
                         >
@@ -777,7 +777,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                             fontSize: 12,
                             cursor: "pointer",
                             marginLeft: 8,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                           }}
                         >
                           Cancel

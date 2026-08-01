@@ -306,14 +306,14 @@ export default function FocusedRelationGraph({
 
   if (loading) {
     return (
-      <p style={{ fontSize: 12, color: textSec, fontFamily: "Inter, sans-serif" }}>
+      <p style={{ fontSize: 12, color: textSec, fontFamily: "var(--font-ui)" }}>
         İlişki haritası yükleniyor…
       </p>
     );
   }
   if (!data) {
     return (
-      <p style={{ fontSize: 12, color: textSec, fontStyle: "italic", fontFamily: "Inter, sans-serif" }}>
+      <p style={{ fontSize: 12, color: textSec, fontStyle: "italic", fontFamily: "var(--font-ui)" }}>
         İlişki haritası yüklenemedi.
       </p>
     );
@@ -416,7 +416,7 @@ export default function FocusedRelationGraph({
                 textAnchor="middle" dominantBaseline="middle"
                 fontSize={11} fontWeight={500}
                 fill={isHov ? "var(--color-bg-primary)" : "var(--color-text-primary)"}
-                fontFamily="JetBrains Mono, monospace"
+                fontFamily="var(--font-meta)"
               >
                 {n.ref}
               </text>
@@ -447,7 +447,7 @@ export default function FocusedRelationGraph({
           {/* fontSize={10}: SVG node geometric constraint — node circle radius bound, do not increase */}
           <text
             x={CX} y={CY} textAnchor="middle" dominantBaseline="middle"
-            fontSize={10} fontWeight={500} fill="var(--color-bg-primary)" fontFamily="JetBrains Mono, monospace"
+            fontSize={10} fontWeight={500} fill="var(--color-bg-primary)" fontFamily="var(--font-meta)"
           >
             {center.ref}
           </text>
@@ -463,7 +463,7 @@ export default function FocusedRelationGraph({
       <button onClick={() => zoomBy(1.2)} aria-label="Yakınlaştır"
         style={{ width: 26, height: 26, background: aiBg, color: ai, border: `1px solid ${ai}`, borderRadius: 6, cursor: "pointer", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
       <button onClick={resetView}
-        style={{ height: 26, padding: "0 10px", background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 0, cursor: "pointer", fontSize: 11, fontFamily: "Inter, sans-serif" }}>Sıfırla</button>
+        style={{ height: 26, padding: "0 10px", background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 0, cursor: "pointer", fontSize: 11, fontFamily: "var(--font-ui)" }}>Sıfırla</button>
       {!fullscreen && (
         <button onClick={() => setFullscreen(true)} aria-label="Tam ekran" title="Tam ekran"
           style={{ width: 26, height: 26, background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -482,15 +482,15 @@ export default function FocusedRelationGraph({
       background: bgPrimary, border: `1px solid ${border}`,
       borderLeft: `3px solid ${ai}`, padding: "10px 14px", maxWidth: 300,
       borderRadius: 6, pointerEvents: "none" as const,
-      boxShadow: "0 6px 20px rgba(0,0,0,0.14)",
+      boxShadow: "0 6px 20px var(--color-shadow)",
     }}>
-      <p style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: ai, margin: 0, fontWeight: 500 }}>
+      <p style={{ fontSize: 11, fontFamily: "var(--font-meta)", color: ai, margin: 0, fontWeight: 500 }}>
         {hoveredNode.ref}
       </p>
-      <p style={{ fontSize: 12, fontWeight: 500, color: textPrim, margin: "3px 0 0", fontFamily: "Inter, sans-serif" }}>
+      <p style={{ fontSize: 12, fontWeight: 500, color: textPrim, margin: "3px 0 0", fontFamily: "var(--font-ui)" }}>
         {hoveredNode.subject}
       </p>
-      <p style={{ fontSize: 11, color: textSec, margin: "4px 0 0", fontFamily: "Inter, sans-serif" }}>
+      <p style={{ fontSize: 11, color: textSec, margin: "4px 0 0", fontFamily: "var(--font-ui)" }}>
         Durum: {hoveredNode.status}
         {hoveredNode.tier !== "center" && ` · ${hoveredNode.tier === "chain" ? "Zincir" : "İçerik"}`}
       </p>
@@ -500,10 +500,10 @@ export default function FocusedRelationGraph({
   const header = (inFullscreen: boolean) => (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
       <div>
-        <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 18, color: textPrim, margin: 0, fontWeight: 500 }}>
+        <p style={{ fontFamily: "var(--font-brand)", fontSize: 18, color: textPrim, margin: 0, fontWeight: 500 }}>
           İlişki Haritası{inFullscreen ? ` — ${center.ref}` : ""}
         </p>
-        <p style={{ fontSize: 11.5, color: textSec, margin: "4px 0 0", fontStyle: "italic", fontFamily: "Inter, sans-serif" }}>
+        <p style={{ fontSize: 11.5, color: textSec, margin: "4px 0 0", fontStyle: "italic", fontFamily: "var(--font-ui)" }}>
           {center.ref} ile bağlantılı {nodes.length} kayıt · zincir ve içerik ilişkileri
         </p>
       </div>
@@ -516,7 +516,7 @@ export default function FocusedRelationGraph({
             color: bridgeMode ? "var(--color-bg-primary)" : textSec,
             border: `1px solid ${bridgeMode ? "var(--color-accent)" : border}`,
             padding: "8px 12px", fontSize: 11, fontWeight: 500,
-            cursor: "pointer", fontFamily: "Inter, sans-serif",
+            cursor: "pointer", fontFamily: "var(--font-ui)",
           }}
         >
           {bridgeMode ? "İptal" : "Kronoloji'ye Aktar"}
@@ -547,13 +547,13 @@ export default function FocusedRelationGraph({
                 strokeLinecap="round"
               />
             </svg>
-            <span style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
+            <span style={{ fontSize: 11, color: textSec, fontFamily: "var(--font-ui)" }}>
               {item.label}
             </span>
           </span>
         ))}
       </div>
-      <span style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
+      <span style={{ fontSize: 11, color: textSec, fontFamily: "var(--font-ui)" }}>
         {nodes.length} kayıt · {edges.length} bağlantı
       </span>
     </div>
@@ -610,11 +610,11 @@ export default function FocusedRelationGraph({
                 </svg>
               )}
             </div>
-            <span style={{ fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
+            <span style={{ fontSize: 11, color: textSec, fontFamily: "var(--font-ui)" }}>
               Tümünü Seç
             </span>
           </div>
-          <span style={{ flex: 1, fontSize: 11, color: textSec, fontFamily: "Inter, sans-serif" }}>
+          <span style={{ flex: 1, fontSize: 11, color: textSec, fontFamily: "var(--font-ui)" }}>
             {selectedIds.size > 0 ? `${selectedIds.size} kayıt seçildi` : "Grafikten kayıt seçin"}
           </span>
           <button
@@ -626,7 +626,7 @@ export default function FocusedRelationGraph({
               border: `1px solid ${selectedIds.size > 0 ? "var(--color-accent)" : border}`,
               padding: "8px 18px", fontSize: 12, fontWeight: 500,
               cursor: selectedIds.size > 0 ? "pointer" : "not-allowed",
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
             }}
           >
             Kronoloji Oluştur →
@@ -634,7 +634,7 @@ export default function FocusedRelationGraph({
         </div>
       )}
       {truncated && (
-        <p style={{ fontSize: 11, color: "var(--color-warning)", marginTop: 8, fontFamily: "Inter, sans-serif" }}>
+        <p style={{ fontSize: 11, color: "var(--color-warning)", marginTop: 8, fontFamily: "var(--font-ui)" }}>
           ⚠ {hidden_count} ilişkili kayıt daha zayıf bağlantı nedeniyle gösterilmiyor.
         </p>
       )}
@@ -643,7 +643,7 @@ export default function FocusedRelationGraph({
         <div
           onClick={() => setFullscreen(false)}
           style={{
-            position: "fixed" as const, inset: 0, backgroundColor: "rgba(0,0,0,0.6)",
+            position: "fixed" as const, inset: 0, backgroundColor: "var(--color-overlay-strong)",
             display: "flex", alignItems: "center", justifyContent: "center", zIndex: "var(--z-graph-fullscreen)" as unknown as number, padding: 24,
           }}
         >

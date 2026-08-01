@@ -31,7 +31,7 @@ interface Props {
 }
 
 const MONO: CSSProperties = {
-  fontFamily: "JetBrains Mono, monospace",
+  fontFamily: "var(--font-meta)",
   fontSize: 11,
   color: "var(--color-text-secondary)",
 };
@@ -41,13 +41,13 @@ const LABEL: CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   color: "var(--color-text-secondary)",
-  fontFamily: "JetBrains Mono, monospace",
+  fontFamily: "var(--font-meta)",
   marginBottom: 3, display: "block",
 };
 
 const INPUT: CSSProperties = {
   fontSize: 12, padding: "6px 8px",
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
   color: "var(--color-text-primary)",
   background: "var(--color-bg-primary)",
   border: "0.5px solid var(--color-border-light)",
@@ -62,7 +62,7 @@ const FILE_BTN: CSSProperties = {
   border: "1px solid var(--color-border-light)",
   color: "var(--color-text-secondary)",
   fontSize: 12,
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
   cursor: "pointer",
   borderRadius: 0,
   whiteSpace: "nowrap",
@@ -75,7 +75,7 @@ const ARROW_BTN: CSSProperties = {
   border: "1px solid var(--color-border-light)",
   color: "var(--color-text-secondary)",
   fontSize: 10,
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
   cursor: "pointer",
   borderRadius: 0,
   lineHeight: 1.2,
@@ -308,7 +308,7 @@ export default function ContractDocumentsSection({
           </DocumentLink>
         ) : (
           <>
-            <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontFamily: "Inter, sans-serif" }}>
+            <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontFamily: "var(--font-ui)" }}>
               {name}
             </span>
             <span style={{ ...MONO, fontStyle: "italic" }}>dosya bekleniyor</span>
@@ -356,7 +356,7 @@ export default function ContractDocumentsSection({
           Sözleşme belgeleri (öncelik sırası)
         </span>
         {ordered.length === 0 ? (
-          <p style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif", margin: 0 }}>
+          <p style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)", margin: 0 }}>
             Henüz bağlı belge yok
           </p>
         ) : (
@@ -377,7 +377,7 @@ export default function ContractDocumentsSection({
                 onChange={handleQuickUpload}
               />
             </label>
-            <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "Inter, sans-serif" }}>
+            <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "var(--font-ui)" }}>
               PDF, Word, Excel, PowerPoint, Görsel, DWG, DXF, TXT, CSV
             </span>
           </div>
@@ -435,7 +435,7 @@ export default function ContractDocumentsSection({
                   onClick={() => submitDraft(row)}
                   style={{
                     fontSize: 12, fontWeight: 500, padding: "7px 14px",
-                    fontFamily: "Inter, sans-serif",
+                    fontFamily: "var(--font-ui)",
                     background: "var(--color-accent)",
                     color: "var(--color-bg-primary)",
                     border: "none", borderRadius: 0,
@@ -469,7 +469,7 @@ export default function ContractDocumentsSection({
               style={{
                 alignSelf: "flex-start",
                 fontSize: 12, padding: "6px 12px",
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
                 background: "transparent",
                 color: "var(--color-accent-text)",
                 border: "1px solid var(--color-border-light)",
@@ -483,12 +483,12 @@ export default function ContractDocumentsSection({
       )}
 
       {error && (
-        <p style={{ fontSize: 12, color: "var(--color-alert-red)", fontFamily: "Inter, sans-serif", margin: 0 }}>
+        <p style={{ fontSize: 12, color: "var(--color-alert-red)", fontFamily: "var(--font-ui)", margin: 0 }}>
           {error}
         </p>
       )}
       {busy && (
-        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif", margin: 0 }}>
+        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)", margin: 0 }}>
           Kaydediliyor...
         </p>
       )}

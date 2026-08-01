@@ -5,6 +5,8 @@ import { useProjectDetail, useProjectTabs, useOverviewActivity, useUpcomingDeadl
 import { getAuth, clearAuth } from "../store/auth";
 import { useState } from "react";
 import ThemeToggle from "../components/ThemeToggle";
+import Button from "../components/Button";
+import StatusChip from "../components/StatusChip";
 import { useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -27,7 +29,7 @@ function MetricCard({ value, label }: { value: string | number; label: string })
     >
       <div
         className="text-3xl mb-1"
-        style={{ fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-primary)" }}
+        style={{ fontFamily: "var(--font-meta)", color: "var(--color-text-primary)" }}
       >
         {value}
       </div>
@@ -42,29 +44,6 @@ function daysUntil(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
   const diff = new Date(dateStr).getTime() - Date.now();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
-
-function StatusPill({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; text: string }> = {
-    open:      { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
-    pending:   { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
-    closed:    { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
-    active:    { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
-    approved:  { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
-    draft:     { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" },
-    overdue:   { bg: "var(--color-alert-red-bg)", text: "var(--color-alert-red)" },
-    rejected:  { bg: "var(--color-alert-red-bg)", text: "var(--color-alert-red)" },
-    submitted: { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" },
-  };
-  const c = colors[status] ?? { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" };
-  return (
-    <span
-      className="text-xs px-2 py-0.5"
-      style={{ backgroundColor: c.bg, color: c.text }}
-    >
-      {status}
-    </span>
-  );
 }
 
 export default function ProjectDetail() {
@@ -123,11 +102,11 @@ export default function ProjectDetail() {
         style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-bg-primary)" }}
       >
         <div className="flex items-center gap-3">
-          <div style={{ width: "2px", height: "32px", background: "linear-gradient(to bottom, transparent 0%, var(--color-accent) 20%, var(--color-accent) 80%, transparent 100%)" }} />
+          <div className="gold-line gold-line-nav" />
           <button
             onClick={() => navigate("/dashboard")}
             className="text-sm transition-opacity hover:opacity-70"
-            style={{ color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}
+            style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}
           >
             {t("nav.projects")}
           </button>
@@ -136,7 +115,7 @@ export default function ProjectDetail() {
         </div>
         <div className="flex items-center gap-6">
           <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -151,30 +130,20 @@ export default function ProjectDetail() {
         <div className="mb-8">
           <div className="flex items-start justify-between mb-2">
             <h1
-              className="text-3xl font-semibold leading-tight"
-              style={{ fontFamily: "Playfair Display, Georgia, serif", color: "var(--color-text-primary)" }}
+              className="font-semibold leading-tight"
+              style={{
+                fontFamily: "var(--font-brand)",
+                fontSize: "var(--type-h1)",
+                color: "var(--color-text-primary)",
+              }}
             >
               {project.name}
             </h1>
             <div className="flex flex-col items-end gap-2">
-              <StatusPill status={project.status} />
-              <button
-                onClick={() => navigate(`/projects/${project.id}/workspace`)}
-                style={{
-                  backgroundColor: "var(--color-accent)",
-                  color: "var(--color-bg-primary)",
-                  border: "none",
-                  padding: "8px 16px",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  letterSpacing: "0.5px",
-                  cursor: "pointer",
-                  borderRadius: 0,
-                  fontFamily: "Inter, sans-serif",
-                }}
-              >
+              <StatusChip status={project.status} />
+              <Button size="sm" onClick={() => navigate(`/projects/${project.id}/workspace`)}>
                 {t("overview.openworkspace")}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -189,7 +158,7 @@ export default function ProjectDetail() {
               <span>{CONTRACT_LABEL[project.contract_type] ?? project.contract_type}</span>
             )}
             {project.contract_value && (
-              <span style={{ fontFamily: "JetBrains Mono, monospace" }}>
+              <span style={{ fontFamily: "var(--font-meta)" }}>
                 {project.currency} {project.contract_value.toLocaleString()}
               </span>
             )}
@@ -323,7 +292,7 @@ export default function ProjectDetail() {
                 className="px-4 py-2 text-sm transition-colors relative"
                 style={{
                   color: activeTab === tab.key ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-                  fontFamily: "Inter, sans-serif",
+                  fontFamily: "var(--font-ui)",
                   borderBottom: activeTab === tab.key ? "2px solid var(--color-accent)" : "2px solid transparent",
                   backgroundColor: "transparent",
                   fontWeight: activeTab === tab.key ? 500 : 400,
@@ -364,7 +333,7 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-4">
                       <span
                         className="text-xs w-24 shrink-0"
-                        style={{ fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}
+                        style={{ fontFamily: "var(--font-meta)", color: "var(--color-text-secondary)" }}
                       >
                         {c.corr_number}
                       </span>
@@ -376,7 +345,7 @@ export default function ProjectDetail() {
                         </p>
                       </div>
                     </div>
-                    <StatusPill status={c.status} />
+                    <StatusChip status={c.status} />
                   </div>
                 ))}
               </div>
@@ -400,7 +369,7 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-4">
                       <span
                         className="text-xs w-24 shrink-0"
-                        style={{ fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}
+                        style={{ fontFamily: "var(--font-meta)", color: "var(--color-text-secondary)" }}
                       >
                         {r.rfi_number}
                       </span>
@@ -412,7 +381,7 @@ export default function ProjectDetail() {
                         </p>
                       </div>
                     </div>
-                    <StatusPill status={r.status} />
+                    <StatusChip status={r.status} />
                   </div>
                 ))}
               </div>
@@ -436,7 +405,7 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-4">
                       <span
                         className="text-xs w-24 shrink-0"
-                        style={{ fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}
+                        style={{ fontFamily: "var(--font-meta)", color: "var(--color-text-secondary)" }}
                       >
                         {c.change_number}
                       </span>
@@ -448,7 +417,7 @@ export default function ProjectDetail() {
                         </p>
                       </div>
                     </div>
-                    <StatusPill status={c.status} />
+                    <StatusChip status={c.status} />
                   </div>
                 ))}
               </div>
@@ -476,7 +445,7 @@ export default function ProjectDetail() {
                         {d.due_date && ` · Due ${d.due_date}`}
                       </p>
                     </div>
-                    <StatusPill status={d.status} />
+                    <StatusChip status={d.status} />
                   </div>
                 ))}
               </div>
@@ -506,7 +475,7 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-4">
                       <span
                         className="text-xs w-24 shrink-0 uppercase"
-                        style={{ fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)", letterSpacing: "0.05em" }}
+                        style={{ fontFamily: "var(--font-meta)", color: "var(--color-text-secondary)", letterSpacing: "0.05em" }}
                       >
                         {a.source_entity_type ?? "system"}
                       </span>
@@ -527,7 +496,7 @@ export default function ProjectDetail() {
                     <button
                       onClick={() => navigate(`/projects/${projectId}/workspace?module=alerts`)}
                       className="text-xs shrink-0 ml-2"
-                      style={{ color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif" }}
+                      style={{ color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "var(--font-ui)" }}
                     >
                       Review →
                     </button>

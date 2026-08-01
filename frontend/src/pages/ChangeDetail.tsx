@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { getAuth, clearAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
+import Button from "../components/Button";
+import StatusChip from "../components/StatusChip";
 import { useLanguage } from "../context/LanguageContext";
 
 interface ChangeDetail {
@@ -75,15 +77,6 @@ interface Chronology {
   events: ChronologyEvent[];
 }
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  open:         { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
-  draft:        { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" },
-  disputed:     { bg: "var(--color-alert-red-bg)", text: "var(--color-alert-red)" },
-  closed:       { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
-  agreed:       { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
-  under_review: { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
-};
-
 const EVENT_TYPE_LABELS: Record<string, string> = {
   status_change:    "Status Change",
   correspondence:   "Correspondence",
@@ -140,19 +133,10 @@ export default function ChangeDetail() {
 
   const handleLogout = () => { clearAuth(); navigate("/login"); };
 
-  const statusPill = (status: string) => {
-    const c = STATUS_COLORS[status] ?? { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" };
-    return (
-      <span style={{ background: c.bg, color: c.text, fontSize: 11, fontWeight: 500, padding: "3px 8px", textTransform: "uppercase" as const, letterSpacing: "0.06em", whiteSpace: "nowrap" as const }}>
-        {status.replace("_", " ")}
-      </span>
-    );
-  };
-
   const field = (label: string, value: string | number | null | undefined, mono = false) => (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 13, color: value !== null && value !== undefined ? textPrimary : textSecond, fontFamily: mono ? "JetBrains Mono, monospace" : "Inter, sans-serif", fontStyle: value !== null && value !== undefined ? "normal" : "italic" }}>
+      <div style={{ fontSize: 13, color: value !== null && value !== undefined ? textPrimary : textSecond, fontFamily: mono ? "var(--font-meta)" : "var(--font-ui)", fontStyle: value !== null && value !== undefined ? "normal" : "italic" }}>
         {value ?? "—"}
       </div>
     </div>
@@ -160,7 +144,7 @@ export default function ChangeDetail() {
 
   if (loading) return (
     <div style={{ minHeight: "100vh", backgroundColor: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <p style={{ fontSize: 13, color: textSecond, fontFamily: "Inter, sans-serif" }}>
+      <p style={{ fontSize: 13, color: textSecond, fontFamily: "var(--font-ui)" }}>
         {lang === "tr" ? "Yükleniyor..." : "Loading..."}
       </p>
     </div>
@@ -168,7 +152,7 @@ export default function ChangeDetail() {
 
   if (error || !change) return (
     <div style={{ minHeight: "100vh", backgroundColor: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <p style={{ fontSize: 13, color: alertRed, fontFamily: "Inter, sans-serif" }}>{error || "Change bulunamadı."}</p>
+      <p style={{ fontSize: 13, color: alertRed, fontFamily: "var(--font-ui)" }}>{error || "Change bulunamadı."}</p>
     </div>
   );
 
@@ -178,18 +162,18 @@ export default function ChangeDetail() {
       {/* Nav */}
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
-          <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${"var(--color-accent)"} 20%, ${"var(--color-accent)"} 80%, transparent)` }} />
+          <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
           <span style={{ color: textSecond }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
           <span style={{ color: textSecond }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=changes`)}>{t("module.changes")}</span>
           <span style={{ color: textSecond }}>/</span>
-          <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "JetBrains Mono, monospace", fontSize: 11 }}>{change.change_number}</span>
+          <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "var(--font-meta)", fontSize: 11 }}>{change.change_number}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -202,13 +186,13 @@ export default function ChangeDetail() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
-            <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, marginBottom: 8, letterSpacing: "0.05em" }}>{change.change_number}</div>
-            <h1 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, fontWeight: 500, color: textPrimary, margin: 0, lineHeight: 1.3 }}>{change.title}</h1>
+            <div style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecond, marginBottom: 8, letterSpacing: "0.05em" }}>{change.change_number}</div>
+            <h1 style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1)", fontWeight: 500, color: textPrimary, margin: 0, lineHeight: 1.3 }}>{change.title}</h1>
           </div>
           <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 8, flexShrink: 0, marginLeft: 24 }}>
-            {statusPill(change.status)}
+            <StatusChip status={change.status} />
             {change.notice_due_date && (
-              <div style={{ fontSize: 11, color: new Date(change.notice_due_date) < new Date() ? alertRed : textSecond, fontFamily: "JetBrains Mono, monospace" }}>
+              <div style={{ fontSize: 11, color: new Date(change.notice_due_date) < new Date() ? alertRed : textSecond, fontFamily: "var(--font-meta)" }}>
                 Notice: {change.notice_due_date}
               </div>
             )}
@@ -257,7 +241,7 @@ export default function ChangeDetail() {
         {change.description && (
           <div style={{ background: cardBg, padding: 16, marginBottom: 24 }}>
             <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 10, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>{lang === "tr" ? "Açıklama" : "Description"}</div>
-            <p style={{ fontSize: 13, color: textPrimary, fontFamily: "Inter, sans-serif", lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" as const }}>{change.description}</p>
+            <p style={{ fontSize: 13, color: textPrimary, fontFamily: "var(--font-ui)", lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" as const }}>{change.description}</p>
           </div>
         )}
 
@@ -297,7 +281,7 @@ export default function ChangeDetail() {
 
                     {/* Tarih + Type */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                      <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, whiteSpace: "nowrap" as const }}>
+                      <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecond, whiteSpace: "nowrap" as const }}>
                         {event.event_date}
                       </span>
                       <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: event.is_key_event ? "var(--color-accent-text)" : textSecond }}>
@@ -310,7 +294,7 @@ export default function ChangeDetail() {
 
                     {/* Narrative */}
                     {(event.approved_narrative || event.auto_narrative) && (
-                      <p style={{ fontSize: 12, color: event.approved_narrative ? textPrimary : textSecond, fontFamily: "Inter, sans-serif", fontStyle: event.approved_narrative ? "normal" : "italic", margin: "0 0 6px 0", lineHeight: 1.5 }}>
+                      <p style={{ fontSize: 12, color: event.approved_narrative ? textPrimary : textSecond, fontFamily: "var(--font-ui)", fontStyle: event.approved_narrative ? "normal" : "italic", margin: "0 0 6px 0", lineHeight: 1.5 }}>
                         {event.approved_narrative ?? event.auto_narrative}
                       </p>
                     )}
@@ -324,8 +308,8 @@ export default function ChangeDetail() {
                               <div key={doc.id}
                                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${doc.correspondence_id}`)}
                                 style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
-                                <span style={{ fontSize: 11, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)", textDecoration: "underline" }}>
+                                <span style={{ fontSize: 11, color: textSecond, fontFamily: "var(--font-ui)" }}>└─</span>
+                                <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: "var(--color-accent-text)", textDecoration: "underline" }}>
                                   {doc.correspondences.corr_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.correspondences.subject}</span>
@@ -338,8 +322,8 @@ export default function ChangeDetail() {
                               <div key={doc.id}
                                 onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${doc.rfi_id}`)}
                                 style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
-                                <span style={{ fontSize: 11, color: textSecond, fontFamily: "Inter, sans-serif" }}>└─</span>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)", textDecoration: "underline" }}>
+                                <span style={{ fontSize: 11, color: textSecond, fontFamily: "var(--font-ui)" }}>└─</span>
+                                <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: "var(--color-accent-text)", textDecoration: "underline" }}>
                                   {doc.rfis.rfi_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.rfis.subject}</span>
@@ -368,11 +352,11 @@ export default function ChangeDetail() {
                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${lc.correspondences?.id}`)}
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: cardBg, marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                 <div>
-                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond }}>{lc.correspondences?.corr_number}</span>
+                  <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecond }}>{lc.correspondences?.corr_number}</span>
                   <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{lc.correspondences?.subject}</p>
                   <p style={{ fontSize: 11, color: textSecond, marginTop: 1 }}>{lc.correspondences?.correspondence_date?.slice(0, 10)}</p>
                 </div>
-                {statusPill(lc.correspondences?.status ?? "")}
+                <StatusChip status={lc.correspondences?.status ?? ""} />
               </div>
             ))}
           </div>
@@ -380,10 +364,13 @@ export default function ChangeDetail() {
 
         {/* Geri */}
         <div style={{ paddingTop: 16, borderTop: `0.5px solid ${border}` }}>
-          <button onClick={() => navigate(`/projects/${projectId}/workspace?module=changes`)}
-            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent-text)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => navigate(`/projects/${projectId}/workspace?module=changes`)}
+          >
             {lang === "tr" ? "← Changes Listesine Dön" : "← Back to Changes"}
-          </button>
+          </Button>
         </div>
 
       </main>

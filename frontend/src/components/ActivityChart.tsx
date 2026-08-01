@@ -8,23 +8,14 @@ interface Props {
   prePeriod?: PrePeriod;
 }
 
-const COLORS = {
-  correspondence: "#6B5D3F",
-  rfi:            "#A0714A",
-  change:         "#C4B49C",
-  deliverable:    "#44403C",
-};
+const SERIES = [
+  { key: "correspondence", label: "Correspondence", fill: "var(--color-chart-correspondence)" },
+  { key: "rfi", label: "RFI", fill: "var(--color-chart-rfi)" },
+  { key: "change", label: "Change", fill: "var(--color-chart-change)" },
+  { key: "deliverable", label: "Deliverable", fill: "var(--color-chart-deliverable)" },
+] as const;
 
-const COLORS_DARK = {
-  correspondence: "#C4AD87",
-  rfi:            "#A0714A",
-  change:         "#8B9AAF",
-  deliverable:    "#C4B49C",
-};
-
-export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
-  const c = dark ? COLORS_DARK : COLORS;
-
+export default function ActivityChart({ data, today, dark: _dark, prePeriod }: Props) {
   const safePre = prePeriod ?? { correspondence: 0, rfi: 0, change: 0, deliverable: 0 };
   const hasPrePeriod = Object.values(safePre).some((v) => v > 0);
 
@@ -44,7 +35,7 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
     if (payload.value === "pre") {
       return (
         <g transform={`translate(${x},${y})`}>
-          <text x={0} y={0} dy={12} textAnchor="middle" fill={dark ? "#E07060" : "#A93226"} fontSize={11} fontFamily="Inter">
+          <text x={0} y={0} dy={12} textAnchor="middle" fill="var(--color-alert-red)" fontSize={11} fontFamily="var(--font-ui)">
             ≤-15g
           </text>
         </g>
@@ -53,7 +44,7 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
     if (payload.value === today) {
       return (
         <g transform={`translate(${x},${y})`}>
-          <text x={0} y={0} dy={12} textAnchor="middle" fill={dark ? "#E07060" : "#A93226"} fontSize={11} fontFamily="Inter">
+          <text x={0} y={0} dy={12} textAnchor="middle" fill="var(--color-alert-red)" fontSize={11} fontFamily="var(--font-ui)">
             Bugün
           </text>
         </g>
@@ -80,7 +71,7 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
               border: "1px solid var(--color-border-light)",
               borderRadius: 0,
               fontSize: 11,
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
             }}
             formatter={(value, name) => {
               const nameStr = String(name ?? "");
@@ -95,39 +86,45 @@ export default function ActivityChart({ data, today, dark, prePeriod }: Props) {
           {hasPrePeriod && (
             <ReferenceLine
               x="pre"
-              stroke={dark ? "#E07060" : "#A93226"}
+              stroke="var(--color-alert-red)"
               strokeDasharray="3 3"
               strokeWidth={1}
             />
           )}
           <ReferenceLine
             x={today}
-            stroke={dark ? "#E07060" : "#A93226"}
+            stroke="var(--color-alert-red)"
             strokeWidth={1.5}
           />
-          <Bar dataKey="correspondence" name="Correspondence" stackId="a" fill={c.correspondence} radius={[0,0,0,0]} />
-          <Bar dataKey="rfi" name="RFI" stackId="a" fill={c.rfi} radius={[0,0,0,0]} />
-          <Bar dataKey="change" name="Change" stackId="a" fill={c.change} radius={[0,0,0,0]} />
-          <Bar dataKey="deliverable" name="Deliverable" stackId="a" fill={c.deliverable} radius={[2,2,0,0]} />
+          {SERIES.map((s, i) => (
+            <Bar
+              key={s.key}
+              dataKey={s.key}
+              name={s.label}
+              stackId="a"
+              fill={s.fill}
+              radius={i === SERIES.length - 1 ? [2, 2, 0, 0] : [0, 0, 0, 0]}
+            />
+          ))}
         </BarChart>
       </ResponsiveContainer>
       <div className="flex gap-6 mt-2 flex-wrap items-center">
-        {Object.entries(c).map(([key, color]) => (
-          <div key={key} className="flex items-center gap-2">
-            <div className="w-3 h-3" style={{ backgroundColor: color }} />
+        {SERIES.map((s) => (
+          <div key={s.key} className="flex items-center gap-2">
+            <div className="w-3 h-3" style={{ backgroundColor: s.fill }} />
             <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
-              {key.charAt(0).toUpperCase() + key.slice(1)}
+              {s.label}
             </span>
           </div>
         ))}
         <div className="flex items-center gap-2">
-          <div style={{ width: 2, height: 12, backgroundColor: "#A93226" }} />
+          <div style={{ width: 2, height: 12, backgroundColor: "var(--color-alert-red)" }} />
           <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Bugün</span>
         </div>
         {hasPrePeriod && (
           <div className="flex items-center gap-2">
-            <div style={{ width: 12, height: 2, backgroundColor: dark ? "#E07060" : "#A93226", borderTop: "1px dashed" }} />
-            <span className="text-xs" style={{ color: dark ? "#E07060" : "#A93226" }}>Chart öncesi overdue</span>
+            <div style={{ width: 12, height: 2, backgroundColor: "var(--color-alert-red)", borderTop: "1px dashed" }} />
+            <span className="text-xs" style={{ color: "var(--color-alert-red)" }}>Chart öncesi overdue</span>
           </div>
         )}
       </div>

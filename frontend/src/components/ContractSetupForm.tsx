@@ -29,13 +29,13 @@ const LABEL: CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   color: "var(--color-text-secondary)",
-  fontFamily: "JetBrains Mono, monospace",
+  fontFamily: "var(--font-meta)",
   marginBottom: 3, display: "block",
 };
 
 const INPUT: CSSProperties = {
   fontSize: 12, padding: "6px 8px",
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
   color: "var(--color-text-primary)",
   background: "var(--color-bg-primary)",
   border: "0.5px solid var(--color-border-light)",
@@ -121,13 +121,13 @@ export default function ContractSetupForm({ projectId, onCreated }: Props) {
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{
           fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)",
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}>
           Sözleşme henüz kaydedilmedi
         </span>
         <span style={{
           fontSize: 12, color: "var(--color-text-secondary)",
-          fontFamily: "Inter, sans-serif", lineHeight: 1.5,
+          fontFamily: "var(--font-ui)", lineHeight: 1.5,
         }}>
           Sözleşme bu projenin çıpasıdır: yürürlük hiyerarşisi, amendment'lar ve
           ileride yapay zekâ (RAG) analizleri bu kayda dayanır. Kaydı Contract
@@ -188,7 +188,7 @@ export default function ContractSetupForm({ projectId, onCreated }: Props) {
       </div>
 
       {error && (
-        <p style={{ fontSize: 12, color: "var(--color-alert-red)", fontFamily: "Inter, sans-serif", margin: 0 }}>
+        <p style={{ fontSize: 12, color: "var(--color-alert-red)", fontFamily: "var(--font-ui)", margin: 0 }}>
           {error}
         </p>
       )}
@@ -199,7 +199,7 @@ export default function ContractSetupForm({ projectId, onCreated }: Props) {
         style={{
           alignSelf: "flex-start",
           fontSize: 12, fontWeight: 500, padding: "7px 16px",
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
           background: "var(--color-accent)",
           color: "var(--color-bg-primary)",
           border: "none", borderRadius: 0,

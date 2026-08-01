@@ -176,10 +176,10 @@ def build_docx(
         fp = footer.add_paragraph(footer_text)
         fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Field block: Attention to / Project / References
+    # Field block: Attention to / Project.
+    # References live in body_html as the managed TipTap block (no duplicate dump).
     attention = field_values.get("attention_to") or ""
     project = field_values.get("project") or ""
-    refs = field_values.get("references") or []
 
     if attention:
         p = doc.add_paragraph()
@@ -189,22 +189,6 @@ def build_docx(
         p = doc.add_paragraph()
         p.add_run("Project: ").bold = True
         p.add_run(str(project))
-    if refs:
-        p = doc.add_paragraph()
-        p.add_run("References: ").bold = True
-        labels = []
-        for r in refs:
-            if isinstance(r, dict):
-                labels.append(
-                    r.get("label")
-                    or r.get("external_ref")
-                    or r.get("rfi_id")
-                    or r.get("ref_corr_id")
-                    or str(r)
-                )
-            else:
-                labels.append(str(r))
-        p.add_run("; ".join(labels))
 
     doc.add_paragraph()  # spacer
 

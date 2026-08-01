@@ -1,7 +1,7 @@
 /**
  * Authoring API wrappers — mirrors existing api.get/post/patch style.
  */
-import { api } from "./api";
+import { api, type LinkableDoc } from "./api";
 
 export interface DocumentTemplate {
   id: string;
@@ -33,6 +33,7 @@ export interface DocumentDraft {
   status: "drafting" | "approved" | "discarded";
   version: number;
   docx_path?: string | null;
+  bundle_pdf_path?: string | null;
   materialized_entity_type?: string | null;
   materialized_entity_id?: string | null;
   document_templates?: DocumentTemplate | null;
@@ -164,7 +165,13 @@ export async function aiDraft(
 export async function generateAuthoringDocx(
   projectId: string,
   draftId: string
-): Promise<{ draft: DocumentDraft; docx_path: string; pdf_preview_available: boolean }> {
+): Promise<{
+  draft: DocumentDraft;
+  docx_path: string;
+  bundle_pdf_path?: string | null;
+  pdf_preview_available: boolean;
+  bundle_available: boolean;
+}> {
   return api.post(`/projects/${projectId}/authoring/drafts/${draftId}/generate-docx`, {});
 }
 
@@ -173,6 +180,51 @@ export async function fetchAuthoringDocxUrl(
   draftId: string
 ): Promise<{ signed_url: string; expires_in: number }> {
   return api.get(`/projects/${projectId}/authoring/drafts/${draftId}/docx-url`);
+}
+
+export async function fetchAuthoringBundleUrl(
+  projectId: string,
+  draftId: string
+): Promise<{ signed_url: string; expires_in: number }> {
+  return api.get(`/projects/${projectId}/authoring/drafts/${draftId}/bundle-url`);
+}
+
+/** Temporary signed URL for any project pdf_document (reference preview). */
+export async function getDocumentSignedUrl(
+  projectId: string,
+  docId: string
+): Promise<{ signed_url: string; expires_in: number }> {
+  return api.get(
+    `/projects/${projectId}/documents/${docId}/signed-url`
+  );
+}
+
+/** Resolve (and cache) pdf_document.page_count — PDF count / docx render→count. */
+export async function fetchDocumentPageCount(
+  projectId: string,
+  docId: string
+): Promise<{ page_count: number | null }> {
+  return api.get(`/projects/${projectId}/documents/${docId}/page-count`);
+}
+
+/** Authoring picker: RFI + Corr + filed contract docs + amendments. */
+export async function fetchAuthoringLinkable(
+  projectId: string
+): Promise<LinkableDoc[]> {
+  return api.get(`/projects/${projectId}/authoring/linkable-references`);
+}
+
+export async function uploadAuthoringReferenceFile(
+  projectId: string,
+  draftId: string,
+  file: File
+): Promise<{ doc_id: string; original_filename: string }> {
+  const fd = new FormData();
+  fd.append("file", file);
+  return api.postForm(
+    `/projects/${projectId}/authoring/drafts/${draftId}/reference-files`,
+    fd
+  );
 }
 
 export async function approveAuthoringDraft(
@@ -185,6 +237,8 @@ export async function approveAuthoringDraft(
     direction?: "incoming" | "outgoing";
     corr_type?: string;
     discipline?: string;
+    parent_id?: string;
+    relation?: "response" | "followup" | "revision";
   }
 ): Promise<{
   draft: DocumentDraft;

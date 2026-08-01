@@ -94,7 +94,7 @@ const SECTION_LABEL: CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   color: "var(--color-text-secondary)",
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
   marginBottom: 6,
 };
 
@@ -103,7 +103,7 @@ const SUB_SECTION_LABEL: CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   color: "var(--color-text-secondary)",
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
   marginTop: 10,
   marginBottom: 4,
 };
@@ -133,7 +133,7 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
           padding: "4px 0", background: "none", border: "none",
           borderBottom: "1px solid var(--color-border-light)",
           cursor: "pointer", textAlign: "left",
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}
       >
         <span style={{
@@ -147,7 +147,7 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
         </span>
         <span style={{
           fontSize: 11,
-          fontFamily: "JetBrains Mono, monospace",
+          fontFamily: "var(--font-meta)",
           color: active ? "var(--color-accent)" : count > 0
             ? "var(--color-accent-text)" : "var(--color-text-secondary)",
           fontWeight: active ? 500 : 400,
@@ -177,7 +177,7 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
     }}>
       <div>
         <p style={{
-          fontFamily: "JetBrains Mono, monospace",
+          fontFamily: "var(--font-meta)",
           fontSize: 28, fontWeight: 500,
           color: "var(--color-accent-text)", margin: "0 0 4px",
         }}>
@@ -223,7 +223,7 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
         display: "inline-flex", alignItems: "baseline", gap: 8,
       }}>
         <span style={{
-          fontFamily: "JetBrains Mono, monospace",
+          fontFamily: "var(--font-meta)",
           fontSize: 32, fontWeight: 500,
           color: "var(--color-accent-text)",
         }}>
@@ -300,7 +300,7 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
                       color: isActive("keyword", kw)
                         ? "var(--color-bg-primary)" : "var(--color-accent-text)",
                       fontSize: 11, fontWeight: 500,
-                      fontFamily: "Inter, sans-serif", cursor: "pointer",
+                      fontFamily: "var(--font-ui)", cursor: "pointer",
                     }}>
                     {kw}
                   </button>
@@ -324,7 +324,7 @@ export default function DocumentStatsPanel({ stats, onFilter, activeFilter }: Pr
                       color: isActive("location", loc)
                         ? "var(--color-bg-primary)" : "var(--color-accent-text)",
                       fontSize: 11, fontWeight: 500,
-                      fontFamily: "Inter, sans-serif", cursor: "pointer",
+                      fontFamily: "var(--font-ui)", cursor: "pointer",
                     }}>
                     {loc}
                   </button>

@@ -17,7 +17,7 @@
  * GÖRÜNEN etiketlerle gösterilir (agreed→Approved, closed→Closed); tam
  * status-vocab birleştirmesi §6'ya ertelendi.
  *
- * Design: inline style + var(--color-*), Inter / JetBrains Mono,
+ * Design: inline style + var(--color-*), var(--font-*),
  *         borderRadius 0, 3px sol-accent, DocumentsModule chip stili.
  */
 import type { CSSProperties } from "react";
@@ -45,14 +45,14 @@ const SECTION_LABEL: CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   color: "var(--color-text-secondary)",
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
   marginBottom: 8,
 };
 
 const EMPTY_STATE: CSSProperties = {
   fontSize: 12, fontStyle: "italic",
   color: "var(--color-text-secondary)",
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
   padding: "8px 0",
 };
 
@@ -66,7 +66,7 @@ const ROW: CSSProperties = {
 };
 
 const MONO: CSSProperties = {
-  fontFamily: "JetBrains Mono, monospace",
+  fontFamily: "var(--font-meta)",
   fontSize: 11,
   color: "var(--color-text-secondary)",
 };
@@ -76,7 +76,7 @@ const chipBase: CSSProperties = {
   fontSize: 11, fontWeight: 500, padding: "2px 8px",
   textTransform: "uppercase",
   letterSpacing: "0.04em",
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
   whiteSpace: "nowrap",
 };
 
@@ -178,7 +178,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
       <span style={{ ...MONO, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
         {label}
       </span>
-      <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontFamily: "Inter, sans-serif" }}>
+      <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontFamily: "var(--font-ui)" }}>
         {value}
       </span>
     </div>
@@ -191,7 +191,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
           {c.contract_number && <span style={MONO}>{c.contract_number}</span>}
           <span style={{
             fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)",
-            fontFamily: "Inter, sans-serif",
+            fontFamily: "var(--font-ui)",
           }}>
             {c.title}
           </span>
@@ -245,7 +245,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
         <span style={{ ...MONO, color: "var(--color-accent-text)" }}>{a.amendment_number}</span>
         <span style={{
           fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)",
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}>
           {a.title}
         </span>
@@ -275,7 +275,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
         <span style={MONO}>{c.change_number}</span>
         <span style={{
           fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)",
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}>
           {c.title}
         </span>

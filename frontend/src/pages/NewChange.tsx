@@ -59,7 +59,7 @@ export default function NewChange() {
     border: `1px solid ${border}`,
     color: textPrimary,
     fontSize: 13,
-    fontFamily: "Inter, sans-serif",
+    fontFamily: "var(--font-ui)",
     padding: "10px 12px",
     borderRadius: 0,
     outline: "none",
@@ -111,7 +111,7 @@ export default function NewChange() {
       {/* Nav */}
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
-          <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${"var(--color-accent)"} 20%, ${"var(--color-accent)"} 80%, transparent)` }} />
+          <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
           <span style={{ color: textSecond }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
@@ -122,7 +122,7 @@ export default function NewChange() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecond }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
         </div>
@@ -130,7 +130,7 @@ export default function NewChange() {
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 24px" }}>
 
-        <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
+        <p style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1)", color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
           {lang === "tr" ? "Yeni Change" : "New Change"}
         </p>
         <p style={{ fontSize: 13, color: textSecond, marginBottom: 28 }}>
@@ -249,13 +249,13 @@ export default function NewChange() {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
+              style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "var(--font-ui)", opacity: loading ? 0.7 : 1 }}
             >
               {loading ? (lang === "tr" ? "Kaydediliyor..." : "Saving...") : (lang === "tr" ? "Kaydet" : "Save")}
             </button>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace?module=changes`)}
-              style={{ backgroundColor: "transparent", color: textSecond, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}
+              style={{ backgroundColor: "transparent", color: textSecond, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "var(--font-ui)" }}
             >
               {lang === "tr" ? "İptal" : "Cancel"}
             </button>

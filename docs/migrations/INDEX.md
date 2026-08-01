@@ -29,11 +29,11 @@ Format: `table | authoritative migration(s) | one-line history`
 | change_references | 001 | created 001; RLS 002 |
 | change_event_documents | 009 | created 009 |
 | correspondences | 001 → 020 → 024 → 025 → **044** | created 001; search_vector 020/025; keywords 024; **entry_mode (nullable) 044** |
-| correspondence_references | 001 → 032 → 033 → 034 → 035 | created 001; type alignment 032; document link 033; doc type 034; ref_role 035 |
+| correspondence_references | 001 → 032 → 033 → 034 → 035 → **049 → 050** | created 001; type alignment 032; document link 033; doc type 034; ref_role 035; **049 adds `contract_document`/`amendment` ref_type; 050 adds `page_ranges` JSONB** |
 | correspondence_drafts | 001 → 005 | created 001; gate fields 005 |
 | correspondence_documents | 001 | created 001; RLS 002 |
 | correspondence_change_links | 001 | created 001; RLS 002 |
-| rfi_references | 027 → 032 → 033 → 034 → 035 | created 027; type alignment 032; document link 033; doc type 034; ref_role 035 |
+| rfi_references | 027 → 032 → 033 → 034 → 035 → **049 → 050** | created 027; type alignment 032; document link 033; doc type 034; ref_role 035; **049 adds `contract_document`/`amendment` ref_type; 050 adds `page_ranges` JSONB** |
 | chronologies | 001 | created 001; RLS 002 |
 | chronology_events | 001 → 015 → 016 → 032 | created 001; event types 015; subject 016; type alignment 032 |
 | deliverables | 001 → 008 | created 001; version/RLS tweaks 008 |
@@ -55,7 +55,7 @@ Format: `table | authoritative migration(s) | one-line history`
 
 | table | authoritative migration(s) | history |
 |---|---|---|
-| pdf_document | 006 → 007 → 013 → 017 → 019 → 020 → 036 | created 006; `contract_document` entity_type 007; `internal_alert` entity_type 013; metadata cols 017; doc_type 019; search_vector 020; **RLS source of truth 036** (supersedes 006/008 policies) |
+| pdf_document | 006 → 007 → 013 → 017 → 019 → 020 → 036 → 048 | created 006; `contract_document` entity_type 007; `internal_alert` entity_type 013; metadata cols 017; doc_type 019; search_vector 020; **RLS source of truth 036** (supersedes 006/008 policies); `draft` entity_type 048 (authoring reference uploads) |
 | document_embeddings | 018 | created 018 |
 | document_relations | 018 | created 018 |
 
@@ -64,7 +64,7 @@ Format: `table | authoritative migration(s) | one-line history`
 | table | authoritative migration(s) | history |
 |---|---|---|
 | **document_templates** | **044** | **created 044 — project-scoped letterhead/field config; one active per (project, doc_type)** |
-| **document_drafts** | **044** | **created 044 — authored drafts + optimistic `version`; materializes to rfi/correspondence** |
+| **document_drafts** | **044 → 048** | **created 044 — authored drafts + optimistic `version`; materializes to rfi/correspondence; 048 adds `bundle_pdf_path` (generated reference e-bundle PDF)** |
 | **document_draft_versions** | **044 → 047** | **created 044 — meaningful-moment snapshots; 047 adds `pre_ai_draft`/`post_ai_draft` (C2-A)** |
 | **document_provenance** | **044** | **created 044 — event+attribution only (never content); server-written** |
 
@@ -103,4 +103,4 @@ Format: `table | authoritative migration(s) | one-line history`
 
 ---
 
-*Last updated with 047 (document_draft_versions snapshot_reason + `pre_ai_draft`/`post_ai_draft` — C2-A editor↔AI).*
+*Last updated with 050 (rfi/correspondence_references `page_ranges` JSONB — optional multi/open-ended citation ranges).*

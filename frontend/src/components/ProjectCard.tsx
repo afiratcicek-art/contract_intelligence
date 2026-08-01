@@ -1,6 +1,7 @@
 import { useProjectHealth } from "../hooks/useProjects";
 import type { Project } from "../hooks/useProjects";
 import { useNavigate } from "react-router-dom";
+import StatusChip from "./StatusChip";
 
 interface Props {
   project: Project;
@@ -28,7 +29,7 @@ function HealthBadge({
     >
       <span
         className="text-lg"
-        style={{ color: c.text, fontFamily: "JetBrains Mono, monospace", fontWeight: 500 }}
+        style={{ color: c.text, fontFamily: "var(--font-meta)", fontWeight: 500 }}
       >
         {count}
       </span>
@@ -56,9 +57,9 @@ export default function ProjectCard({ project }: Props) {
 
   return (
     <div
-      className="rounded-sm cursor-pointer"
+      className="rounded-none cursor-pointer"
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 12px rgba(28, 25, 23, 0.08)";
+        (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 12px var(--color-shadow)";
         (e.currentTarget as HTMLElement).style.transition = "box-shadow 150ms ease-out";
       }}
       onMouseLeave={(e) => {
@@ -75,9 +76,10 @@ export default function ProjectCard({ project }: Props) {
       <div className="flex items-start justify-between mb-3">
         <div>
           <h2
-            className="text-base font-semibold leading-snug"
+            className="font-semibold leading-snug"
             style={{
-              fontFamily: "Playfair Display, Georgia, serif",
+              fontFamily: "var(--font-brand)",
+              fontSize: "var(--type-title-card)",
               color: "var(--color-text-primary)",
             }}
           >
@@ -87,19 +89,7 @@ export default function ProjectCard({ project }: Props) {
             {project.employer_name} — {project.contractor_name}
           </p>
         </div>
-        <span
-          className="text-xs px-2 py-0.5 ml-4 shrink-0"
-          style={{
-            backgroundColor: project.status === "active"
-              ? "var(--color-bg-secondary)"
-              : "var(--color-alert-red-bg)",
-            color: project.status === "active"
-              ? "var(--color-success)"
-              : "var(--color-alert-red)",
-          }}
-        >
-          {project.status}
-        </span>
+        <StatusChip status={project.status} className="ml-4" />
       </div>
 
       {/* Orta — contract info */}
@@ -114,7 +104,7 @@ export default function ProjectCard({ project }: Props) {
             className="text-xs"
             style={{
               color: "var(--color-text-secondary)",
-              fontFamily: "JetBrains Mono, monospace",
+              fontFamily: "var(--font-meta)",
             }}
           >
             {project.currency}{" "}

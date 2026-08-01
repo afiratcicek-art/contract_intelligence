@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
+import Button from "../components/Button";
+import EntryModeMenu from "../components/EntryModeMenu";
 import { useLanguage } from "../context/LanguageContext";
 import RelationPopup from "../components/RelationPopup";
 import DocumentLink from "../components/DocumentLink";
@@ -152,7 +154,7 @@ export default function CorrespondenceDetail() {
   const fieldStyle = {
     fontSize: 13,
     color: textPrimary,
-    fontFamily: "Inter, sans-serif",
+    fontFamily: "var(--font-ui)",
   };
 
   const directionPill = (direction: string) => (
@@ -187,18 +189,18 @@ export default function CorrespondenceDetail() {
       {/* Nav */}
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
-          <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, transparent, var(--color-accent) 20%, var(--color-accent) 80%, transparent)" }} />
+          <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
           <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
           <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}>{t("module.correspondence")}</span>
           <span style={{ color: "var(--color-text-secondary)" }}>/</span>
-            <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "JetBrains Mono, monospace", fontSize: 11 }}>{corr.corr_number}</span>
+            <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "var(--font-meta)", fontSize: 11 }}>{corr.corr_number}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
           <ThemeToggle />
@@ -217,7 +219,7 @@ export default function CorrespondenceDetail() {
               <span key={b.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span
                   onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${b.id}`)}
-                  style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)", cursor: "pointer", textDecoration: "underline" }}
+                  style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: "var(--color-accent-text)", cursor: "pointer", textDecoration: "underline" }}
                 >
                   {b.corr_number}
                 </span>
@@ -227,21 +229,21 @@ export default function CorrespondenceDetail() {
               </span>
             ))}
             <span style={{ fontSize: 11, color: textSecond }}>→</span>
-            <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textPrimary, fontWeight: 500 }}>{corr.corr_number}</span>
+            <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textPrimary, fontWeight: 500 }}>{corr.corr_number}</span>
           </div>
         )}
 
         {/* "En güncel değil" uyarısı */}
         {!isLatest && corr.response_corr_id && (
           <div style={{ backgroundColor: warnBg, border: `0.5px solid ${warnBorder}`, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12, color: warnBorder, fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
+            <span style={{ fontSize: 12, color: warnBorder, fontFamily: "var(--font-ui)", fontWeight: 500 }}>
               {lang === "tr"
                 ? "⚠ Bu yazışma zincirinin en güncel belgesi değil."
                 : "⚠ This is not the latest document in the correspondence chain."}
             </span>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${corr.response_corr_id}`)}
-              style={{ fontSize: 11, fontWeight: 500, color: warnBorder, background: "none", border: `0.5px solid ${warnBorder}`, padding: "3px 10px", cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+              style={{ fontSize: 11, fontWeight: 500, color: warnBorder, background: "none", border: `0.5px solid ${warnBorder}`, padding: "3px 10px", cursor: "pointer", fontFamily: "var(--font-ui)" }}
             >
               {lang === "tr" ? "En Güncele Git →" : "Go to Latest →"}
             </button>
@@ -251,8 +253,8 @@ export default function CorrespondenceDetail() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
           <div>
-            <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond, marginBottom: 4 }}>{corr.corr_number}</p>
-            <h1 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, lineHeight: 1.3, marginBottom: 8 }}>{corr.subject}</h1>
+            <p style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecond, marginBottom: 4 }}>{corr.corr_number}</p>
+            <h1 style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1)", color: textPrimary, fontWeight: 500, lineHeight: 1.3, marginBottom: 8 }}>{corr.subject}</h1>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               {directionPill(corr.direction)}
               <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.type}</span>
@@ -265,25 +267,25 @@ export default function CorrespondenceDetail() {
             </div>
           </div>
 
-          {/* Yanıt / Followup butonları */}
+          {/* Yanıt / Followup — Register | Create */}
           <div style={{ display: "flex", flexDirection: "column" as const, gap: 6, flexShrink: 0, marginLeft: 24 }}>
+            <EntryModeMenu
+              label={t("action.writeresponse")}
+              registerPath={`/projects/${projectId}/workspace/correspondence/new?mode=response&parent_id=${corr.id}&parent_number=${encodeURIComponent(corr.corr_number)}`}
+              createPath={`/projects/${projectId}/workspace/authoring/new?doc_type=letter&relation=response&parent_id=${corr.id}&parent_number=${encodeURIComponent(corr.corr_number)}`}
+            />
             <button
-              onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/new?mode=response&parent_id=${corr.id}&parent_number=${corr.corr_number}`)}
-              style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "6px 12px", fontSize: 11, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
-            >
-              {lang === "tr" ? "↩ Yanıt Yaz" : "↩ Write Response"}
-            </button>
-            <button
+              type="button"
               onClick={() => setFlagOpen(true)}
-              style={{ backgroundColor: "transparent", color: "var(--color-warning)", border: "1px solid var(--color-warning)", padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}>
+              style={{ backgroundColor: "transparent", color: "var(--color-warning)", border: "1px solid var(--color-warning)", padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "var(--font-ui)" }}>
               ⚠ {lang === "tr" ? "Potansiyel Etki" : "Potential Impact"}
             </button>
-            <button
-              onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/new?mode=followup&parent_id=${corr.id}&parent_number=${corr.corr_number}`)}
-              style={{ backgroundColor: "transparent", color: "var(--color-accent-text)", border: `1px solid ${"var(--color-accent)"}`, padding: "6px 12px", fontSize: 11, fontWeight: 500, letterSpacing: "0.5px", cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const }}
-            >
-              {lang === "tr" ? "+ Followup Ekle" : "+ Add Followup"}
-            </button>
+            <EntryModeMenu
+              label={t("action.addfollowup")}
+              variant="secondary"
+              registerPath={`/projects/${projectId}/workspace/correspondence/new?mode=followup&parent_id=${corr.id}&parent_number=${encodeURIComponent(corr.corr_number)}`}
+              createPath={`/projects/${projectId}/workspace/authoring/new?doc_type=letter&relation=followup&parent_id=${corr.id}&parent_number=${encodeURIComponent(corr.corr_number)}`}
+            />
           </div>
         </div>
 
@@ -326,7 +328,7 @@ export default function CorrespondenceDetail() {
                       background: bg,
                       border: `0.5px solid ${border}`,
                       color: textSecond,
-                      fontFamily: "JetBrains Mono, monospace",
+                      fontFamily: "var(--font-meta)",
                     }}>
                       {kw}
                     </span>
@@ -358,7 +360,7 @@ export default function CorrespondenceDetail() {
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: cardBg, marginBottom: 4, borderLeft: `2px solid ${child.has_response ? textSecond : "var(--color-accent)"}`, cursor: "pointer" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--color-accent-text)" }}>{child.corr_number}</span>
+                  <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: "var(--color-accent-text)" }}>{child.corr_number}</span>
                   {directionPill(child.direction)}
                   <span style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{child.subject}</span>
                 </div>
@@ -381,14 +383,14 @@ export default function CorrespondenceDetail() {
             {lang === "tr" ? `Referanslar (${citationRefs.length})` : `References (${citationRefs.length})`}
           </div>
           {citationRefs.length === 0 && (
-            <p style={{ fontSize: 12, color: textSecond, fontStyle: "italic", margin: 0, fontFamily: "Inter, sans-serif" }}>
+            <p style={{ fontSize: 12, color: textSecond, fontStyle: "italic", margin: 0, fontFamily: "var(--font-ui)" }}>
               {lang === "tr" ? "Henüz referans yok." : "No references yet."}
             </p>
           )}
           {citationRefs.map((r) => (
             <div key={r.id}
               style={{ padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid var(--color-accent)`, background: "var(--color-bg-primary)" }}>
-              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecond }}>
+              <div style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecond }}>
                 <ReferenceLink
                   projectId={projectId!}
                   item={r}
@@ -430,7 +432,7 @@ export default function CorrespondenceDetail() {
                   <p style={{ fontSize: 11, color: textSecond, marginTop: 2 }}>
                     {((r.file_size_bytes ?? 0) / 1024).toFixed(0)} KB
                     {parseStatusLabel(r.parse_status, lang) && (
-                      <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif" }}>
+                      <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "var(--font-ui)" }}>
                         · {parseStatusLabel(r.parse_status, lang)}
                       </span>
                     )}
@@ -439,7 +441,7 @@ export default function CorrespondenceDetail() {
                 <DocumentLink
                   projectId={projectId!}
                   docId={r.document_id!}
-                  style={{ fontSize: 11, color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "Inter, sans-serif", textDecoration: "none" }}
+                  style={{ fontSize: 11, color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "var(--font-ui)", textDecoration: "none" }}
                 >
                   {lang === "tr" ? "Aç →" : "Open →"}
                 </DocumentLink>
@@ -450,12 +452,13 @@ export default function CorrespondenceDetail() {
 
         {/* Back */}
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: `0.5px solid ${border}` }}>
-          <button
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}
-            style={{ background: "none", border: `1px solid ${"var(--color-accent)"}`, padding: "8px 16px", fontSize: 12, color: "var(--color-accent-text)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500 }}
           >
             {lang === "tr" ? "← Yazışma Listesine Dön" : "← Back to Correspondence"}
-          </button>
+          </Button>
         </div>
 
         <div style={{
@@ -468,13 +471,13 @@ export default function CorrespondenceDetail() {
               background: "var(--color-ai-bg)",
               color: "var(--color-ai)",
               border: "1px solid var(--color-ai)",
-              borderRadius: 6,
+              borderRadius: 0,
               padding: "8px 18px",
               fontSize: 11, fontWeight: 500,
               letterSpacing: "0.04em",
               display: "flex", alignItems: "center", gap: 6,
               cursor: "pointer",
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -490,14 +493,14 @@ export default function CorrespondenceDetail() {
       {/* Flag Modal */}
       {flagOpen && (
         <div
-          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "var(--z-modal)" as unknown as number, padding: 24 }}
+          style={{ position: "fixed", inset: 0, backgroundColor: "var(--color-overlay)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "var(--z-modal)" as unknown as number, padding: 24 }}
           onClick={() => !flagSubmitting && setFlagOpen(false)}
         >
           <div
             style={{ backgroundColor: cardBg, padding: 24, width: "100%", maxWidth: 520, border: `1px solid ${border}`, maxHeight: "90vh", overflowY: "auto" as const }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 18, fontWeight: 500, color: textPrimary, margin: "0 0 8px" }}>
+            <h2 style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h2)", fontWeight: 500, color: textPrimary, margin: "0 0 8px" }}>
               {lang === "tr" ? "Potansiyel Etki Bildir" : "Flag Potential Impact"}
             </h2>
             <p style={{ fontSize: 12, color: textSecond, margin: "0 0 20px", lineHeight: 1.5 }}>
@@ -515,7 +518,7 @@ export default function CorrespondenceDetail() {
                 onChange={(e) => setFlagForm({ ...flagForm, narrative: e.target.value })}
                 rows={4}
                 placeholder={lang === "tr" ? "Potansiyel etkiyi açıklayın..." : "Describe the potential impact..."}
-                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif", resize: "vertical" as const, boxSizing: "border-box" as const }}
+                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "var(--font-ui)", resize: "vertical" as const, boxSizing: "border-box" as const }}
               />
             </div>
 
@@ -527,7 +530,7 @@ export default function CorrespondenceDetail() {
                 <select
                   value={flagForm.notice_config_id}
                   onChange={(e) => setFlagForm({ ...flagForm, notice_config_id: e.target.value })}
-                  style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
+                  style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "var(--font-ui)" }}
                 >
                   <option value="">{lang === "tr" ? "— Seçiniz —" : "— Select —"}</option>
                   {noticeConfigs.map((c) => (
@@ -555,9 +558,9 @@ export default function CorrespondenceDetail() {
                           setFlagForm({ ...flagForm, document_references: refs });
                         }}
                       />
-                      <span style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}>{r.target_label}</span>
+                      <span style={{ fontSize: 12, color: textPrimary, fontFamily: "var(--font-ui)" }}>{r.target_label}</span>
                       {parseStatusLabel(r.parse_status, lang) && (
-                        <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "Inter, sans-serif", marginLeft: "auto" }}>
+                        <span style={{ color: "var(--color-alert-red)", fontSize: 11, fontFamily: "var(--font-ui)", marginLeft: "auto" }}>
                           {parseStatusLabel(r.parse_status, lang)}
                         </span>
                       )}
@@ -575,7 +578,7 @@ export default function CorrespondenceDetail() {
                 type="file"
                 accept=".pdf,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.dwg,.dxf"
                 onChange={(e) => setFlagForm({ ...flagForm, newFile: e.target.files?.[0] || null })}
-                style={{ fontSize: 12, color: textPrimary, fontFamily: "Inter, sans-serif" }}
+                style={{ fontSize: 12, color: textPrimary, fontFamily: "var(--font-ui)" }}
               />
             </div>
 
@@ -586,7 +589,7 @@ export default function CorrespondenceDetail() {
               <select
                 value={flagForm.assigned_to_user}
                 onChange={(e) => setFlagForm({ ...flagForm, assigned_to_user: e.target.value })}
-                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "Inter, sans-serif" }}
+                style={{ width: "100%", padding: "8px 10px", fontSize: 13, color: textPrimary, backgroundColor: "var(--color-bg-primary)", border: `1px solid ${border}`, fontFamily: "var(--font-ui)" }}
               >
                 <option value="">{lang === "tr" ? "— Tüm Ekip —" : "— Entire Team —"}</option>
                 {members.map((m) => (
@@ -599,7 +602,7 @@ export default function CorrespondenceDetail() {
               <button
                 onClick={() => { setFlagOpen(false); setFlagForm({ narrative: "", notice_config_id: "", assigned_to_user: "", document_references: [], newFile: null }); }}
                 disabled={flagSubmitting}
-                style={{ background: "none", border: `1px solid ${border}`, padding: "8px 16px", fontSize: 12, color: textSecond, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                style={{ background: "none", border: `1px solid ${border}`, padding: "8px 16px", fontSize: 12, color: textSecond, cursor: "pointer", fontFamily: "var(--font-ui)" }}
               >
                 {lang === "tr" ? "İptal" : "Cancel"}
               </button>
@@ -635,7 +638,7 @@ export default function CorrespondenceDetail() {
                     setFlagSubmitting(false);
                   }
                 }}
-                style={{ backgroundColor: flagForm.narrative.trim() ? "var(--color-accent)" : "var(--color-border-medium)", color: flagForm.narrative.trim() ? "var(--color-bg-primary)" : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "Inter, sans-serif", opacity: flagSubmitting ? 0.6 : 1 }}
+                style={{ backgroundColor: flagForm.narrative.trim() ? "var(--color-accent)" : "var(--color-border-medium)", color: flagForm.narrative.trim() ? "var(--color-bg-primary)" : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "var(--font-ui)", opacity: flagSubmitting ? 0.6 : 1 }}
               >
                 {flagSubmitting
                   ? (lang === "tr" ? "Gönderiliyor…" : "Submitting…")

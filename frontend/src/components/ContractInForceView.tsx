@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { fetchContractResolution, type ResolutionResponse } from "../services/api";
+import { useLanguage } from "../context/LanguageContext";
 import ContractInForcePanel from "./ContractInForcePanel";
 import ContractSetupForm from "./ContractSetupForm";
 
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export default function ContractInForceView({ projectId }: Props) {
+  const { t } = useLanguage();
   const [data, setData] = useState<ResolutionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -44,16 +46,16 @@ export default function ContractInForceView({ projectId }: Props) {
 
   if (loading) {
     return (
-      <p style={{ fontSize: 12, color: textSecondary, fontFamily: "Inter, sans-serif" }}>
-        Yükleniyor...
+      <p style={{ fontSize: 12, color: textSecondary, fontFamily: "var(--font-ui)" }}>
+        {t("inforce.loading")}
       </p>
     );
   }
 
   if (error || !data) {
     return (
-      <p style={{ fontSize: 12, color: "var(--color-alert-red)", fontFamily: "Inter, sans-serif" }}>
-        Yürürlük bilgisi yüklenemedi.
+      <p style={{ fontSize: 12, color: "var(--color-alert-red)", fontFamily: "var(--font-ui)" }}>
+        {t("inforce.error")}
       </p>
     );
   }

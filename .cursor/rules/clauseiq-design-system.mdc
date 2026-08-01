@@ -1,43 +1,60 @@
 ---
-description: ClauseIQ Design System v1.1 — tokens, typography, geometry; UI audit commands
+description: ClauseIQ Design System v1.2 — tokens, typography, geometry; UI audit commands
 globs: frontend/**/*.{tsx,ts,css}
 alwaysApply: false
 ---
 
 # ClauseIQ Design System (UI)
 
-Canonical source: `frontend/src/index.css` — **ClauseIQ Design System v1.1** (approved 19 Jun 2026). Do not invent new hex values; extend tokens in `index.css` only with owner approval.
+Canonical source: `frontend/src/index.css` — **ClauseIQ Design System v1.2** (tokens 19 Jun 2026; Typography Concept C 31 Jul 2026). Do not invent new hex values; extend tokens in `index.css` only with owner approval. Components use `var(--*)` only.
 
 ## Tokens
 
 - Colors: `var(--color-*)` only in components (bg, text, border, accent, alert, success, warning, ai, priority, z-index).
+- Text hierarchy: `--color-text-primary` / `--secondary` / `--tertiary` (no opacity hacks for muted copy).
 - Prefer CSS variables over Tailwind arbitrary colors (`bg-[#…]`, `hover:bg-[rgba(…)]`).
-- Tailwind `theme.extend.colors` in `tailwind.config.js` mirrors the palette for rare utility use — do not introduce a third hex set.
-- No fallback hex outside the palette (e.g. `#c0392b`, `#e67e22` are forbidden).
+- Tailwind `theme.extend.colors` in `tailwind.config.js` mirrors the palette — do not introduce a third hex set.
+- No fallback hex outside the palette.
 
-## Typography
+## Typography (Concept C)
 
-| Role | Family | Typical size |
+| Role | Token | Typical size |
 |------|--------|----------------|
-| Display / page title | Playfair Display, Georgia, serif | 20–22 |
-| Section / modal title | Playfair | 16–18 |
-| UI body / controls | Inter, sans-serif | 12–13 |
-| Meta / chips / labels | Inter | 11 |
-| IDs, numbers, lang toggle | JetBrains Mono, monospace | 11 |
+| Brand Stage (Login only) | `--font-brand` | `--type-brand-stage` (~48) |
+| Page H1 | `--font-brand` | `--type-h1` (22) |
+| Module / authoring H1 | `--font-brand` | `--type-h1-module` (20) |
+| Section H2 | `--font-brand` | `--type-h2` (18) |
+| Card / panel title | `--font-brand` | `--type-title-card` (16) |
+| UI body / controls | `--font-ui` | 12–13 |
+| Meta / chips / labels | `--font-ui` or `--font-meta` | 11 |
+| IDs, numbers, lang toggle | `--font-meta` | 11 |
+| Letter / RFI body (TipTap only) | `--font-document` | body |
 
-Do not use Playfair at meta scale (≤12). Do not add Inter/Roboto/Arial/system as primary UI fonts beyond Inter stack.
+Do **not** use `--font-brand` at ≤14px. Do not use `--font-document` outside the authoring editor surface.
+
+## Signature accent (gold-line)
+
+- Color always `var(--color-accent)`.
+- Use `.gold-line` + size class — do not paste inline gradients:
+  - `.gold-line-stage` — 96px (Login Brand Stage)
+  - `.gold-line-nav` — 32px (app chrome)
+  - `.gold-line-compact` — 20px (workspace / detail breadcrumbs)
+
+## Workspace sidebar (file dividers)
+
+- Left stack of modules = dossier tabs / file dividers (association, not literal tab shapes).
+- Active item: **3px** left border `var(--color-accent)` + secondary fill (`.nav-item-active` pattern).
+- Inactive: transparent 3px left border (alignment preserved). Never 4px.
 
 ## Geometry
 
-- `borderRadius: 0` / `rounded-none` — sharp corners. Exception: `borderRadius: "50%"` for status dots only.
-- Card/nav selection: **3px** left border `var(--color-accent)` (not 4px).
-- Prefer `0.5px` hairline borders with `var(--color-border-*)`.
-- Avoid decorative `boxShadow` unless already established on that surface; prefer flat borders.
+- `borderRadius: 0` / `rounded-none` — sharp corners. Exception: `borderRadius: "50%"` for status **dots / count badges** only.
+- Prefer flat borders over decorative `boxShadow` unless the surface already uses elevation tokens (`--color-shadow`).
 
 ## Patterns
 
-- Inline styles + CSS variables (house style). Mirror existing modules (Workspace, DocumentStatsPanel, ContractInForcePanel).
-- Status chips: map to `--color-alert-*` / `--color-success*` / `--color-warning*` / `--color-ai*`.
+- Inline styles + CSS variables (house style). Shared actions via `Button`; status via `StatusChip`.
+- Status chips map to `--color-alert-*` / `--color-success*` / `--color-warning*` / `--color-ai*`.
 
 ## Audit commands (re-run before UI sign-off)
 
@@ -51,14 +68,9 @@ rg -n "borderRadius:\s*[1-9]|rounded-sm|rounded-full|rounded-md|rounded-lg" fron
 # Font stacks
 rg -n "fontFamily\s*:" frontend/src -g "*.{tsx,ts}"
 
-# Size ladder sample
-rg -oN "fontSize:\s*\d+" frontend/src -g "*.{tsx,ts}"
+# Brand at meta scale (should be empty for ≤14 with font-brand)
+rg -n "font-brand.*fontSize:\s*1[0-4]|fontSize:\s*1[0-4].*font-brand" frontend/src -g "*.{tsx,ts}"
 
-# Shadows / overlays
-rg -n "boxShadow|rgba\(" frontend/src -g "*.{tsx,ts}"
-
-# Token adoption
-rg -l "var\(--color" frontend/src -g "*.{tsx,ts}"
+# Inline gold gradients (prefer .gold-line)
+rg -n "linear-gradient\(to bottom" frontend/src -g "*.{tsx,ts}"
 ```
-
-Compare findings against `:root` / `html.dark` in `index.css`. Chart series and hover states must also resolve to tokens (or new named tokens), not one-off hex.

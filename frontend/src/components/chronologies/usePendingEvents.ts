@@ -24,7 +24,7 @@ import type { ToastType } from "../../hooks/useToast";
  *  event_type ASLA bu alanda tasinmaz; manualEventType'ta yasar. */
 export interface PendingDoc {
   id: string;
-  type: "rfi" | "correspondence" | null;
+  type: LinkableDoc["type"] | null;
   ref_number: string;
   subject: string;
   date: string;

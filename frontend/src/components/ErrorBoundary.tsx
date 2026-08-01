@@ -23,7 +23,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         >
           <p
             style={{
-              fontFamily: "Playfair Display, Georgia, serif",
+              fontFamily: "var(--font-brand)",
               fontSize: "18px",
               color: "var(--color-text-primary)",
             }}

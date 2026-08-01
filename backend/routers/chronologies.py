@@ -162,13 +162,16 @@ def list_linkable_documents(
     documents: list[dict] = []
 
     for r in rfis:
+        # Prefer submitted_date; fall back to created_at date (many RFIs have null submitted).
+        raw_date = r.get("submitted_date") or r.get("created_at") or ""
+        date_s = str(raw_date)[:10] if raw_date else ""
         documents.append({
             "id": r["id"],
             "type": "rfi",
-            "ref_number": r.get("rfi_number", ""),
-            "subject": r.get("subject", ""),
-            "date": r.get("submitted_date", ""),
-            "status": r.get("status", ""),
+            "ref_number": r.get("rfi_number") or "",
+            "subject": r.get("subject") or "",
+            "date": date_s,
+            "status": r.get("status") or "",
             "parent_id": r.get("parent_id"),
         })
 

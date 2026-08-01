@@ -24,7 +24,13 @@ from backend.core.guards import assert_target_in_project
 from backend.core.limiter import limiter
 from backend.database import get_admin_client
 from backend.services.permission_service import PermissionService
-from backend.utils.file_handler import upload_document, delete_document, get_signed_url
+from backend.utils.file_handler import (
+    upload_document,
+    delete_document,
+    get_signed_url,
+    download_document,
+)
+from backend.services.render_provider import get_render_provider
 from backend.utils.pdf_utils import validate_document_bytes, scan_for_virus
 from fastapi import BackgroundTasks
 from backend.models.document import (
@@ -1385,6 +1391,92 @@ def get_document_text(
     except Exception as exc:
         logger.error("Metin okuma hatası: %s | id=%s", exc, doc_id)
         raise HTTPException(status_code=500, detail="Metin alınamadı.")
+
+
+def _compute_page_count(file_bytes: bytes, filename: str) -> Optional[int]:
+    """Count PDF pages; for docx render to PDF first. None if undeterminable."""
+    import fitz
+
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    pdf_bytes = file_bytes
+    if ext in ("docx", "doc") and file_bytes[:4] != b"%PDF":
+        pdf_bytes = get_render_provider().render_to_pdf(file_bytes)
+        if not pdf_bytes:
+            return None  # render provider unavailable → cannot determine
+    try:
+        src = fitz.open(stream=pdf_bytes, filetype="pdf")
+        n = src.page_count
+        src.close()
+        return n or None
+    except Exception:
+        return None
+
+
+# ----------------------------------------------------------
+# GET /projects/{project_id}/documents/{doc_id}/page-count
+# ----------------------------------------------------------
+@router.get("/{doc_id}/page-count", status_code=200)
+@limiter.limit("20/minute")
+def get_document_page_count(
+    request: Request,
+    project_id: str,
+    doc_id: str,
+    access=Depends(verify_project_access),
+):
+    """Return the document's page count, computing + caching it on first request.
+    PDF: counted directly. docx: rendered to PDF (render provider) then counted.
+    Returns {page_count: int|null}. null = could not determine (e.g. render
+    provider unavailable) — caller must then disallow page ranges for this doc.
+    """
+    db = access["db"]
+    # IDOR: verify the doc belongs to this project (JWT-scoped read).
+    try:
+        row = (
+            db.table("pdf_document")
+            .select("id, project_id, storage_path, original_filename, page_count")
+            .eq("id", doc_id)
+            .eq("project_id", project_id)
+            .single()
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("page-count lookup failed: %s | id=%s", exc, doc_id)
+        raise HTTPException(status_code=404, detail="Belge bulunamadı.")
+
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Belge bulunamadı.")
+
+    cached = row.data.get("page_count")
+    try:
+        cached_n = int(cached) if cached is not None else None
+    except (TypeError, ValueError):
+        cached_n = None
+    if cached_n is not None and cached_n > 0:
+        return {"page_count": cached_n}
+
+    # NULL → compute once, cache. Download + (PDF: count / docx: render→count).
+    storage_path = row.data.get("storage_path")
+    if not storage_path:
+        return {"page_count": None}
+    try:
+        file_bytes = download_document(storage_path)
+        page_count = _compute_page_count(
+            file_bytes, row.data.get("original_filename") or ""
+        )
+    except Exception as exc:
+        logger.warning("page-count compute failed: %s", exc)
+        return {"page_count": None}
+
+    if page_count:
+        # write-back via admin client (pdf_document writes bypass RLS; guarded above)
+        try:
+            get_admin_client().table("pdf_document").update(
+                {"page_count": page_count}
+            ).eq("id", doc_id).eq("project_id", project_id).execute()
+        except Exception as exc:
+            logger.warning("page-count cache write failed: %s | id=%s", exc, doc_id)
+
+    return {"page_count": page_count}
 
 
 # ----------------------------------------------------------

@@ -40,7 +40,7 @@ export default function DocumentView() {
 
   if (loading) {
     return (
-      <p style={{ fontSize: 13, fontFamily: "Inter, sans-serif", padding: 24 }}>
+      <p style={{ fontSize: 13, fontFamily: "var(--font-ui)", padding: 24 }}>
         {lang === "tr" ? "Yükleniyor..." : "Loading..."}
       </p>
     );
@@ -48,7 +48,7 @@ export default function DocumentView() {
 
   if (error === "403") {
     return (
-      <p style={{ fontSize: 13, fontFamily: "Inter, sans-serif", padding: 24 }}>
+      <p style={{ fontSize: 13, fontFamily: "var(--font-ui)", padding: 24 }}>
         {lang === "tr"
           ? "Bu belgeye erişim yetkiniz yok"
           : "You do not have access to this document"}
@@ -58,7 +58,7 @@ export default function DocumentView() {
 
   if (error === "404") {
     return (
-      <p style={{ fontSize: 13, fontFamily: "Inter, sans-serif", padding: 24 }}>
+      <p style={{ fontSize: 13, fontFamily: "var(--font-ui)", padding: 24 }}>
         {lang === "tr" ? "Belge bulunamadı" : "Document not found"}
       </p>
     );
@@ -66,7 +66,7 @@ export default function DocumentView() {
 
   if (error || !signedUrl) {
     return (
-      <p style={{ fontSize: 13, fontFamily: "Inter, sans-serif", padding: 24 }}>
+      <p style={{ fontSize: 13, fontFamily: "var(--font-ui)", padding: 24 }}>
         {lang === "tr" ? "Belge açılamadı" : "Could not open document"}
       </p>
     );

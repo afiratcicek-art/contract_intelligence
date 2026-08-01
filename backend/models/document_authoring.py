@@ -82,13 +82,19 @@ class DraftSnapshot(BaseModel):
 
 
 class DraftApprove(BaseModel):
-    """Materialization inputs — number/type required to create RFI/corr row."""
+    """Materialization inputs — number/type required to create RFI/corr row.
+
+    parent_id + relation: optional chain link (response / followup / revision).
+    Both must be set together, or both omitted (root / original).
+    """
     version: int
     document_number: str  # rfi_number or corr_number
     correspondence_date: Optional[date] = None  # letter only; default today
     direction: Optional[Literal["incoming", "outgoing"]] = "outgoing"
     corr_type: Optional[str] = "letter"
     discipline: Optional[str] = None
+    parent_id: Optional[UUID] = None
+    relation: Optional[Literal["response", "followup", "revision"]] = None
 
     @field_validator("document_number", "corr_type", "discipline", mode="before")
     @classmethod

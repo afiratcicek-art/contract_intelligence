@@ -113,7 +113,7 @@ export default function NewRFI() {
     border: `1px solid ${border}`,
     color: textPrimary,
     fontSize: 13,
-    fontFamily: "Inter, sans-serif",
+    fontFamily: "var(--font-ui)",
     padding: "10px 12px",
     borderRadius: 0,
     outline: "none",
@@ -268,7 +268,7 @@ export default function NewRFI() {
       {/* Nav */}
       <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
-          <div style={{ width: 2, height: 20, background: `linear-gradient(to bottom, transparent, ${"var(--color-accent)"} 20%, ${"var(--color-accent)"} 80%, transparent)` }} />
+          <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
           <span style={{ color: textSecondary }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}`)}>{t("nav.overview")}</span>
@@ -285,14 +285,14 @@ export default function NewRFI() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "JetBrains Mono, monospace", fontWeight: 500, letterSpacing: "0.5px" }}>
+          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
             {lang === "en" ? "TR" : "EN"}
           </button>
         </div>
       </nav>
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 24px" }}>
-        <p style={{ fontFamily: "Playfair Display, Georgia, serif", fontSize: 22, color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
+        <p style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1)", color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
           {mode === "response"
             ? (lang === "tr" ? `Yanıt: ${parentNumber ?? ""}` : `Response to ${parentNumber ?? ""}`)
             : mode === "revision"
@@ -318,7 +318,7 @@ export default function NewRFI() {
                 textAlign: "left" as const,
                 cursor: "pointer",
                 borderRadius: 0,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 500, color: textPrimary, display: "block", marginBottom: 6 }}>
@@ -339,7 +339,7 @@ export default function NewRFI() {
                 textAlign: "left" as const,
                 cursor: "pointer",
                 borderRadius: 0,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 500, color: textPrimary, display: "block", marginBottom: 6 }}>
@@ -367,7 +367,7 @@ export default function NewRFI() {
                 fontWeight: 500,
                 color: "var(--color-accent-text)",
                 cursor: "pointer",
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
                 borderRadius: 0,
               }}
             >
@@ -515,7 +515,7 @@ export default function NewRFI() {
               <div>
                 <label style={labelStyle}>{lang === "tr" ? "Referanslar" : "References"}</label>
                 {pendingRefs.length === 0 && (
-                  <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic", margin: "0 0 12px", fontFamily: "Inter, sans-serif" }}>
+                  <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic", margin: "0 0 12px", fontFamily: "var(--font-ui)" }}>
                     {lang === "tr" ? "Henüz referans yok." : "No references yet."}
                   </p>
                 )}
@@ -523,7 +523,7 @@ export default function NewRFI() {
                   <div key={idx}
                     style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, background: bg }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>
+                      <div style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary }}>
                         {r._display}
                         {DOCUMENT_TYPE_LABELS[r.ref_type] && (
                           <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500,
@@ -559,7 +559,7 @@ export default function NewRFI() {
                       color: textPrimary,
                       fontSize: 12, borderRadius: 0,
                       boxSizing: "border-box" as const,
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                     }}
                   />
                   {showRefDropdown && filteredLinkable.length > 0 && (
@@ -580,10 +580,10 @@ export default function NewRFI() {
                             borderBottom: `1px solid ${border}`,
                             cursor: "pointer",
                             fontSize: 12, color: textPrimary,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                           }}
                         >
-                          <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: textSecondary }}>
+                          <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary }}>
                             {doc.ref_number}
                           </span>
                           {" "}{doc.subject}
@@ -599,7 +599,7 @@ export default function NewRFI() {
                     border: `1px solid ${border}`,
                     color: textSecondary, cursor: "pointer",
                     padding: "4px 12px", borderRadius: 0,
-                    fontFamily: "Inter, sans-serif",
+                    fontFamily: "var(--font-ui)",
                   }}
                 >
                   {showManualRef
@@ -623,7 +623,7 @@ export default function NewRFI() {
                         border: `1px solid ${border}`, background: "var(--color-bg-primary)",
                         color: manualRef.type ? textPrimary : textSecondary,
                         fontSize: 12, borderRadius: 0, boxSizing: "border-box" as const,
-                        fontFamily: "Inter, sans-serif" }}
+                        fontFamily: "var(--font-ui)" }}
                     >
                       <option value="" disabled>
                         {lang === "tr" ? "— Seçiniz —" : "— Select —"}
@@ -647,7 +647,7 @@ export default function NewRFI() {
                             color: textPrimary,
                             fontSize: 12, borderRadius: 0,
                             boxSizing: "border-box" as const,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                           }}
                         />
                       </div>
@@ -666,7 +666,7 @@ export default function NewRFI() {
                             color: textPrimary,
                             fontSize: 12, borderRadius: 0,
                             boxSizing: "border-box" as const,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                           }}
                         />
                       </div>
@@ -684,7 +684,7 @@ export default function NewRFI() {
                         color: textPrimary,
                         fontSize: 12, borderRadius: 0,
                         boxSizing: "border-box" as const,
-                        fontFamily: "Inter, sans-serif",
+                        fontFamily: "var(--font-ui)",
                       }}
                     />
                     {manualRef.type === "other" && (
@@ -701,7 +701,7 @@ export default function NewRFI() {
                           style={{ width: "100%", padding: "8px 10px", marginBottom: 12,
                             border: `1px solid ${border}`, background: "var(--color-bg-primary)",
                             color: textPrimary, fontSize: 12, borderRadius: 0,
-                            boxSizing: "border-box" as const, fontFamily: "Inter, sans-serif" }}
+                            boxSizing: "border-box" as const, fontFamily: "var(--font-ui)" }}
                         />
                       </>
                     )}
@@ -714,7 +714,7 @@ export default function NewRFI() {
                         color: canAddManual ? "var(--color-bg-primary)" : textSecondary,
                         border: "none", borderRadius: 0,
                         cursor: !canAddManual ? "not-allowed" : "pointer",
-                        fontWeight: 500, fontFamily: "Inter, sans-serif",
+                        fontWeight: 500, fontFamily: "var(--font-ui)",
                       }}
                     >
                       {lang === "tr" ? "Referans Ekle" : "Add Reference"}
@@ -762,7 +762,7 @@ export default function NewRFI() {
                   />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-                  <label style={{ padding: "8px 16px", backgroundColor: cardBg, border: `1px solid ${border}`, color: textSecondary, fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer", borderRadius: 0, whiteSpace: "nowrap" as const }}>
+                  <label style={{ padding: "8px 16px", backgroundColor: cardBg, border: `1px solid ${border}`, color: textSecondary, fontSize: 12, fontFamily: "var(--font-ui)", cursor: "pointer", borderRadius: 0, whiteSpace: "nowrap" as const }}>
                     {lang === "tr" ? "Dosya Seç" : "Select File"}
                     <input
                       type="file"
@@ -808,7 +808,7 @@ export default function NewRFI() {
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
-                  style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif", opacity: loading ? 0.7 : 1 }}
+                  style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "var(--font-ui)", opacity: loading ? 0.7 : 1 }}
                 >
                   {loading
                     ? (lang === "tr" ? "Kaydediliyor..." : "Saving...")
@@ -818,7 +818,7 @@ export default function NewRFI() {
                 </button>
                 <button
                   onClick={() => navigate(`/projects/${projectId}/workspace?module=rfis`)}
-                  style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "Inter, sans-serif" }}
+                  style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "var(--font-ui)" }}
                 >
                   {lang === "tr" ? "İptal" : "Cancel"}
                 </button>

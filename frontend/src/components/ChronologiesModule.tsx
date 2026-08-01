@@ -37,7 +37,7 @@ const SECTION_LABEL: CSSProperties = {
   color: "var(--color-text-secondary)",
   fontWeight: 500,
   marginBottom: 10,
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--font-ui)",
 };
 
 function formatDate(dateStr: string): string {
@@ -451,7 +451,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
               textTransform: "uppercase",
               letterSpacing: "0.08em",
               color: "var(--color-text-secondary)",
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-ui)",
             }}>
               Chronologies
             </span>
@@ -465,7 +465,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                 borderRadius: 0,
                 padding: "4px 10px",
                 cursor: "pointer",
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-ui)",
               }}
             >
               + New
@@ -475,12 +475,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
           {/* Chronology list */}
           <div style={{ overflowY: "auto", flex: 1 }}>
             {loading && (
-              <p style={{ padding: "12px 16px", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
+              <p style={{ padding: "12px 16px", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
                 Loading...
               </p>
             )}
             {!loading && chronologies.length === 0 && (
-              <p style={{ padding: "12px 16px", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
+              <p style={{ padding: "12px 16px", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
                 No chronologies yet.
               </p>
             )}
@@ -504,12 +504,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                     color: "var(--color-text-primary)",
                     fontWeight: 500,
                     marginBottom: 4,
-                    fontFamily: "Inter, sans-serif",
+                    fontFamily: "var(--font-ui)",
                     lineHeight: 1.4,
                   }}>
                     {c.title}
                   </p>
-                  <div style={{ display: "flex", gap: 8, fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
+                  <div style={{ display: "flex", gap: 8, fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
                     <span>
                       {(() => {
                         const count = c.event_count ?? (c.events ?? []).length;
@@ -571,7 +571,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
             {/* Empty state */}
             {!selectedId && (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
                   Select a chronology from the list.
                 </p>
               </div>
@@ -579,7 +579,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
 
             {selectedId && loadingDetail && (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif" }}>Loading...</p>
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>Loading...</p>
               </div>
             )}
 
@@ -597,7 +597,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                 }}>
                   <div>
                     <p style={{
-                      fontFamily: "Playfair Display, Georgia, serif",
+                      fontFamily: "var(--font-brand)",
                       fontSize: 16,
                       fontWeight: 500,
                       color: "var(--color-text-primary)",
@@ -609,7 +609,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       fontSize: 11,
                       color: "var(--color-text-secondary)",
                       margin: "2px 0 0",
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                     }}>
                       {selected.events.length === 1
                         ? "1 event"
@@ -626,7 +626,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       borderRadius: 0,
                       padding: "8px 16px",
                       cursor: "pointer",
-                      fontFamily: "Inter, sans-serif",
+                      fontFamily: "var(--font-ui)",
                       flexShrink: 0,
                     }}
                   >
@@ -643,7 +643,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                 {/* Event timeline */}
                 <div ref={timelineScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
                   {selected.events.length === 0 && (
-                    <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "Inter, sans-serif" }}>
+                    <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "var(--font-ui)" }}>
                       No events yet.
                     </p>
                   )}
@@ -663,7 +663,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                     >
                       {/* Date column */}
                       <div style={{ minWidth: 90, textAlign: "right", paddingTop: 2 }}>
-                        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
+                        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-meta)", margin: 0 }}>
                           {formatDate(ev.event_date)}
                         </p>
                       </div>
@@ -685,17 +685,17 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                             textTransform: "uppercase",
                             letterSpacing: "0.06em",
                             color: "var(--color-text-secondary)",
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                           }}>
                             {MANUAL_EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type}
                           </span>
                           {ev.is_key_event && (
-                            <span style={{ fontSize: 11, color: ACCENT_TEXT, fontFamily: "Inter, sans-serif" }}>● KEY</span>
+                            <span style={{ fontSize: 11, color: ACCENT_TEXT, fontFamily: "var(--font-ui)" }}>● KEY</span>
                           )}
                           {ev.document_ref_id && ev.document_ref_type && (
                             <button
                               onClick={() => navigateToDoc(ev.document_ref_type!, ev.document_ref_id!)}
-                              style={{ fontSize: 11, color: ACCENT_TEXT, background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", padding: 0 }}
+                              style={{ fontSize: 11, color: ACCENT_TEXT, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", padding: 0 }}
                             >
                               → View
                             </button>
@@ -711,7 +711,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               background: "none",
                               border: "none",
                               cursor: "pointer",
-                              fontFamily: "Inter, sans-serif",
+                              fontFamily: "var(--font-ui)",
                               padding: "0 4px",
                               marginLeft: "auto",
                             }}
@@ -726,7 +726,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               fontSize: 12, color: "var(--color-text-secondary)",
                               background: "none", border: "none",
                               cursor: inactivatingId === ev.id ? "wait" : "pointer",
-                              fontFamily: "Inter, sans-serif", padding: "0 4px",
+                              fontFamily: "var(--font-ui)", padding: "0 4px",
                             }}
                           >
                             ×
@@ -738,7 +738,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                           <p style={{
                             fontSize: 12,
                             color: "var(--color-text-secondary)",
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "var(--font-ui)",
                             fontStyle: "italic",
                             margin: "0 0 6px",
                           }}>
@@ -780,7 +780,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                       color: "var(--color-text-secondary)",
                                       background: "none", border: "none",
                                       cursor: "pointer",
-                                      fontFamily: "Inter, sans-serif",
+                                      fontFamily: "var(--font-ui)",
                                       textDecoration: "underline",
                                     }}
                                   >
@@ -791,7 +791,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   fontSize: 13,
                                   color: "var(--color-text-primary)",
                                   lineHeight: 1.6,
-                                  fontFamily: "Inter, sans-serif",
+                                  fontFamily: "var(--font-ui)",
                                   margin: 0,
                                 }}>
                                   {ev.approved_narrative}
@@ -813,7 +813,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                     border: "1px solid var(--color-border-medium)",
                                     borderRadius: 0, background: "var(--color-bg-primary)",
                                     color: "var(--color-text-primary)",
-                                    fontFamily: "Inter, sans-serif", resize: "vertical",
+                                    fontFamily: "var(--font-ui)", resize: "vertical",
                                     boxSizing: "border-box",
                                   }}
                                 />
@@ -826,7 +826,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                       background: ACCENT, color: "var(--color-bg-primary)",
                                       border: "none", borderRadius: 0,
                                       cursor: approvingId === ev.id ? "wait" : "pointer",
-                                      fontFamily: "Inter, sans-serif",
+                                      fontFamily: "var(--font-ui)",
                                     }}
                                   >
                                     {approvingId === ev.id ? "Saving..." : "✓ Save Changes"}
@@ -846,7 +846,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                       color: "var(--color-text-secondary)",
                                       border: "1px solid var(--color-border-light)",
                                       borderRadius: 0, cursor: "pointer",
-                                      fontFamily: "Inter, sans-serif",
+                                      fontFamily: "var(--font-ui)",
                                     }}
                                   >
                                     Cancel
@@ -871,7 +871,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                     border: "1px solid var(--color-border-medium)",
                                     borderRadius: 0, background: "var(--color-bg-primary)",
                                     color: "var(--color-text-primary)",
-                                    fontFamily: "Inter, sans-serif", resize: "vertical",
+                                    fontFamily: "var(--font-ui)", resize: "vertical",
                                     boxSizing: "border-box",
                                   }}
                                 />
@@ -883,7 +883,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                     background: ACCENT, color: "var(--color-bg-primary)",
                                     border: "none", borderRadius: 0,
                                     cursor: approvingId === ev.id ? "wait" : "pointer",
-                                    fontFamily: "Inter, sans-serif",
+                                    fontFamily: "var(--font-ui)",
                                   }}
                                 >
                                   {approvingId === ev.id ? "Approving..." : "✓ Approve"}
@@ -897,7 +897,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   fontSize: 12,
                                   color: "var(--color-text-secondary)",
                                   fontStyle: "italic",
-                                  fontFamily: "Inter, sans-serif",
+                                  fontFamily: "var(--font-ui)",
                                   margin: 0,
                                 }}>
                                   No narrative yet.
@@ -910,7 +910,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                     background: "none",
                                     border: "none",
                                     cursor: "pointer",
-                                    fontFamily: "Inter, sans-serif",
+                                    fontFamily: "var(--font-ui)",
                                     textDecoration: "underline",
                                     padding: 0,
                                   }}

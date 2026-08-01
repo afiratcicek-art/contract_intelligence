@@ -14,6 +14,7 @@ import {
 } from "../services/api";
 import DocumentStatsPanel, { chronologyTypeLabel } from "./DocumentStatsPanel";
 import FocusedRelationGraph from "./FocusedRelationGraph";
+import StatusChip from "./StatusChip";
 
 /* ── Local types ───────────────────────────────────────────
    Mirrors Workspace.tsx SearchResult + minimal RFI/Corr
@@ -401,27 +402,6 @@ export default function DocumentsModule({ projectId }: Props) {
     }
   };
 
-  /* ── Status pill ─────────────────────────────────────── */
-  const statusPill = (status: string) => {
-    const map: Record<string, { bg: string; color: string }> = {
-      open:      { bg: "var(--color-warning-bg)",  color: "var(--color-warning)"  },
-      responded: { bg: "var(--color-success-bg)",  color: "var(--color-success)"  },
-      closed:    { bg: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" },
-      pending:   { bg: "var(--color-warning-bg)",  color: "var(--color-warning)"  },
-    };
-    const s = map[status] ?? map["pending"];
-    return (
-      <span style={{
-        fontSize: 11, fontWeight: 500, padding: "2px 8px",
-        backgroundColor: s.bg, color: s.color,
-        textTransform: "uppercase" as const, letterSpacing: "0.04em",
-        fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" as const,
-      }}>
-        {status}
-      </span>
-    );
-  };
-
   /* ── Render: Correspondence rows (parent-child) ───────── */
   const renderCorrSection = (group: DocSearchResult[]) => {
     const childMap = new Map<string, DocSearchResult[]>();
@@ -451,7 +431,7 @@ export default function DocumentsModule({ projectId }: Props) {
         >
           <div>
             <span style={{
-              fontFamily: "JetBrains Mono, monospace", fontSize: 11,
+              fontFamily: "var(--font-meta)", fontSize: 11,
               color: textSecond, display: "flex", alignItems: "center", gap: 4,
             }}>
               {isChild && (
@@ -502,7 +482,7 @@ export default function DocumentsModule({ projectId }: Props) {
                 <line x1="12" y1="7.5" x2="17.5" y2="17" />
               </svg>
             </button>
-            {statusPill(r.status)}
+            <StatusChip status={r.status} />
           </div>
         </div>
         {(childMap.get(r.id) ?? []).map((child) =>
@@ -516,7 +496,7 @@ export default function DocumentsModule({ projectId }: Props) {
         <div style={{
           fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,
           letterSpacing: "0.08em", color: textSecond, marginBottom: 8,
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}>
           Correspondence
         </div>
@@ -558,7 +538,7 @@ export default function DocumentsModule({ projectId }: Props) {
         >
           <div>
             <span style={{
-              fontFamily: "JetBrains Mono, monospace", fontSize: 11,
+              fontFamily: "var(--font-meta)", fontSize: 11,
               color: textSecond, display: "flex", alignItems: "center", gap: 4,
             }}>
               {isChild && (
@@ -631,7 +611,7 @@ export default function DocumentsModule({ projectId }: Props) {
               }}>
                 RESPONSE
               </span>
-            ) : statusPill(r.status)}
+            ) : <StatusChip status={r.status} />}
           </div>
         </div>
         {(childMap.get(r.id) ?? []).map((child) =>
@@ -645,7 +625,7 @@ export default function DocumentsModule({ projectId }: Props) {
         <div style={{
           fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,
           letterSpacing: "0.08em", color: textSecond, marginBottom: 8,
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}>
           RFIs
         </div>
@@ -677,7 +657,7 @@ export default function DocumentsModule({ projectId }: Props) {
       >
         <div>
           <span style={{
-            fontFamily: "JetBrains Mono, monospace", fontSize: 11,
+            fontFamily: "var(--font-meta)", fontSize: 11,
             color: textSecond,
           }}>
             {r.ref}
@@ -695,7 +675,7 @@ export default function DocumentsModule({ projectId }: Props) {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {statusPill(r.status)}
+          <StatusChip status={r.status} />
         </div>
       </div>
     );
@@ -705,7 +685,7 @@ export default function DocumentsModule({ projectId }: Props) {
         <div style={{
           fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const,
           letterSpacing: "0.08em", color: textSecond, marginBottom: 8,
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}>
           {title}
         </div>
@@ -731,11 +711,11 @@ export default function DocumentsModule({ projectId }: Props) {
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           background: "var(--color-ai-bg)", border: "1px solid var(--color-ai)",
-          borderRadius: 6, padding: "8px 14px", marginBottom: 4,
+          borderRadius: 0, padding: "8px 14px", marginBottom: 4,
         }}>
           <span style={{
             fontSize: 12, color: "var(--color-ai)", fontWeight: 500,
-            fontFamily: "Inter, sans-serif",
+            fontFamily: "var(--font-ui)",
           }}>
             Odaklanıldı: {focusRef || focusId}
           </span>
@@ -813,7 +793,7 @@ export default function DocumentsModule({ projectId }: Props) {
             padding: "8px 36px 8px 12px",
             background: cardBg, border: `1px solid ${border}`,
             borderRadius: 0, fontSize: 13, color: textPrimary,
-            fontFamily: "Inter, sans-serif", outline: "none",
+            fontFamily: "var(--font-ui)", outline: "none",
           }}
         />
         {query && (
@@ -833,7 +813,7 @@ export default function DocumentsModule({ projectId }: Props) {
 
       {/* States */}
       {loading && (
-        <p style={{ fontSize: 12, color: textSecond, fontFamily: "Inter, sans-serif" }}>
+        <p style={{ fontSize: 12, color: textSecond, fontFamily: "var(--font-ui)" }}>
           Aranıyor...
         </p>
       )}
@@ -841,14 +821,14 @@ export default function DocumentsModule({ projectId }: Props) {
       {!loading && (query.trim() || activeFilter) && results.length === 0 && (
         <p style={{
           fontSize: 12, color: textSecond, fontStyle: "italic",
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}>
           Sonuç bulunamadı.
         </p>
       )}
 
       {!query.trim() && !activeFilter && !focusId && statsLoading && (
-        <p style={{ fontSize: 12, color: textSecond, fontFamily: "Inter, sans-serif" }}>
+        <p style={{ fontSize: 12, color: textSecond, fontFamily: "var(--font-ui)" }}>
           İstatistikler yükleniyor...
         </p>
       )}

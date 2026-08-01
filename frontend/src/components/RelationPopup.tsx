@@ -111,7 +111,7 @@ export default function RelationPopup({
             borderRight: `1px solid ${checked ? accent : border}`,
             borderBottom: `1px solid ${checked ? accent : border}`,
             borderLeft: `2px solid ${checked ? accent : color}`,
-            fontFamily: "Inter, sans-serif",
+            fontFamily: "var(--font-ui)",
           }}
         >
           <div style={{
@@ -130,7 +130,7 @@ export default function RelationPopup({
           </div>
           <div style={{ flex: 1 }}>
             <span style={{
-              fontFamily: "JetBrains Mono, monospace",
+              fontFamily: "var(--font-meta)",
               fontSize: 11, color: textS,
               display: "flex", alignItems: "center", gap: 4,
             }}>
@@ -155,12 +155,12 @@ export default function RelationPopup({
           background: isChild ? bg : "var(--color-bg-secondary)",
           border: `1px solid ${border}`,
           borderLeft: `2px solid ${color}`,
-          cursor: "pointer", fontFamily: "Inter, sans-serif",
+          cursor: "pointer", fontFamily: "var(--font-ui)",
         }}
       >
         <div>
           <span style={{
-            fontFamily: "JetBrains Mono, monospace",
+            fontFamily: "var(--font-meta)",
             fontSize: 11, color: textS,
             display: "flex", alignItems: "center", gap: 4,
           }}>
@@ -193,7 +193,7 @@ export default function RelationPopup({
             fontSize: 11, fontWeight: 500, color: textS,
             textTransform: "uppercase" as const,
             letterSpacing: "0.06em", marginBottom: 8,
-            fontFamily: "Inter, sans-serif",
+            fontFamily: "var(--font-ui)",
           }}>
             {title}
           </div>
@@ -231,7 +231,7 @@ export default function RelationPopup({
           fontSize: 11, fontWeight: 500, color: textS,
           textTransform: "uppercase" as const,
           letterSpacing: "0.06em", marginBottom: 8,
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "var(--font-ui)",
         }}>
           {title}
         </div>
@@ -249,7 +249,7 @@ export default function RelationPopup({
       onClick={onClose}
       style={{
         position: "fixed" as const, inset: 0,
-        backgroundColor: "rgba(0,0,0,0.45)",
+        backgroundColor: "var(--color-overlay)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: "var(--z-modal)" as unknown as number, padding: 24,
       }}
@@ -259,7 +259,7 @@ export default function RelationPopup({
         style={{
           background: bg, border: `1px solid ${border}`,
           borderLeft: "3px solid var(--color-ai)",
-          borderRadius: 6, padding: 20,
+          borderRadius: 0, padding: 20,
           width: "100%", maxWidth: 440,
           maxHeight: "70vh", overflowY: "auto" as const,
         }}
@@ -269,7 +269,7 @@ export default function RelationPopup({
           marginBottom: 14,
         }}>
           <div style={{
-            fontFamily: "Playfair Display, Georgia, serif",
+            fontFamily: "var(--font-brand)",
             fontSize: 16, color: textP, fontWeight: 500,
           }}>
             Benzerlik Tespit Edilen Kayıtlar
@@ -286,7 +286,7 @@ export default function RelationPopup({
         </div>
 
         {loading && (
-          <p style={{ fontSize: 12, color: textS, fontFamily: "Inter, sans-serif" }}>
+          <p style={{ fontSize: 12, color: textS, fontFamily: "var(--font-ui)" }}>
             Yükleniyor…
           </p>
         )}
@@ -294,7 +294,7 @@ export default function RelationPopup({
         {!loading && total === 0 && (
           <p style={{
             fontSize: 12, color: textS, fontStyle: "italic",
-            fontFamily: "Inter, sans-serif",
+            fontFamily: "var(--font-ui)",
           }}>
             İlişkili kayıt bulunamadı.
           </p>
@@ -318,7 +318,7 @@ export default function RelationPopup({
                         background: "var(--color-ai-bg)", color: "var(--color-ai)",
                         border: "1px solid var(--color-ai)",
                         padding: "8px 14px", fontSize: 12, fontWeight: 500,
-                        cursor: "pointer", fontFamily: "Inter, sans-serif",
+                        cursor: "pointer", fontFamily: "var(--font-ui)",
                       }}
                     >
                       İlişki Haritasını Gör
@@ -334,7 +334,7 @@ export default function RelationPopup({
                       color: bridgeMode ? "var(--color-bg-primary)" : accentText,
                       border: `1px solid ${accent}`,
                       padding: "8px 14px", fontSize: 12, fontWeight: 500,
-                      cursor: "pointer", fontFamily: "Inter, sans-serif",
+                      cursor: "pointer", fontFamily: "var(--font-ui)",
                     }}
                   >
                     {bridgeMode ? "Seçimi İptal" : "Kronoloji'ye Aktar"}
@@ -372,11 +372,11 @@ export default function RelationPopup({
                           </svg>
                         )}
                       </div>
-                      <span style={{ fontSize: 11, color: textS, fontFamily: "Inter, sans-serif" }}>
+                      <span style={{ fontSize: 11, color: textS, fontFamily: "var(--font-ui)" }}>
                         Tümünü Seç
                       </span>
                     </div>
-                    <span style={{ flex: 1, fontSize: 11, color: textS, fontFamily: "Inter, sans-serif" }}>
+                    <span style={{ flex: 1, fontSize: 11, color: textS, fontFamily: "var(--font-ui)" }}>
                       {selectedIds.size > 0 ? `${selectedIds.size} kayıt seçildi` : ""}
                     </span>
                     <button
@@ -388,7 +388,7 @@ export default function RelationPopup({
                         border: `1px solid ${selectedIds.size > 0 ? accent : border}`,
                         padding: "6px 14px", fontSize: 12, fontWeight: 500,
                         cursor: selectedIds.size > 0 ? "pointer" : "not-allowed",
-                        fontFamily: "Inter, sans-serif",
+                        fontFamily: "var(--font-ui)",
                       }}
                     >
                       Aktar →

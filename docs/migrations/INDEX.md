@@ -55,7 +55,7 @@ Format: `table | authoritative migration(s) | one-line history`
 
 | table | authoritative migration(s) | history |
 |---|---|---|
-| pdf_document | 006 → 007 → 013 → 017 → 019 → 020 → 036 → 048 | created 006; `contract_document` entity_type 007; `internal_alert` entity_type 013; metadata cols 017; doc_type 019; search_vector 020; **RLS source of truth 036** (supersedes 006/008 policies); `draft` entity_type 048 (authoring reference uploads) |
+| pdf_document | 006 → 007 → 013 → 017 → 019 → 020 → 036 → 048 → **051** | created 006; `contract_document` entity_type 007; `internal_alert` entity_type 013; metadata cols 017; doc_type 019; search_vector 020; **RLS source of truth 036** (supersedes 006/008 policies); `draft` entity_type 048 (authoring reference uploads); **051 expands `parse_method` CHECK += `unsupported` (non-PDF worker path)** |
 | document_embeddings | 018 | created 018 |
 | document_relations | 018 | created 018 |
 
@@ -103,4 +103,4 @@ Format: `table | authoritative migration(s) | one-line history`
 
 ---
 
-*Last updated with 050 (rfi/correspondence_references `page_ranges` JSONB — optional multi/open-ended citation ranges).*
+*Last updated with 051 (`pdf_document.parse_method` CHECK += `unsupported` — aligns schema with pdf_worker non-PDF completion path).*

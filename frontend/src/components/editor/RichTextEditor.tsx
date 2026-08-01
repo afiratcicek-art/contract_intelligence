@@ -19,6 +19,19 @@ const ALIGNMENTS = ["left", "center", "right", "justify"] as const;
 type Alignment = (typeof ALIGNMENTS)[number];
 const MAX_INDENT = 4;
 
+/** References-list HUD geometry / timing — behavior constants (not CSS design tokens). */
+const HUD_HIDE_DELAY_MS = 600;
+/** Marker column hit-target outside list text (list-style:outside). */
+const HUD_MARKER_GUTTER_LEFT_PX = 6;
+const HUD_MARKER_GUTTER_RIGHT_PX = 36;
+const HUD_MARKER_GUTTER_Y_PX = 4;
+/** Keep HUD from overflowing the editor shell's right edge. */
+const HUD_SHELL_RIGHT_RESERVE_PX = 168;
+/** Nudge HUD slightly above the heading text baseline. */
+const HUD_ANCHOR_TOP_NUDGE_PX = 2;
+/** Gap between heading text end and HUD left edge. */
+const HUD_ANCHOR_LEFT_GAP_PX = 8;
+
 const ALLOWED_CLASSES = new Set<string>([
   ...FONT_SIZE_PRESETS.map((s) => `text-fs-${s}`),
   ...ALIGNMENTS.map((a) => `text-align-${a}`),
@@ -380,7 +393,10 @@ export default function RichTextEditor({
 
     const scheduleHide = () => {
       clearHide();
-      hideHudTimer.current = window.setTimeout(() => setRefListHud(null), 600);
+      hideHudTimer.current = window.setTimeout(
+        () => setRefListHud(null),
+        HUD_HIDE_DELAY_MS
+      );
     };
 
     const findReferencesBlock = (): {
@@ -421,10 +437,10 @@ export default function RichTextEditor({
       // Marker column (outside list text) — list-style outside sits in padding.
       const listRect = list.getBoundingClientRect();
       const inMarkerGutter =
-        e.clientX >= listRect.left - 6 &&
-        e.clientX <= listRect.left + 36 &&
-        e.clientY >= listRect.top - 4 &&
-        e.clientY <= listRect.bottom + 4;
+        e.clientX >= listRect.left - HUD_MARKER_GUTTER_LEFT_PX &&
+        e.clientX <= listRect.left + HUD_MARKER_GUTTER_RIGHT_PX &&
+        e.clientY >= listRect.top - HUD_MARKER_GUTTER_Y_PX &&
+        e.clientY <= listRect.bottom + HUD_MARKER_GUTTER_Y_PX;
 
       if (!overHud && !overHeading && !overList && !inMarkerGutter) {
         scheduleHide();
@@ -440,10 +456,10 @@ export default function RichTextEditor({
       const textRect =
         range.getClientRects()[0] ?? heading.getBoundingClientRect();
       setRefListHud({
-        top: textRect.top - shellRect.top - 2,
+        top: textRect.top - shellRect.top - HUD_ANCHOR_TOP_NUDGE_PX,
         left: Math.min(
-          textRect.right - shellRect.left + 8,
-          shellRect.width - 168
+          textRect.right - shellRect.left + HUD_ANCHOR_LEFT_GAP_PX,
+          shellRect.width - HUD_SHELL_RIGHT_RESERVE_PX
         ),
         isBullet: list.tagName === "UL",
       });

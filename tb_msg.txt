@@ -1,0 +1,11 @@
+fix(debt): TB-48 parse_method CHECK + TB-51 HUD constants
+
+TB-48: pdf_worker writes parse_method='unsupported' for non-PDF files
+(deliberate stored-only guard), but the 006 CHECK rejected that value,
+silently breaking the non-PDF completion path. Migration 051 adds
+'unsupported' to the CHECK. Guard behavior unchanged. Applied and
+live-verified. INDEX.md ledger synced.
+
+TB-51: HUD magic numbers (hide delay, marker gutter, shell reserve,
+anchor offsets) extracted to named, documented constants in
+RichTextEditor. Behavior unchanged.

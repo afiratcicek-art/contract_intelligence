@@ -367,3 +367,19 @@ provider kısıtlılık sırasını (none > local > anthropic) İKİ yerde tanı
 öbürü kalırsa app-gate ile DB farklı karar verir (sessiz drift). Şu an docstring
 "mirrors effective_provider()" ile hafifletildi. SQL-tarafı kullanım artarsa tek-kaynağa
 konsolide et (ör. gate'i effective_provider rpc'sine çevir, ya da rank'ı tek yerden üret).
+
+- **TB-48** [FIXED — 44c9f3d]: pdf_worker `parse_method="unsupported"` (non-PDF stored-only guard) değeri 006 CHECK'te yoktu → non-PDF completion UPDATE'i constraint ihlaliyle sessizce kırılıyordu. Migration 051 CHECK'e 'unsupported' ekledi (guard davranışı değişmedi, TB-190 korundu). Canlı doğrulandı.
+
+- **TB-49**: Authoring HTML escape + tag allow-list iki yerde paralel tanımlı — client (RichTextEditor DOMPurify + syncReferencesBlock escapeHtml) ve server (html_sanitizer bleach). Defense-in-depth olarak bilinçli ayrı, ama drift riski (biri güncellenir diğeri unutulur). Status: open. Not: birleştirmek katman-bağımsızlığını etkiler = mimari karar, aceleye getirme; senkron tut.
+
+- **TB-50**: `syncReferencesBlock` References bloğunu `body_html` string'inde MARKER_RE regex ile tespit ediyor (lazy-match). Kullanıcı body'ye manuel `clauseiq-references` markup enjekte ederse blok-sınırı kayabilir. Bugün veri-kaybı gerçekçi değil (editör class'ı serbest bırakmaz + server sanitize backstop). Status: open. Hedef: TipTap node-attribute tabanlı blok-tespiti.
+
+- **TB-51** [FIXED — 44c9f3d]: RichTextEditor HUD magic-number'ları (hide-delay 600ms, marker gutter 6/36/4, shell-reserve 168, anchor nudge/gap) adlandırılmış + yorumlu const'lara çıkarıldı. Davranış değişmedi.
+
+- **TB-52**: `dark:` Tailwind utility'leri kaldırıldı (design-sweep) ama dark CSS token değerleri (index.css) + ThemeContext hâlâ duruyor, artık tüketilmiyor. Status: open. Silmek davranış-etkili olabilir (ThemeContext tüketicileri ölçülmeli, EK-10) → ya dark'ı CSS-değişkenle dirilt ya context'i temizle. Ölç, sonra karar.
+
+## TB-53 — linkable DRY yarım + paylaşılan LinkableDoc tip-genişlemesi
+Status: open. #2 (kontrat/amendment referansı) ile yüzeye çıktı.
+Chronologies (`list_linkable_documents`) ve authoring (`linkable_service`) RFI/Corr linkable mantığını AYRI tutuyor (Yol Y: authoring-özel servis yazıldı, chronologies servise bağlanmadı → mantık iki yerde). Ayrıca paylaşılan `LinkableDoc.type` #2'de genişledi (+contract_document +amendment) → chronologies'in `PendingDoc.type` (dar) ile çakıştı, build kırıldı (Bulgu 18). Geçici çözüm: `PendingDoc.type = LinkableDoc["type"] | null` hizalaması (44c9f3d öncesi feat commit'inde). Hedef: chronologies'i ortak servise bağla VEYA authoring-özel LinkableDoc alt-tipi — tip-genişlemesi tüketicileri kırmasın. Çok-katmanlı refactor, ayrı tur.
+
+- **TB-54**: Frontend build chunk >500kB + `auth.ts` ineffective dynamic-import uyarısı (vite build). Perf, pilot'u etkilemez. Status: open. Code-splitting/lazy-load = mimari, ayrı değerlendirme.

@@ -110,7 +110,8 @@ function payloadKey(
   attentionTo: string,
   references: RefItem[],
   discipline: string,
-  chain: ChainFields
+  chain: ChainFields,
+  includeReferenceCopies: boolean
 ): string {
   return JSON.stringify({
     subject,
@@ -120,6 +121,7 @@ function payloadKey(
       attention_to: attentionTo,
       references,
       discipline,
+      include_reference_copies: includeReferenceCopies,
       ...chain,
     },
   });
@@ -342,6 +344,8 @@ export default function AuthoringDraftPage() {
   const [projectName, setProjectName] = useState("");
   const [discipline, setDiscipline] = useState("");
   const [references, setReferences] = useState<RefItem[]>([]);
+  /** Opt-in: append reference PDF copies to e-bundle (default true = legacy). */
+  const [includeReferenceCopies, setIncludeReferenceCopies] = useState(true);
   const [version, setVersion] = useState(1);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "conflict">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -482,6 +486,9 @@ export default function AuthoringDraftPage() {
     setDiscipline(String(d.field_values?.discipline || ""));
     const refs = (d.field_values?.references as RefItem[]) || [];
     setReferences(refs);
+    const copies =
+      d.field_values?.include_reference_copies === false ? false : true;
+    setIncludeReferenceCopies(copies);
     setVersion(d.version);
     lastSavedPayloadRef.current = payloadKey(
       d.subject || "",
@@ -490,7 +497,8 @@ export default function AuthoringDraftPage() {
       String(d.field_values?.attention_to || ""),
       refs,
       String(d.field_values?.discipline || ""),
-      chainFromFieldValues(d.field_values)
+      chainFromFieldValues(d.field_values),
+      copies
     );
   }
 
@@ -515,7 +523,8 @@ export default function AuthoringDraftPage() {
       attentionTo,
       references,
       discipline,
-      chain
+      chain,
+      includeReferenceCopies
     );
     if (nextKey === lastSavedPayloadRef.current) return;
 
@@ -531,6 +540,7 @@ export default function AuthoringDraftPage() {
             attention_to: attentionTo,
             references,
             discipline,
+            include_reference_copies: includeReferenceCopies,
             ...chain,
           },
         });
@@ -555,7 +565,7 @@ export default function AuthoringDraftPage() {
       }
     }, 800);
     return () => clearTimeout(timer);
-  }, [subject, bodyHtml, attentionTo, projectName, references, discipline, draft?.field_values, projectId, lang, linkable]);
+  }, [subject, bodyHtml, attentionTo, projectName, references, discipline, includeReferenceCopies, draft?.field_values, projectId, lang, linkable]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -873,7 +883,11 @@ export default function AuthoringDraftPage() {
     if (!projectId || !draftIdRef.current) return;
     setBusy(true);
     try {
-      const res = await generateAuthoringDocx(projectId, draftIdRef.current);
+      const res = await generateAuthoringDocx(
+        projectId,
+        draftIdRef.current,
+        includeReferenceCopies
+      );
       setDraft((prev) => (prev ? { ...prev, ...res.draft } : res.draft));
       if (res.draft.version) setVersion(res.draft.version);
       if (res.draft.status) draftStatusRef.current = res.draft.status;
@@ -937,7 +951,8 @@ export default function AuthoringDraftPage() {
         attentionTo,
         references,
         discipline,
-        chainFromFieldValues(draft?.field_values)
+        chainFromFieldValues(draft?.field_values),
+        includeReferenceCopies
       );
       setError(null);
       const hints: string[] = [];
@@ -2193,6 +2208,28 @@ export default function AuthoringDraftPage() {
             flexShrink: 0,
           }}
         >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              fontFamily: "var(--font-ui)",
+              color: "var(--color-text-primary)",
+              cursor: busy ? "not-allowed" : "pointer",
+              marginBottom: 2,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={includeReferenceCopies}
+              disabled={busy}
+              onChange={(e) => setIncludeReferenceCopies(e.target.checked)}
+            />
+            {lang === "tr"
+              ? "Referansların kopyasını mektuba ekle"
+              : "Attach copies of references to the letter"}
+          </label>
           <button
             type="button"
             disabled={busy}

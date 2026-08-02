@@ -28,6 +28,8 @@ export interface DocumentDraft {
     project?: string;
     attention_to?: string;
     references?: Array<Record<string, unknown>>;
+    /** Opt-in: append reference PDF copies to e-bundle (default true when absent). */
+    include_reference_copies?: boolean;
     [key: string]: unknown;
   };
   status: "drafting" | "approved" | "discarded";
@@ -164,7 +166,8 @@ export async function aiDraft(
 
 export async function generateAuthoringDocx(
   projectId: string,
-  draftId: string
+  draftId: string,
+  includeReferenceCopies: boolean = true
 ): Promise<{
   draft: DocumentDraft;
   docx_path: string;
@@ -172,7 +175,9 @@ export async function generateAuthoringDocx(
   pdf_preview_available: boolean;
   bundle_available: boolean;
 }> {
-  return api.post(`/projects/${projectId}/authoring/drafts/${draftId}/generate-docx`, {});
+  return api.post(`/projects/${projectId}/authoring/drafts/${draftId}/generate-docx`, {
+    include_reference_copies: includeReferenceCopies,
+  });
 }
 
 export async function fetchAuthoringDocxUrl(

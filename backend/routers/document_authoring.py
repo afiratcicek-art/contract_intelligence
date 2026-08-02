@@ -26,6 +26,7 @@ from backend.models.document_authoring import (
     DraftCreate,
     DraftSnapshot,
     DraftUpdate,
+    GenerateDocxRequest,
     TemplateCreate,
     TemplateUpdate,
 )
@@ -284,9 +285,16 @@ def _generate_and_store_docx(
     # Preview path (Null provider returns None — FE shows download-docx message)
     pdf_preview = get_render_provider().render_to_pdf(docx_bytes)
 
+    # Reference copies are appended only when the user opted in (default true for
+    # backward compatibility). Preference lives on the draft, so generate-docx and
+    # approve both honor the same choice (decision: chosen once at generate time).
+    include_copies = field_values.get("include_reference_copies", True)
+    if not isinstance(include_copies, bool):
+        include_copies = True
+
     bundle_path = None
     refs = field_values.get("references") or []
-    if refs:
+    if refs and include_copies:
         try:
             bundle_bytes = build_reference_bundle_pdf(
                 db,
@@ -835,6 +843,7 @@ async def upload_draft_reference_file(
 def generate_docx(
     project_id: UUID,
     draft_id: UUID,
+    body: GenerateDocxRequest,
     access: dict = Depends(require_cm_role),
 ):
     db = access["db"]
@@ -843,6 +852,13 @@ def generate_docx(
     if not draft:
         raise NotFoundError()
     _assert_draft_in_project(draft, str(project_id))
+
+    # Persist opt-in on draft so approve uses the same choice (field_values JSON).
+    fv = dict(draft.get("field_values") or {})
+    fv["include_reference_copies"] = body.include_reference_copies
+    repo.update(str(draft_id), {"field_values": fv})
+    draft = {**draft, "field_values": fv}
+
     result = _generate_and_store_docx(
         db, draft, user_id=access["user"]["id"], snapshot_reason="pre_generation"
     )

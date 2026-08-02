@@ -81,6 +81,14 @@ class DraftSnapshot(BaseModel):
     snapshot_reason: Literal["manual"] = "manual"
 
 
+class GenerateDocxRequest(BaseModel):
+    """Opt-in for appending reference PDF copies to the generated e-bundle.
+    Default True preserves legacy "always attach when refs exist" behavior.
+    Persisted on draft.field_values.include_reference_copies for approve.
+    """
+    include_reference_copies: bool = True
+
+
 class DraftApprove(BaseModel):
     """Materialization inputs — number/type required to create RFI/corr row.
 

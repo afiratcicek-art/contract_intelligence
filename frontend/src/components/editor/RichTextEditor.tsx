@@ -8,7 +8,7 @@ import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import { TableKit } from "@tiptap/extension-table";
 import DOMPurify from "dompurify";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type Ref } from "react";
 import { useLanguage } from "../../context/LanguageContext";
 
 /** Preset sizes only — free-form values are rejected client + server. */
@@ -306,12 +306,26 @@ const toolbarBtnStyle = (
   textDecoration: key === "underline" ? "underline" : "none",
 });
 
+export type RichTextEditorHandle = {
+  /** Plain text of the current selection; "" when caret-only / no selection. */
+  getSelectionText: () => string;
+  /** Replace the current selection with escaped plain text (selection-only revise). */
+  applyToSelection: (text: string) => void;
+  /** Replace the entire editor body with sanitized HTML. */
+  replaceBody: (html: string) => void;
+};
+
 export interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
   readOnly?: boolean;
   /** Min height for the editable surface (authoring uses a tall viewport-relative value). */
   minHeight?: number | string;
+  /**
+   * Imperative adapter handle (C2-B). TipTap stays inside this module — callers
+   * must not touch editor.state / editor.chain (B1).
+   */
+  editorRef?: Ref<RichTextEditorHandle | null>;
 }
 
 export default function RichTextEditor({
@@ -319,6 +333,7 @@ export default function RichTextEditor({
   onChange,
   readOnly = false,
   minHeight = 240,
+  editorRef,
 }: RichTextEditorProps) {
   const minHeightCss =
     typeof minHeight === "number" ? `${minHeight}px` : minHeight;
@@ -351,6 +366,52 @@ export default function RichTextEditor({
     onSelectionUpdate: () => setToolbarTick((n) => n + 1),
     onTransaction: () => setToolbarTick((n) => n + 1),
   });
+
+  const pendingSelectionRef = useRef<{ from: number; to: number } | null>(null);
+
+  useImperativeHandle(
+    editorRef,
+    () => ({
+      getSelectionText: () => {
+        if (!editor) {
+          pendingSelectionRef.current = null;
+          return "";
+        }
+        const { from, to, empty } = editor.state.selection;
+        if (empty) {
+          pendingSelectionRef.current = null;
+          return "";
+        }
+        // Snapshot range now — applyToSelection may run after await.
+        pendingSelectionRef.current = { from, to };
+        return editor.state.doc.textBetween(from, to, "\n");
+      },
+      applyToSelection: (text: string) => {
+        if (!editor || !pendingSelectionRef.current) return;
+        const { from, to } = pendingSelectionRef.current;
+        pendingSelectionRef.current = null;
+        const escaped = (text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br>");
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from, to })
+          .insertContent(escaped)
+          .run();
+      },
+      replaceBody: (html: string) => {
+        if (!editor) return;
+        pendingSelectionRef.current = null;
+        const clean = sanitizeClient(html || "");
+        editor.commands.setContent(clean, { emitUpdate: false });
+        onChange(clean);
+      },
+    }),
+    [editor, onChange]
+  );
 
   useEffect(() => {
     if (!editor) return;

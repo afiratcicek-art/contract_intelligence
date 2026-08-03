@@ -164,6 +164,32 @@ export async function aiDraft(
   );
 }
 
+export type AiChatResult = {
+  reply_text: string;
+  confidence_score: number;
+  warnings: string[];
+  review_required: boolean;
+  objectivity_flag: boolean;
+};
+
+export async function aiChat(
+  projectId: string,
+  draftId: string,
+  body: {
+    messages: { role: "user" | "assistant"; content: string }[];
+    selection_text?: string;
+    language?: "en" | "ar" | "tr";
+    version: number;
+  }
+): Promise<AiChatResult> {
+  return api.post(`/projects/${projectId}/authoring/drafts/${draftId}/ai-chat`, {
+    messages: body.messages,
+    selection_text: body.selection_text,
+    language: body.language,
+    version: body.version,
+  });
+}
+
 export async function generateAuthoringDocx(
   projectId: string,
   draftId: string,

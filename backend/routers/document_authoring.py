@@ -22,6 +22,7 @@ from backend.core.guards import assert_target_in_project, assert_document_not_al
 from backend.core.html_sanitizer import sanitize_body_html
 from backend.core.limiter import limiter
 from backend.models.document_authoring import (
+    AiChatRequest,
     DraftApprove,
     DraftCreate,
     DraftSnapshot,
@@ -758,6 +759,98 @@ def generate_ai_draft(
     return {
         "body_html": body_html,
         "version": updated["version"],
+        "confidence_score": result.confidence_score,
+        "warnings": result.warnings,
+        "review_required": result.review_required,
+        "objectivity_flag": result.objectivity_flag,
+    }
+
+
+@router.post("/drafts/{draft_id}/ai-chat")
+@limiter.limit("10/minute")
+def generate_ai_chat(
+    request: Request,
+    project_id: UUID,
+    draft_id: UUID,
+    body: AiChatRequest,
+    access: dict = Depends(require_cm_role),
+):
+    """C2-B: multi-turn chat revise. Server does not write body_html — FE applies reply."""
+    db = access["db"]
+    user_id = access["user"]["id"]
+    repo = DocumentDraftRepository(db)
+    draft = repo.get_or_404(str(draft_id))
+    _assert_draft_in_project(draft, str(project_id))
+    if draft.get("status") != "drafting":
+        raise ConflictError("Onaylanmış veya iptal edilmiş taslak güncellenemez.")
+
+    field_values = draft.get("field_values") or {}
+    current_body = draft.get("body_html") or ""
+
+    # DATA MINIMIZATION: only fields the model needs — never the whole project row.
+    project = (
+        db.table("projects")
+        .select("name, contract_type")
+        .eq("id", str(project_id))
+        .single()
+        .execute()
+    )
+    row = project.data or {}
+    project_context = {
+        "name": row.get("name"),
+        "contract_type": row.get("contract_type"),
+    }
+
+    messages = [
+        {"role": m.role, "content": m.content}
+        for m in (body.messages or [])
+    ]
+    selection = sanitize_user_input(body.selection_text) if body.selection_text else None
+
+    ai = get_ai_service(db)
+    result = ai.generate_chat_turn(
+        messages=messages,
+        current_body=current_body,
+        correspondence_type=draft["doc_type"],
+        project_context=project_context,
+        language=body.language,
+        selection_text=selection,
+        project_id=str(project_id),
+        user_id=user_id,
+        entity_id=str(draft_id),
+    )
+
+    if isinstance(result, GateBlockedResult):
+        raise HTTPException(
+            status_code=422,
+            detail=result.warning_message,
+        )
+
+    # Undo anchor only — body is not replaced here; FE applies reply_text via autosave.
+    repo.create_version_snapshot(
+        str(draft_id),
+        current_body,
+        field_values,
+        "pre_ai_draft",
+        user_id,
+    )
+    repo.add_provenance(
+        str(draft_id),
+        "llm_generation",
+        target="selection" if selection else "body",
+        actor_user_id=user_id,
+        llm_role="qualified",
+        metadata={
+            "version": body.version,
+            "review_required": result.review_required,
+            "objectivity_flag": result.objectivity_flag,
+            "resolved_by_gate": result.resolved_by_gate,
+            "confidence_score": result.confidence_score,
+        },
+    )
+
+    return {
+        "reply_text": result.draft_text,
         "confidence_score": result.confidence_score,
         "warnings": result.warnings,
         "review_required": result.review_required,

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AiActionButton from "../components/AiActionButton";
-import RichTextEditor from "../components/editor/RichTextEditor";
+import RichTextEditor, {
+  type RichTextEditorHandle,
+} from "../components/editor/RichTextEditor";
 import { DOCUMENT_TYPE_LABELS } from "../constants/documentTypes";
 import { useLanguage } from "../context/LanguageContext";
 import { api, ApiError, type LinkableDoc } from "../services/api";
 import {
-  aiDraft,
+  aiChat,
   approveAuthoringDraft,
   createAuthoringDraft,
   fetchAuthoringBundleUrl,
@@ -79,6 +81,19 @@ type AiChatTurn = {
   outcome: "ok" | "blocked" | "conflict" | "error";
   assistantText: string;
 };
+
+/** Mirror backend `_plaintext_to_body_html` for full-body chat apply. */
+function plaintextToBodyHtml(text: string): string {
+  const escaped = (text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+  const paragraphs = escaped.split("\n\n");
+  const inner = paragraphs.map((p) => p.replace(/\n/g, "<br>")).join("</p><p>");
+  return `<p>${inner}</p>`;
+}
 
 type ChainFields = {
   parent_id?: string;
@@ -375,6 +390,7 @@ export default function AuthoringDraftPage() {
   const [aiInstructions, setAiInstructions] = useState("");
   const [aiTurns, setAiTurns] = useState<AiChatTurn[]>([]);
   const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
+  const editorRef = useRef<RichTextEditorHandle | null>(null);
 
   const versionRef = useRef(version);
   versionRef.current = version;
@@ -924,36 +940,51 @@ export default function AuthoringDraftPage() {
     }
   }
 
-  async function handleAiDraft() {
+  async function handleAiChat() {
     if (!projectId || !draftIdRef.current) return;
+    const raw = aiInstructions.trim();
+    if (!raw) return;
     setBusy(true);
+
+    const handle = editorRef.current;
+    const selectionRaw = handle?.getSelectionText() ?? "";
+    const selectionText = selectionRaw || undefined;
+
+    const priorMessages = aiTurns
+      .filter((t) => t.outcome === "ok")
+      .flatMap((t) => [
+        { role: "user" as const, content: t.userText },
+        { role: "assistant" as const, content: t.assistantText },
+      ]);
+    const messages = [
+      ...priorMessages,
+      { role: "user" as const, content: raw },
+    ];
+
     try {
       const language = lang === "tr" ? "tr" : "en";
-      const res = await aiDraft(projectId, draftIdRef.current, {
-        user_instructions: aiInstructions.trim() || undefined,
+      const res = await aiChat(projectId, draftIdRef.current, {
+        messages,
+        selection_text: selectionText,
         language,
         version: versionRef.current,
       });
-      skipNextAutosave.current = true;
-      const syncedBody = syncReferencesBlock(
-        res.body_html,
-        references.map((r) => formatRefLine(r, linkable))
-      );
-      setBodyHtml(syncedBody);
-      setVersion(res.version);
-      setDraft((prev) =>
-        prev ? { ...prev, body_html: syncedBody, version: res.version } : prev
-      );
-      lastSavedPayloadRef.current = payloadKey(
-        subject,
-        syncedBody,
-        projectName,
-        attentionTo,
-        references,
-        discipline,
-        chainFromFieldValues(draft?.field_values),
-        includeReferenceCopies
-      );
+
+      if (selectionText && handle) {
+        handle.applyToSelection(res.reply_text);
+      } else {
+        // Server did not write body_html — leave lastSavedPayloadRef stale so autosave persists.
+        const syncedBody = syncReferencesBlock(
+          plaintextToBodyHtml(res.reply_text),
+          references.map((r) => formatRefLine(r, linkable))
+        );
+        handle?.replaceBody(syncedBody);
+        setDraft((prev) =>
+          prev ? { ...prev, body_html: syncedBody } : prev
+        );
+      }
+
+      setAiInstructions("");
       setError(null);
       const hints: string[] = [];
       if (res.review_required) {
@@ -965,8 +996,11 @@ export default function AuthoringDraftPage() {
       if (res.warnings?.length) {
         hints.push(...res.warnings);
       }
-      const okMsg = lang === "tr" ? "Gövde güncellendi." : "Body updated.";
-      appendAiTurn("ok", hints.length ? `${okMsg} ${hints.join(" · ")}` : okMsg);
+      // Transcript = model reply for multi-turn; hints stay out of message history.
+      appendAiTurn("ok", res.reply_text);
+      if (hints.length) {
+        setError(hints.join(" · "));
+      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 422) {
         const msg = typeof e.message === "string" ? e.message : String(e.message);
@@ -980,8 +1014,14 @@ export default function AuthoringDraftPage() {
             : "Draft changed — please reload";
         setError(msg);
         appendAiTurn("conflict", msg);
+        try {
+          const d = await fetchAuthoringDraft(projectId, draftIdRef.current);
+          applyDraft(d);
+        } catch {
+          /* refresh best-effort */
+        }
       } else {
-        const msg = e instanceof ApiError ? e.message : "AI draft failed";
+        const msg = e instanceof ApiError ? e.message : "AI chat failed";
         setError(msg);
         appendAiTurn("error", msg);
       }
@@ -1968,6 +2008,7 @@ export default function AuthoringDraftPage() {
                 onChange={setBodyHtml}
                 readOnly={draft?.status !== "drafting"}
                 minHeight="min(58vh, 680px)"
+                editorRef={editorRef}
               />
             </div>
 
@@ -2029,8 +2070,8 @@ export default function AuthoringDraftPage() {
               }}
             >
               {lang === "tr"
-                ? "Ne istediğinizi yazın; taslak gövdeyi günceller."
-                : "Write what you need; it updates the draft body."}
+                ? "Ne istediğinizi yazın; seçim varsa yalnız seçimi, yoksa tüm gövdeyi günceller."
+                : "Write what you need; updates the selection if any, otherwise the full body."}
             </p>
           )}
 
@@ -2185,11 +2226,11 @@ export default function AuthoringDraftPage() {
                 }}
               />
               <AiActionButton
-                disabled={busy || saveState === "conflict"}
-                onClick={() => void handleAiDraft()}
+                disabled={busy || saveState === "conflict" || !aiInstructions.trim()}
+                onClick={() => void handleAiChat()}
                 style={{ alignSelf: "flex-start" }}
               >
-                {lang === "tr" ? "AI ile taslak oluştur" : "Generate with AI"}
+                {lang === "tr" ? "Gönder" : "Send"}
               </AiActionButton>
             </div>
           )}

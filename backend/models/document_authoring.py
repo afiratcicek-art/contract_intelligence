@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from backend.core.html_sanitizer import sanitize_body_html
-from backend.core.sanitizer import sanitize_medium, sanitize_short
+from backend.core.sanitizer import sanitize_content, sanitize_medium, sanitize_short
 
 
 class TemplateCreate(BaseModel):
@@ -79,6 +79,31 @@ class DraftUpdate(BaseModel):
 
 class DraftSnapshot(BaseModel):
     snapshot_reason: Literal["manual"] = "manual"
+
+
+class AiChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = ""
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def clean_content(cls, v):
+        return sanitize_content(v if v is not None else "") or ""
+
+
+class AiChatRequest(BaseModel):
+    """C2-B: ephemeral multi-turn chat — no server-side transcript store."""
+    messages: list[AiChatMessage]
+    selection_text: Optional[str] = None
+    language: Literal["en", "ar", "tr"] = "en"
+    version: int
+
+    @field_validator("selection_text", mode="before")
+    @classmethod
+    def clean_selection(cls, v):
+        if v is None:
+            return None
+        return sanitize_content(v)
 
 
 class GenerateDocxRequest(BaseModel):

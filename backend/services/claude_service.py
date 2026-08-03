@@ -88,6 +88,19 @@ class AIServiceProtocol(Protocol):
         language: str = "en",
     ) -> DraftResult | GateBlockedResult: ...
 
+    def generate_chat_turn(
+        self,
+        messages: list,
+        current_body: str,
+        correspondence_type: str,
+        project_context: dict,
+        language: str = "en",
+        selection_text: Optional[str] = None,
+        project_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        entity_id: Optional[str] = None,
+    ) -> DraftResult | GateBlockedResult: ...
+
     def generate_chronology_narrative(
         self,
         event: dict,
@@ -750,6 +763,139 @@ class ClaudeService:
             draft_text=session.demask(clean_text),
             confidence_score=confidence,
             clause_citations=clause_references,
+            review_required=confidence < self.REVIEW_THRESHOLD,
+            warnings=gate.warnings,
+            objectivity_flag=gate.objectivity_flag,
+        )
+
+    def generate_chat_turn(
+        self,
+        messages: list,
+        current_body: str,
+        correspondence_type: str,
+        project_context: dict,
+        language: str = "en",
+        selection_text: Optional[str] = None,
+        project_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        entity_id: Optional[str] = None,
+    ) -> DraftResult | GateBlockedResult:
+        """C2-B: multi-turn revise. Mask chokepoint identical to draft path."""
+        start = time.time()
+        session_or_block = self._mask_session_or_block(project_id, user_id)
+        if isinstance(session_or_block, GateBlockedResult):
+            return session_or_block
+        session = session_or_block
+
+        last_user = ""
+        for msg in reversed(messages or []):
+            if isinstance(msg, dict) and msg.get("role") == "user":
+                last_user = str(msg.get("content") or "")
+                break
+        safe_text = self._sanitize_input(last_user)
+
+        gate = self._run_gate_layer(
+            user_text=safe_text,
+            request_kind="chat",
+            project_context={"id": project_id, **project_context},
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
+        )
+        if isinstance(gate, GateBlockedResult):
+            return gate
+
+        if gate.blocked:
+            return self._resolve_gate_block(gate, user_id, project_id)
+
+        effective_language = gate.detected_language or language
+        masked_ctx = session.mask_context(project_context)
+        masked_body = session.mask(current_body or "")
+        masked_selection = (
+            session.mask(selection_text) if selection_text else None
+        )
+        cleaned_msgs = [
+            m for m in (messages or [])
+            if isinstance(m, dict) and m.get("role") in ("user", "assistant")
+        ]
+        last_user_idx = None
+        for i, msg in enumerate(cleaned_msgs):
+            if msg.get("role") == "user":
+                last_user_idx = i
+        transcript_lines: list[str] = []
+        for i, msg in enumerate(cleaned_msgs):
+            role = str(msg.get("role") or "")
+            content = str(msg.get("content") or "")
+            if i == last_user_idx:
+                content = gate.corrected_text or content
+            transcript_lines.append(
+                f"{role.upper()}: {session.mask(content)}"
+            )
+        masked_transcript = "\n".join(transcript_lines) if transcript_lines else "(empty)"
+
+        if masked_selection is not None:
+            target_block = (
+                "Selected passage (revise ONLY this; preserve the rest):\n"
+                f"{masked_selection}"
+            )
+            instruction = (
+                "Revise ONLY the selected passage below, preserving the rest. "
+                "Return only the revised selected passage text."
+            )
+        else:
+            target_block = f"Current letter body:\n{masked_body}"
+            instruction = (
+                "Rewrite the full letter body. "
+                "Return only the revised full letter body text."
+            )
+
+        user_content = (
+            f"Correspondence Type: {session.mask(correspondence_type)}\n"
+            f"Project Context: {masked_ctx}\n"
+            f"Language: {effective_language}\n"
+            f"Conversation transcript:\n{masked_transcript}\n\n"
+            f"{target_block}\n\n"
+            f"{instruction}"
+        )
+
+        message = self._run_analysis_layer(
+            call_type="chat_turn",
+            user_content=user_content,
+            max_tokens=2000,
+            gate=gate,
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
+        )
+        if isinstance(message, GateBlockedResult):
+            return message
+
+        clean_text = self._run_post_processor(
+            message.content[0].text,
+            project_id=project_id or "",
+            user_id=user_id or "",
+            session=session,
+        )
+        if isinstance(clean_text, GateBlockedResult):
+            return clean_text
+
+        duration_ms = int((time.time() - start) * 1000)
+        confidence = self._calculate_confidence()
+
+        self._log_call(
+            "chat_turn", "correspondence", entity_id,
+            project_id, user_id,
+            message.usage.input_tokens,
+            message.usage.output_tokens,
+            confidence, duration_ms,
+            model_used=settings.ANALYSIS_MODEL,
+            layer="analysis",
+        )
+
+        return DraftResult(
+            draft_text=session.demask(clean_text),
+            confidence_score=confidence,
+            clause_citations=[],
             review_required=confidence < self.REVIEW_THRESHOLD,
             warnings=gate.warnings,
             objectivity_flag=gate.objectivity_flag,

@@ -36,3 +36,5 @@ htmlcov/
 
 .cursor/*
 !.cursor/rules/
+
+*_msg.txt

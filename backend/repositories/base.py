@@ -65,7 +65,22 @@ class BaseRepository:
     def soft_delete(self, record_id: str, deleted_by: Optional[str] = None) -> None:
         if not self.soft_delete_field:
             raise NotImplementedError("Bu tablo soft delete desteklemiyor")
+        from postgrest.types import ReturnMethod
+        from backend.database import get_admin_client
+
         data: dict = {self.soft_delete_field: True}
         if deleted_by:
             data["deleted_by"] = deleted_by
-        self.update(record_id, data)
+        # Measured (user JWT): UPDATE is_deleted=true → Postgres 42501
+        # "new row violates row-level security policy" because SELECT policies
+        # require is_deleted=false and Postgres CHECKS the new row on UPDATE.
+        # Prefer return=minimal does NOT avoid that check. Callers must authz
+        # first (get_or_404 under user RLS); service role then applies the flag.
+        admin = get_admin_client()
+        (
+            admin.table(self.table_name)
+            .update(data, returning=ReturnMethod.minimal)
+            .eq(self.primary_key, record_id)
+            .eq(self.soft_delete_field, False)
+            .execute()
+        )

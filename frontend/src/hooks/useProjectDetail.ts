@@ -39,7 +39,10 @@ export interface DeliverableItem {
   title: string;
   status: string;
   due_date: string | null;
-  is_pre_completion: boolean;
+  category: string | null;
+  kind: string | null;
+  time_status: string | null;
+  pending_detail: boolean;
 }
 
 import type { AlertItem } from "../types/alerts";

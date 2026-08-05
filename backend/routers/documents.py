@@ -121,6 +121,14 @@ def upload_pdf(
     file: UploadFile = File(...),
     keywords: Optional[str] = Query(None, description="Comma-separated keywords (optional)."),
     location: Optional[str] = Query(None, description="Site location or zone (optional)."),
+    doc_date: Optional[str] = Query(
+        None,
+        description="Document / coverage date YYYY-MM-DD (optional).",
+    ),
+    period_label: Optional[str] = Query(
+        None,
+        description="Human period label for deliverable evidence (e.g. Temmuz 2026).",
+    ),
     access=Depends(verify_project_access),
 ):
     """
@@ -146,11 +154,16 @@ def upload_pdf(
             detail=f"Geçersiz entity_type. İzin verilenler: {sorted(VALID_ENTITY_TYPES)}",
         )
 
-    # entity_id proje dogrulama (IDOR) — yalniz rfi/correspondence; ClamAV/storage'dan once.
-    if entity_type in ("rfi", "correspondence"):
+    # entity_id proje dogrulama (IDOR) — ClamAV/storage'dan once.
+    if entity_type in ("rfi", "correspondence", "deliverable"):
+        table = {
+            "rfi": "rfis",
+            "correspondence": "correspondences",
+            "deliverable": "deliverables",
+        }[entity_type]
         assert_target_in_project(
             get_admin_client(),
-            "rfis" if entity_type == "rfi" else "correspondences",
+            table,
             entity_id,
             project_id,
         )
@@ -172,9 +185,18 @@ def upload_pdf(
 
     # Parse optional user metadata
     # keywords query param: comma-separated string → list
+    kw_list = [k.strip() for k in keywords.split(",") if k.strip()] if keywords else []
+    label = (period_label or "").strip()
+    if label:
+        # Stable prefix so deliverable detail can render coverage without a new column.
+        from backend.core.sanitizer import sanitize_short
+        tagged = f"deliv_period:{sanitize_short(label)}"
+        if tagged not in kw_list:
+            kw_list = [tagged, *kw_list]
     user_meta = DocumentMetadataUpdate(
-        keywords=[k.strip() for k in keywords.split(",") if k.strip()] if keywords else None,
+        keywords=kw_list or None,
         location=location or None,
+        doc_date=doc_date or None,
     )
 
     file_bytes = file.file.read()
@@ -223,6 +245,13 @@ def upload_pdf(
         "created_at": now,
         "updated_at": now,
     }
+    # Persist user period metadata immediately (don't wait for Haiku).
+    if user_meta.keywords:
+        pending_record["keywords"] = user_meta.keywords
+    if user_meta.doc_date is not None:
+        pending_record["doc_date"] = user_meta.doc_date.isoformat()
+        pending_record["metadata_status"] = "done"
+        pending_record["metadata_source"] = "user"
 
     try:
         get_admin_client().table("pdf_document").insert(pending_record).execute()
@@ -266,6 +295,9 @@ def upload_pdf(
         text="",  # placeholder — see TB-13
         user_keywords=user_meta.keywords,
         user_location=user_meta.location,
+        user_doc_date=(
+            user_meta.doc_date.isoformat() if user_meta.doc_date is not None else None
+        ),
     )
 
     return JSONResponse(

@@ -441,8 +441,11 @@ export default function ProjectDetail() {
                     <div>
                       <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>{d.title}</p>
                       <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
-                        {d.is_pre_completion ? "Pre-completion" : "Post-completion"}
+                        {(d.category ?? "—").replace("_", " ")}
+                        {d.kind ? ` · ${d.kind}` : ""}
+                        {d.pending_detail ? " · pending detail" : ""}
                         {d.due_date && ` · Due ${d.due_date}`}
+                        {d.time_status === "overdue" ? " · overdue" : d.time_status === "expiring_soon" ? " · expiring soon" : ""}
                       </p>
                     </div>
                     <StatusChip status={d.status} />

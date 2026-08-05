@@ -12,6 +12,8 @@ import RFIDetail from "./pages/RFIDetail";
 import ChangeDetail from "./pages/ChangeDetail";
 import NewChange from "./pages/NewChange";
 import NewRFI from "./pages/NewRFI";
+import NewDeliverable from "./pages/NewDeliverable";
+import DeliverableDetail from "./pages/DeliverableDetail";
 import DocumentView from "./pages/DocumentView";
 import AuthoringDraftPage from "./pages/AuthoringDraftPage";
 
@@ -128,6 +130,26 @@ export default function Router() {
             <ErrorBoundary>
               <PrivateRoute>
                 <ChangeDetail />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/deliverables/new"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <NewDeliverable />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/deliverables/:deliverableId"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <DeliverableDetail />
               </PrivateRoute>
             </ErrorBoundary>
           }

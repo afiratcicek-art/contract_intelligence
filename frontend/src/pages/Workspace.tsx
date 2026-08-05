@@ -12,6 +12,7 @@ import ChronologiesModule from "../components/ChronologiesModule";
 import DocumentsModule from "../components/DocumentsModule";
 import ContractInForceView from "../components/ContractInForceView";
 import AuthoringTemplatesPanel from "../components/AuthoringTemplatesPanel";
+import DeliverablesModule from "../components/DeliverablesModule";
 
 type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
 
@@ -19,7 +20,6 @@ interface SearchResult { module: string; label: string; ref: string; subject: st
 interface CorrItem { id: string; corr_number: string; subject: string; type: string; status: string; correspondence_date: string; direction: string; response_due_date: string | null; parent_id: string | null; has_response: boolean; }
 interface RFIItem { id: string; rfi_number: string; subject: string; status: string; submitted_date: string | null; response_due_date: string | null; discipline: string | null; parent_id: string | null; rfi_type: string; entry_mode: "authored" | "recorded"; }
 interface ChangeItem { id: string; change_number: string; title: string; status: string; origin: string; notice_due_date: string | null; created_at: string; }
-interface DeliverableItem { id: string; title: string; status: string; due_date: string | null; category: string | null; is_pre_completion: boolean; }
 
 const MODULE_LABELS: Record<Module, string> = {
   general: "General", alerts: "Alerts & Actions",
@@ -117,13 +117,6 @@ export default function Workspace() {
   const [changeDateTo, setChangeDateTo] = useState("");
   const [changeDateField, setChangeDateField] = useState<"created_at" | "notice_due_date">("created_at");
 
-  const [deliverables, setDeliverables] = useState<DeliverableItem[]>([]);
-  const [delivLoading, setDelivLoading] = useState(false);
-  const [delivKeyword, setDelivKeyword] = useState("");
-  const [delivStatus, setDelivStatus] = useState("");
-  const [delivDateFrom, setDelivDateFrom] = useState("");
-  const [delivDateTo, setDelivDateTo] = useState("");
-
   const bg          = "var(--color-bg-primary)";
   const cardBg      = "var(--color-bg-secondary)";
   const border      = "var(--color-border-light)";
@@ -201,14 +194,6 @@ export default function Workspace() {
     api.get<ChangeItem[]>(url).then(setChanges).catch(() => setChanges([])).finally(() => setChangeLoading(false));
   }, [activeModule, projectId, changeStatus, changeOrigin]);
 
-  useEffect(() => {
-    if (activeModule !== "deliverables") return;
-    setDelivLoading(true);
-    let url = `/projects/${projectId}/deliverables?limit=100`;
-    if (delivStatus) url += `&status=${delivStatus}`;
-    api.get<DeliverableItem[]>(url).then(setDeliverables).catch(() => setDeliverables([])).finally(() => setDelivLoading(false));
-  }, [activeModule, projectId, delivStatus]);
-
   const handleLogout = () => { clearAuth(); navigate("/login"); };
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
@@ -276,11 +261,6 @@ export default function Workspace() {
   const filteredChanges = changes.filter((c) =>
     (!changeKeyword || c.title.toLowerCase().includes(changeKeyword.toLowerCase()) || c.change_number.toLowerCase().includes(changeKeyword.toLowerCase())) &&
     dateInRange(changeDateField === "created_at" ? c.created_at : c.notice_due_date, changeDateFrom, changeDateTo)
-  );
-
-  const filteredDeliverables = deliverables.filter((d) =>
-    (!delivKeyword || d.title.toLowerCase().includes(delivKeyword.toLowerCase())) &&
-    dateInRange(d.due_date, delivDateFrom, delivDateTo)
   );
 
   const filteredGeneral = searchResults.filter((r) =>
@@ -813,30 +793,9 @@ export default function Workspace() {
             </div>
           )}
 
-          {/* DELIVERABLES */}
+          {/* DELIVERABLES — tracking-first module (not RFI-list clone) */}
           {activeModule === "deliverables" && (
-            <div>
-              {moduleHeader("Deliverables", () => navigate(`/projects/${projectId}/workspace/deliverables/new`), t("action.newdeliverable"))}
-              {filterRow(
-                keywordSearch(delivKeyword, setDelivKeyword),
-                <div key="div1" style={{ width: "0.5px", background: border, height: 20 }} />,
-                ...["", "pending", "in_progress", "submitted", "approved", "rejected", "closed"].map((s) => chip(s === "" ? t("filter.all") : s.replace("_", " "), delivStatus === s, () => setDelivStatus(s)))
-              )}
-              {filterRow(dateRange(t("col.duedate"), delivDateFrom, delivDateTo, setDelivDateFrom, setDelivDateTo))}
-              {delivLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : filteredDeliverables.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.nodeliverables")}</p> : (
-                <div>
-                  {listHeader([{ label: t("col.title"), width: "1fr" }, { label: t("col.category"), width: "100px" }, { label: t("col.duedate"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
-                  {filteredDeliverables.map((d) => (
-                    <div key={d.id} onClick={() => navigate(`/projects/${projectId}/workspace/deliverables/${d.id}`)} style={{ display: "grid", gridTemplateColumns: "1fr 100px 90px 80px", gap: 8, padding: "8px 12px", background: cardBg, marginBottom: 4, cursor: "pointer", borderLeft: `2px solid ${d.status === "in_progress" ? "var(--color-accent)" : "transparent"}` }}>
-                      <div><p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{d.title}</p>{d.is_pre_completion && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>{t("state.precompletion")}</span>}</div>
-                      <span style={{ fontSize: 11, color: textSecondary }}>{d.category ?? "—"}</span>
-                      <span style={{ fontSize: 11, color: d.due_date && d.due_date < today ? "var(--color-alert-red)" : textSecondary }}>{d.due_date ?? "—"}</span>
-                      <StatusChip status={d.status} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <DeliverablesModule projectId={String(projectId)} />
           )}
 
           {/* OTHER */}

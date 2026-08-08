@@ -103,8 +103,9 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     en: "Contract & Operational Intelligence",
   },
   "brand.motto": {
-    tr: "Hassasiyet. Uyum. Kontrol.",
-    en: "Precision. Compliance. Control.",
+    // Pre-cased: CSS text-transform:uppercase breaks Turkish i→İ (renders I).
+    tr: "HASSASİYET. UYUM. KONTROL.",
+    en: "PRECISION. COMPLIANCE. CONTROL.",
   },
   "brand.motto_body": {
     tr: "Her bildirim, her süre, her yazışma — sözleşmesel hassasiyetle yönetilir.",

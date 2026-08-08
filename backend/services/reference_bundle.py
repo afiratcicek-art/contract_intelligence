@@ -282,7 +282,7 @@ def build_reference_bundle_pdf(
             continue
 
         try:
-            raw = download_document(primary["storage_path"])
+            raw = download_document(primary["storage_path"], project_id)
         except Exception as exc:
             logger.warning("Primary download failed: %s", exc)
             note = _make_note_pdf(

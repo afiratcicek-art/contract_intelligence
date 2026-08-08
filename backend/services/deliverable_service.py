@@ -199,28 +199,31 @@ class DeliverableService:
             requested=None,
             override=False,
         )
-        created: list[dict] = []
+        rows: list[dict] = []
         for key in keys:
             item = by_key.get(key)
             if not item:
                 continue
-            data = {
-                "project_id": project_id,
-                "contract_id": contract_id,
-                "title": item["title"],
-                "category": item["category"],
-                "kind": item["kind"],
-                "cadence": item["cadence"],
-                "source": item["source"],
-                "source_ref": item.get("source_ref_hint"),
-                "direction": direction,
-                "direction_override": False,
-                "status": "open",
-                "pending_detail": True,  # library accept = draft until user Saves
-                "entry_source": "library",
-                "created_by": user_id,
-            }
-            result = self.db.table("deliverables").insert(data).execute()
-            if result.data:
-                created.append(self.enrich(result.data[0]))
-        return created
+            rows.append(
+                {
+                    "project_id": project_id,
+                    "contract_id": contract_id,
+                    "title": item["title"],
+                    "category": item["category"],
+                    "kind": item["kind"],
+                    "cadence": item["cadence"],
+                    "source": item["source"],
+                    "source_ref": item.get("source_ref_hint"),
+                    "direction": direction,
+                    "direction_override": False,
+                    "status": "open",
+                    "pending_detail": True,  # library accept = draft until user Saves
+                    "entry_source": "library",
+                    "created_by": user_id,
+                }
+            )
+        if not rows:
+            return []
+        # Single multi-row insert (no unique on library keys) — was N round-trips.
+        result = self.db.table("deliverables").insert(rows).execute()
+        return [self.enrich(r) for r in (result.data or [])]

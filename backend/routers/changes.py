@@ -237,15 +237,27 @@ def get_change_chronology(
         .execute()
     )
     events = events_result.data or []
-    # Her event için change_event_documents getir
-    for event in events:
+    # Batch documents for all events (was 1+N: one query per event).
+    event_ids = [e["id"] for e in events]
+    docs_by_event: dict[str, list] = {eid: [] for eid in event_ids}
+    if event_ids:
         docs_result = (
             db.table("change_event_documents")
-            .select("id, link_type, correspondence_id, rfi_id, pdf_document_id, note, added_at, correspondences(corr_number, subject, type, status, correspondence_date), rfis(rfi_number, subject, status)")
-            .eq("event_id", event["id"])
+            .select(
+                "id, event_id, link_type, correspondence_id, rfi_id, pdf_document_id, "
+                "note, added_at, "
+                "correspondences(corr_number, subject, type, status, correspondence_date), "
+                "rfis(rfi_number, subject, status)"
+            )
+            .in_("event_id", event_ids)
             .execute()
         )
-        event["documents"] = docs_result.data or []
+        for row in docs_result.data or []:
+            eid = row.get("event_id")
+            if eid in docs_by_event:
+                docs_by_event[eid].append(row)
+    for event in events:
+        event["documents"] = docs_by_event.get(event["id"], [])
     return {
         "chronology_id": chronology_id,
         "title": chronology["title"],

@@ -176,11 +176,9 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
   Searching by a card keyword won't surface it via the
   main search bar. Needs a migration to extend
   search_vector generation.
-- **TB-19**: entityPath() navigation helper is duplicated
-  across DocumentRelationGraph.tsx, FocusedRelationGraph.tsx,
-  and RelationPopup.tsx. Low risk (identical logic, small),
-  but should be extracted to a shared util when touching
-  these files next.
+- **TB-19**: ~~entityPath() navigation helper is duplicated~~ **FIXED** —
+  tek kaynak `frontend/src/utils/entityPath.ts`; graph/popup/ReferenceLink
+  tüketicileri bunu import ediyor.
 - **TB-26**: content-relation eşiği (0.25) geçici/provizyonel.
   Skor kompoziti "keyword + semantic" olarak tasarlandı ama
   Haiku/embedding henüz kapalı (TB-5'e bağlı). Deterministik-tek
@@ -293,31 +291,33 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
 
 ## Document authoring — Faz 0/A/B (2026-07)
 
-- **TB-33**: Watermark docx'e gömülmüyor. python-docx'in first-class watermark
-  API'si yok; ham OOXML behind-text çapalama kırılgan çıktı
-  (`docx_builder.py` ~159). `watermark_image_path` saklanıyor ve FE'de CSS
-  önizleme opaklığı için dönüyor, ama .docx'e eklenmiyor. Header/footer gömme
-  çalışıyor.
+- **TB-33**: ~~Watermark docx'e gömülmüyordu~~ **CLOSED 2026-08** —
+  `docx_builder._add_page_watermark` artık Config opacity ile PNG alpha
+  bake + `wp:anchor behindDoc=1` page-centered floating image. Header/footer
+  chrome (`stack`, `width_pct`, align, band→margins, offset) export-faithful.
+  Kalan ince fark: offset_x Word indent yaklaşımı (floating değil); pixel-perfect
+  A4 CSS preview değil ama A4 aspect + aynı parametreler.
 - **TB-34**: `bleach` bakımsız (Mozilla 2023'te bıraktı) ama güvenlik-kritik
   `body_html` sanitizasyonunu o taşıyor (`backend/core/html_sanitizer.py`).
   Bakımlı alternatif: `nh3`. Önceden-var platform tercihi (kök
   `requirements.txt`), authoring işinin getirdiği bir borç değil.
-- **TB-35**: Şablon chrome görseli değiştirilince eskisi Storage'da yetim
-  kalıyor — `upload_template_chrome` yeni yolu yazıyor, eskisini silmiyor.
-- **TB-36**: `sanitize_body_html` sondaki `cleaned[:LIMITS["content"]]` kesmesi
-  HTML'i etiket ortasından bölebilir → bozuk markup. Limit uygulanacaksa
-  etiket-farkında kesilmeli.
-- **TB-37**: `create_template` içinde "önce eskisini deactive et, sonra yenisini
-  oluştur" transactional değil — `repo.create` hata verirse proje aktif
-  şablonsuz kalır.
+- **TB-35**: ~~Şablon chrome görseli değiştirilince eskisi Storage'da yetim
+  kalıyor~~ **FIXED 2026-08** — `upload_template_chrome` eski yolu
+  `delete_document` ile siliyor (update sonrası).
+- **TB-36**: ~~`sanitize_body_html` sondaki `cleaned[:LIMITS["content"]]` kesmesi
+  HTML'i etiket ortasından bölebilir~~ **FIXED 2026-08** — limit kesimi son
+  `>` sınırına çekildi (yarıdan büyükse). `nh3` migrasyonu TB-34 olarak açık.
+- **TB-37**: ~~`create_template` içinde "önce eskisini deactive et, sonra yenisini
+  oluştur" transactional değil~~ **FIXED 2026-08** — önce inactive create,
+  sonra `deactivate_others` + activate. Create başarısızsa önceki aktif
+  korunur. (DB transaction değil; sıra garantisi.)
 - **TB-38** (izleme): materyalizasyondaki referans insert'i `rdata` ile client
   anahtarlarını doğrudan geçiriyor. `create_rfi` aynısını yapıyorsa miras
   davranış; yapmıyorsa allow-list'e daraltılmalı.
-- **TB-40**: C1a masking — `_load_contract_parties` / `_load_project_parties`
-  hata durumunda `[]` dönüyor (fail-open). Projeler satırı birincil garanti;
-  yardımcı kaynak yüklenemezse o kimlikler maskelenmez ve sızabilir.
-  Supplementary mask-source yüklemesini fail-closed'a çek ya da
-  completeness-check ekle (`masking_service.py`).
+- **TB-40**: ~~C1a masking — `_load_contract_parties` / `_load_project_parties`
+  hata durumunda `[]` dönüyor (fail-open)~~ **FIXED 2026-08** — yükleme
+  hatası `None` → `build()` fail-closed (`None`). Boş sonuç `[]` hâlâ
+  meşru (sözleşme/party yok).
 
 ## TB-41 — Deterministic masking is a STOPGAP; target is hybrid (deterministic backbone + local NER)
 
@@ -354,7 +354,9 @@ Related: TB-40 (supplementary mask-source loads currently fail-open).
 Ertelendi: embedding kanalı dormant (OPENAI_API_KEY yok + sorgu-embed yok). Build, RAG/embedding aktive olunca. Ref: docs/adr/0001-local-embedding.md.
 
 - **TB-42**: 018 dim-migration — `document_embeddings.embedding` vector(1536)→vector(1024) (multilingual-e5-large); IVFFlat index DROP/CREATE (vector_cosine_ops, lists=100); re-embed (greenfield → veri maliyeti sıfır). Build anında yeni migration dosyası. ADR-0001.
-- **TB-43**: `get_embedding_service()` her çağrıda yeni instance (embedding_service.py); lokal modelde model bir kez yüklenip modül/süreç-ömrü cache'lenmeli (lazy singleton). ADR-0001 invariant-2.
+- **TB-43**: ~~`get_embedding_service()` her çağrıda yeni instance~~ **FIXED
+  2026-08** — process-lifetime lazy singleton. (TB-42/44/45 hâlâ ADR
+  activate bekliyor.)
 - **TB-44**: `openai==1.59.9` (requirements.txt:19) düşür — `_embed_chunks` fastembed'e geçince; OpenAI yalnız embedding'de kullanılıyordu. ADR-0001.
 - **TB-45**: e5-large model dosyasını vendor'la + fastembed sürümünü pin'le (laptop→prod birebir vektör uzayı + in-region/residency). ADR-0001 invariant-3.
 

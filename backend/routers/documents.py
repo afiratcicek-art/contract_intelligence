@@ -54,33 +54,50 @@ def _upsert_keyword_stats(admin_db, project_id: str, keywords: list[str]) -> Non
     """Keyword sayaçlarını project_keyword_stats tablosuna yazar.
 
     TB-24: Yeni belge kaynakları eklendiğinde bu helper çağrılmalı.
+    Cost: 1 batch select + 1 upsert (PK project_id,keyword). Was 2N, then 1+N.
+    Concurrent increments can still race; atomic RPC would be the next step.
     """
     if not keywords:
         return
+    cleaned = []
+    seen = set()
     for kw in keywords:
-        kw = kw.strip().lower()
-        if not kw:
-            continue
-        try:
-            existing = (
-                admin_db.table("project_keyword_stats")
-                .select("count")
-                .eq("project_id", project_id)
-                .eq("keyword", kw)
-                .execute()
-            )
-            if existing.data:
-                admin_db.table("project_keyword_stats") \
-                    .update({"count": existing.data[0]["count"] + 1}) \
-                    .eq("project_id", project_id) \
-                    .eq("keyword", kw) \
-                    .execute()
-            else:
-                admin_db.table("project_keyword_stats") \
-                    .insert({"project_id": project_id, "keyword": kw, "count": 1}) \
-                    .execute()
-        except Exception as exc:
-            logger.warning("keyword_stats upsert failed for '%s': %s", kw, exc)
+        k = kw.strip().lower()
+        if k and k not in seen:
+            seen.add(k)
+            cleaned.append(k)
+    if not cleaned:
+        return
+
+    existing_map: dict[str, int] = {}
+    try:
+        existing = (
+            admin_db.table("project_keyword_stats")
+            .select("keyword, count")
+            .eq("project_id", project_id)
+            .in_("keyword", cleaned)
+            .execute()
+        )
+        for row in existing.data or []:
+            existing_map[row["keyword"]] = int(row.get("count") or 0)
+    except Exception as exc:
+        logger.warning("keyword_stats batch read failed: %s", exc)
+        return
+
+    payload = [
+        {
+            "project_id": project_id,
+            "keyword": kw,
+            "count": existing_map.get(kw, 0) + 1,
+        }
+        for kw in cleaned
+    ]
+    try:
+        admin_db.table("project_keyword_stats").upsert(
+            payload, on_conflict="project_id,keyword"
+        ).execute()
+    except Exception as exc:
+        logger.warning("keyword_stats batch upsert failed: %s", exc)
 
 
 router = APIRouter(
@@ -257,7 +274,7 @@ def upload_pdf(
         get_admin_client().table("pdf_document").insert(pending_record).execute()
     except Exception as exc:
         # DB yazma başarısız — storage'daki dosyayı temizle
-        delete_document(storage_path)
+        delete_document(storage_path, project_id)
         logger.error("PDF pending kaydı yazılamadı: %s | id=%s", exc, doc_id)
         raise HTTPException(status_code=500, detail="Belge kaydedilemedi.")
 
@@ -276,7 +293,7 @@ def upload_pdf(
             }).execute()
         except Exception as exc:
             get_admin_client().table("pdf_document").delete().eq("id", doc_id).execute()
-            delete_document(storage_path)
+            delete_document(storage_path, project_id)
             logger.error("Ek referansi yazilamadi, upload geri alindi: %s | doc_id=%s", exc, doc_id)
             raise HTTPException(status_code=500, detail="Belge kaydedilemedi.")
 
@@ -1491,7 +1508,7 @@ def get_document_page_count(
     if not storage_path:
         return {"page_count": None}
     try:
-        file_bytes = download_document(storage_path)
+        file_bytes = download_document(storage_path, project_id)
         page_count = _compute_page_count(
             file_bytes, row.data.get("original_filename") or ""
         )
@@ -1547,8 +1564,11 @@ def get_document_signed_url(
     try:
         signed_url = get_signed_url(
             path=storage_path,
+            project_id=project_id,
             expires_in=expires_in,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 

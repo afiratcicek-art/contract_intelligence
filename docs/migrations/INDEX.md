@@ -63,7 +63,7 @@ Format: `table | authoritative migration(s) | one-line history`
 
 | table | authoritative migration(s) | history |
 |---|---|---|
-| **document_templates** | **044** | **created 044 — project-scoped letterhead/field config; one active per (project, doc_type)** |
+| **document_templates** | **044** | **created 044 — project-scoped letterhead/field config; one active per (project, doc_type); CM DELETE policy 054** |
 | **document_drafts** | **044 → 048** | **created 044 — authored drafts + optimistic `version`; materializes to rfi/correspondence; 048 adds `bundle_pdf_path` (generated reference e-bundle PDF)** |
 | **document_draft_versions** | **044 → 047** | **created 044 — meaningful-moment snapshots; 047 adds `pre_ai_draft`/`post_ai_draft` (C2-A)** |
 | **document_provenance** | **044** | **created 044 — event+attribution only (never content); server-written** |

@@ -300,6 +300,7 @@ def update_sub_item(
 ):
     db = access["db"]
     repo = DeliverableRepository(db)
+    audit = AuditService()
 
     parent = repo.get_or_404(str(deliverable_id))
     if parent["project_id"] != str(project_id):
@@ -314,6 +315,15 @@ def update_sub_item(
     updated = repo.update_sub_item(str(sub_item_id), data)
     if not updated:
         raise NotFoundError()
+    audit.log(
+        action="update",
+        entity_type="deliverable_sub_item",
+        entity_id=str(sub_item_id),
+        user_id=access["user"]["id"],
+        project_id=str(project_id),
+        old_value={k: existing.get(k) for k in data},
+        new_value=data,
+    )
     return updated
 
 
@@ -326,6 +336,7 @@ def delete_sub_item(
 ):
     db = access["db"]
     repo = DeliverableRepository(db)
+    audit = AuditService()
 
     parent = repo.get_or_404(str(deliverable_id))
     if parent["project_id"] != str(project_id):
@@ -334,4 +345,16 @@ def delete_sub_item(
     if not existing or existing["deliverable_id"] != str(deliverable_id):
         raise NotFoundError()
     repo.delete_sub_item(str(sub_item_id))
+    # Soft-delete siblings use action=update; sub-items are hard-deleted → delete.
+    audit.log(
+        action="delete",
+        entity_type="deliverable_sub_item",
+        entity_id=str(sub_item_id),
+        user_id=access["user"]["id"],
+        project_id=str(project_id),
+        old_value={
+            "deliverable_id": str(deliverable_id),
+            "name": existing.get("name"),
+        },
+    )
     return {"ok": True}

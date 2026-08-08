@@ -59,7 +59,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",")],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Accept", "X-Requested-With"],
 )
 app.add_middleware(SlowAPIMiddleware)
@@ -119,6 +119,11 @@ async def security_headers(request: Request, call_next):
         "connect-src 'self'; "
         "frame-ancestors 'none';"
     )
+    # SEC-M4: HSTS only in production — never force HTTPS on local HTTP.
+    if _is_production:
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
     return response
 
 # ── CORS yukarida SlowAPIMiddleware den once eklendi ───────────────────────
@@ -182,8 +187,23 @@ app.include_router(document_authoring.router, prefix=API_V1)
 # ── Health check ───────────────────────────────────────────────────────────
 @app.get("/", tags=["health"])
 def health():
+    """Liveness — process is up. Do not add dependency checks here (LB flaps)."""
     return {"status": "ok"}
+
 
 @app.get("/health", tags=["health"])
 def health_detailed():
-    return {"status": "ok"}
+    """Readiness — Supabase reachable. Returns 503 if DB round-trip fails.
+
+    Does not check pdf_worker (separate process by design). Ops must run both
+    Procfile entries; see backend/workers/README.md.
+    """
+    try:
+        _get_admin_for_startup().table("profiles").select("id").limit(1).execute()
+    except Exception as exc:
+        logger.warning("Readiness check failed: %s", type(exc).__name__)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "database": "error"},
+        )
+    return {"status": "ok", "database": "ok"}

@@ -99,5 +99,10 @@ def sanitize_body_html(value: Optional[str]) -> str:
     )
     cleaned = _filter_allowed_classes(cleaned)
     if len(cleaned) > LIMITS["content"]:
-        cleaned = cleaned[: LIMITS["content"]]
+        cut = cleaned[: LIMITS["content"]]
+        # Prefer ending after a complete tag — avoid mid-tag truncate (TB-36).
+        last_gt = cut.rfind(">")
+        if last_gt >= LIMITS["content"] // 2:
+            cut = cut[: last_gt + 1]
+        cleaned = cut
     return cleaned

@@ -181,19 +181,27 @@ def get_overview_activity(
 
     deliv_future = (
         db.table("deliverables")
-        .select("due_date")
+        .select("due_date, expiry_date")
         .eq("project_id", str(project_id))
         .eq("is_deleted", False)
-        .not_.is_("due_date", "null")
-        .gt("due_date", str(today))
-        .lte("due_date", str(end))
+        .in_("status", ["open", "in_progress"])
+        .or_(
+            f"and(due_date.gt.{today},due_date.lte.{end}),"
+            f"and(expiry_date.gt.{today},expiry_date.lte.{end})"
+        )
         .execute()
     )
     for r in (deliv_future.data or []):
-        if r.get("due_date"):
-            d = str(r["due_date"])[:10]
-            if d in days:
-                days[d]["deliverable"] += 1
+        hit_days = set()
+        for key in ("due_date", "expiry_date"):
+            raw = r.get(key)
+            if not raw:
+                continue
+            d = str(raw)[:10]
+            if d in days and d > str(today):
+                hit_days.add(d)
+        for d in hit_days:
+            days[d]["deliverable"] += 1
 
     # Pre-period overdue — chart başlangıcından önce deadline'ı geçmiş, hâlâ açık belgeler
     pre = {"correspondence": 0, "rfi": 0, "change": 0, "deliverable": 0}
@@ -240,8 +248,7 @@ def get_overview_activity(
         .eq("project_id", str(project_id))
         .eq("is_deleted", False)
         .in_("status", ["open", "in_progress"])
-        .not_.is_("due_date", "null")
-        .lt("due_date", str(start))
+        .or_(f"due_date.lt.{start},expiry_date.lt.{start}")
         .execute()
     )
     pre["deliverable"] = pre_deliv.count or 0
@@ -349,9 +356,11 @@ def get_upcoming_deadlines(
             })
 
     if include_deliv:
-        delivs = (
+        # due_date window + expiry_date window (standing_renewal); merge by id
+        seen: dict[str, dict] = {}
+        deliv_due = (
             db.table("deliverables")
-            .select("id, title, due_date")
+            .select("id, title, due_date, expiry_date")
             .eq("project_id", str(project_id))
             .eq("is_deleted", False)
             .in_("status", ["open", "in_progress"])
@@ -361,15 +370,45 @@ def get_upcoming_deadlines(
             .order("due_date")
             .execute()
         )
-        for r in (delivs.data or []):
-            results.append({
+        for r in deliv_due.data or []:
+            seen[r["id"]] = {
                 "type": "deliverable",
                 "label": "DEL",
                 "ref": "DEL",
                 "subject": r.get("title", ""),
                 "due_date": r.get("due_date"),
                 "id": r["id"],
-            })
+            }
+        deliv_exp = (
+            db.table("deliverables")
+            .select("id, title, due_date, expiry_date")
+            .eq("project_id", str(project_id))
+            .eq("is_deleted", False)
+            .in_("status", ["open", "in_progress"])
+            .not_.is_("expiry_date", "null")
+            .gte("expiry_date", str(today))
+            .lte("expiry_date", str(end))
+            .order("expiry_date")
+            .execute()
+        )
+        for r in deliv_exp.data or []:
+            rid = r["id"]
+            exp = r.get("expiry_date")
+            if rid in seen:
+                # Prefer earlier of due vs expiry for sort key
+                cur = seen[rid]["due_date"]
+                if exp and (not cur or str(exp) < str(cur)):
+                    seen[rid]["due_date"] = exp
+            else:
+                seen[rid] = {
+                    "type": "deliverable",
+                    "label": "DEL",
+                    "ref": "DEL",
+                    "subject": r.get("title", ""),
+                    "due_date": exp,
+                    "id": rid,
+                }
+        results.extend(seen.values())
 
     results.sort(key=lambda x: x["due_date"] or "9999")
     result = {"today": str(today), "items": results}
@@ -429,6 +468,36 @@ def get_overdue(
             "ref": r.get("rfi_number", "—"),
             "subject": r.get("subject", ""),
             "due_date": r.get("response_due_date"),
+            "id": r["id"],
+        })
+
+    # Deliverables: overdue on due_date and/or expiry_date (standing_renewal)
+    deliv_overdue = (
+        db.table("deliverables")
+        .select("id, title, due_date, expiry_date")
+        .eq("project_id", str(project_id))
+        .eq("is_deleted", False)
+        .in_("status", ["open", "in_progress"])
+        .or_(f"due_date.lt.{today},expiry_date.lt.{today}")
+        .execute()
+    )
+    for r in deliv_overdue.data or []:
+        due = r.get("due_date")
+        exp = r.get("expiry_date")
+        # Display the earliest past date among candidates that are overdue
+        candidates = []
+        if due and str(due)[:10] < str(today):
+            candidates.append(str(due)[:10])
+        if exp and str(exp)[:10] < str(today):
+            candidates.append(str(exp)[:10])
+        if not candidates:
+            continue
+        results.append({
+            "type": "deliverable",
+            "label": "DEL",
+            "ref": "DEL",
+            "subject": r.get("title", ""),
+            "due_date": min(candidates),
             "id": r["id"],
         })
 

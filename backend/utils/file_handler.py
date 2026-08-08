@@ -16,6 +16,23 @@ MAX_FILE_SIZE_MB = 50
 STORAGE_BUCKET = "documents"
 
 
+def assert_project_storage_path(storage_path: str, project_id: str) -> str:
+    """Normalize path and require it lives under ``{project_id}/`` (SEC-H4).
+
+    Rejects empty paths, ``..`` segments, and cross-project prefixes before any
+    service_role storage call.
+    """
+    if not storage_path or not project_id:
+        raise ValueError("Geçersiz storage path.")
+    normalized = storage_path.replace("\\", "/").lstrip("/")
+    if not normalized or any(part == ".." for part in normalized.split("/")):
+        raise ValueError("Geçersiz storage path.")
+    prefix = f"{project_id}/"
+    if not normalized.startswith(prefix):
+        raise ValueError("Storage path proje kapsamı dışında.")
+    return normalized
+
+
 def upload_document(
     file_bytes: bytes,
     file_name: str,
@@ -62,28 +79,39 @@ def upload_document(
     return storage_path
 
 
-def delete_document(storage_path: str) -> None:
+def delete_document(storage_path: str, project_id: str) -> None:
     """
     Supabase Storage'dan dosyayı siler.
     Orphan file cleanup için kullanılır.
-    Hata durumunda sadece loglar — ana akışı engellemez.
+    Path proje dışıysa silmez (loglar). Diğer hatalarda ana akışı engellemez.
     """
     try:
-        get_admin_client().storage.from_(STORAGE_BUCKET).remove([storage_path])
-        logger.info("Storage dosyası silindi: %s", storage_path)
+        path = assert_project_storage_path(storage_path, project_id)
+    except ValueError as exc:
+        logger.error(
+            "Storage silme reddedildi: %s | path=%s project=%s",
+            exc,
+            storage_path,
+            project_id,
+        )
+        return
+    try:
+        get_admin_client().storage.from_(STORAGE_BUCKET).remove([path])
+        logger.info("Storage dosyası silindi: %s", path)
     except Exception as exc:
-        logger.error("Storage silme hatası: %s | path=%s", exc, storage_path)
+        logger.error("Storage silme hatası: %s | path=%s", exc, path)
 
 
-def get_signed_url(path: str, expires_in: int = 3600) -> str:
+def get_signed_url(path: str, project_id: str, expires_in: int = 3600) -> str:
     """
     Geçici imzalı URL oluşturur (varsayılan 1 saat).
-    Admin client singleton kullanır.
-    Hata durumunda RuntimeError fırlatır.
+    Path must be under project_id/ (SEC-H4).
+    Hata durumunda RuntimeError / ValueError fırlatır.
     """
+    scoped = assert_project_storage_path(path, project_id)
     try:
         result = get_admin_client().storage.from_(STORAGE_BUCKET).create_signed_url(
-            path=path,
+            path=scoped,
             expires_in=expires_in,
         )
         return result["signedURL"]
@@ -91,13 +119,14 @@ def get_signed_url(path: str, expires_in: int = 3600) -> str:
         raise RuntimeError(f"Signed URL oluşturma hatası: {exc}") from exc
 
 
-def download_document(storage_path: str) -> bytes:
+def download_document(storage_path: str, project_id: str) -> bytes:
     """
     Storage'dan dosya baytlarını indirir (chrome görselleri / docx rebuild).
-    Admin client singleton — upload_document ile aynı desen.
+    Path must be under project_id/ (SEC-H4).
     """
+    scoped = assert_project_storage_path(storage_path, project_id)
     try:
-        data = get_admin_client().storage.from_(STORAGE_BUCKET).download(storage_path)
+        data = get_admin_client().storage.from_(STORAGE_BUCKET).download(scoped)
         return data
     except Exception as exc:
         raise RuntimeError(f"Storage indirme hatası: {exc}") from exc

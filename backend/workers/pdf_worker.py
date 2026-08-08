@@ -59,8 +59,11 @@ def mark_processing(admin_client, doc_id: str) -> None:
     }).eq("id", doc_id).eq("parse_status", "pending").execute()
 
 
-def fetch_file_bytes(storage_path: str) -> bytes:
+def fetch_file_bytes(storage_path: str, project_id: str) -> bytes:
     """Storage'dan dosya byte'larını indir."""
+    from backend.utils.file_handler import assert_project_storage_path
+
+    assert_project_storage_path(storage_path, project_id)
     result = get_admin_client().storage.from_("documents").download(storage_path)
     return result
 
@@ -98,7 +101,7 @@ def process_one(record: dict) -> None:
 
     # Storage'dan dosyayı indir
     try:
-        file_bytes = fetch_file_bytes(storage_path)
+        file_bytes = fetch_file_bytes(storage_path, record["project_id"])
     except Exception as exc:
         logger.error("Storage indirme hatası: %s | id=%s", exc, doc_id)
         admin.table("pdf_document").update({

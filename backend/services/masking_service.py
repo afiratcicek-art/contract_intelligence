@@ -154,7 +154,12 @@ class MaskingProvider:
             if norm not in by_norm:
                 by_norm[norm] = (display, _PROJECT_TOKEN)
 
-        for role, name in self._load_contract_parties(project_id):
+        # TB-40: supplementary sources must not fail-open — incomplete registry
+        # would leave known parties unmasked. Load error → fail-closed (None).
+        contract_parties = self._load_contract_parties(project_id)
+        if contract_parties is None:
+            return None
+        for role, name in contract_parties:
             if not _usable(name):
                 continue
             display = name.strip()
@@ -173,7 +178,10 @@ class MaskingProvider:
                 # role == 'other' (or unknown)
                 party_names.append(display)
 
-        for name in self._load_project_parties(project_id):
+        project_parties = self._load_project_parties(project_id)
+        if project_parties is None:
+            return None
+        for name in project_parties:
             if not _usable(name):
                 continue
             display = name.strip()
@@ -232,8 +240,10 @@ class MaskingProvider:
             logger.warning("masking: projects read failed: %s", exc)
             return None
 
-    def _load_contract_parties(self, project_id: str) -> list[tuple[str, str]]:
-        """Return list of (role, name) for all contracts on the project."""
+    def _load_contract_parties(
+        self, project_id: str
+    ) -> list[tuple[str, str]] | None:
+        """Return (role, name) pairs, or None on load failure (TB-40 fail-closed)."""
         try:
             contracts = (
                 self.db.table("contracts")
@@ -260,9 +270,10 @@ class MaskingProvider:
             return out
         except Exception as exc:  # noqa: BLE001
             logger.warning("masking: contract_parties read failed: %s", exc)
-            return []
+            return None
 
-    def _load_project_parties(self, project_id: str) -> list[str]:
+    def _load_project_parties(self, project_id: str) -> list[str] | None:
+        """Return party names, or None on load failure (TB-40 fail-closed)."""
         try:
             result = (
                 self.db.table("project_parties")
@@ -278,4 +289,4 @@ class MaskingProvider:
             ]
         except Exception as exc:  # noqa: BLE001
             logger.warning("masking: project_parties read failed: %s", exc)
-            return []
+            return None

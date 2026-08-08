@@ -96,7 +96,8 @@ export default function Login() {
         {/* Orta — resmi bildiri (dikey merkez) */}
         <div className="flex-1 flex flex-col justify-center min-h-0 py-8">
           <p
-            className="text-xl uppercase tracking-widest mb-4"
+            className="text-xl tracking-widest mb-4"
+            lang={lang === "tr" ? "tr" : "en"}
             style={{
               color: "var(--color-text-primary)",
               fontFamily: "var(--font-ui)",

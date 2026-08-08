@@ -43,3 +43,15 @@ class DocumentTemplateRepository(BaseRepository):
         self.db.table(self.table_name).update({"is_active": False}).eq(
             "project_id", project_id
         ).eq("doc_type", doc_type).neq("id", keep_id).eq("is_active", True).execute()
+
+    def hard_delete(self, record_id: str) -> None:
+        """Permanent remove. Callers must CM-authz first (get_or_404 + project assert).
+
+        Prefer user JWT once 054 DELETE policy is applied. Admin fallback covers
+        environments still on 044 (no DELETE policy → 42501 on user client).
+        """
+        from backend.database import get_admin_client
+
+        get_admin_client().table(self.table_name).delete().eq(
+            self.primary_key, record_id
+        ).execute()

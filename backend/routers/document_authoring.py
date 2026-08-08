@@ -43,7 +43,12 @@ from backend.services.image_sanitize import reencode_chrome_image
 from backend.services.linkable_service import list_linkable_documents
 from backend.services.reference_bundle import build_reference_bundle_pdf
 from backend.services.render_provider import get_render_provider
-from backend.utils.file_handler import download_document, get_signed_url, upload_document
+from backend.utils.file_handler import (
+    delete_document,
+    download_document,
+    get_signed_url,
+    upload_document,
+)
 from backend.utils.pdf_utils import validate_document_bytes
 from backend.utils.sanitizer import sanitize_user_input
 
@@ -346,7 +351,7 @@ def _attach_docx_to_entity(
 ) -> str:
     """Mirror documents.upload_pdf pending_record + attachment reference — JWT db."""
     # Copy: storage already holds the draft docx; re-upload under entity path
-    file_bytes = download_document(docx_path)
+    file_bytes = download_document(docx_path, project_id)
     entity_path = upload_document(
         file_bytes=file_bytes,
         file_name=original_filename,
@@ -419,12 +424,15 @@ def create_template(
     data = body.model_dump(mode="json", exclude_none=True)
     data["project_id"] = str(project_id)
     data["created_by"] = access["user"]["id"]
-    if data.get("is_active"):
-        # Deactivate peers first to satisfy partial unique index
-        existing = repo.get_active(str(project_id), data["doc_type"])
-        if existing:
-            repo.update(existing["id"], {"is_active": False})
+    # TB-37: create inactive first so a failed create never leaves the project
+    # without an active template. Activate only after peers are deactivated.
+    want_active = bool(data.get("is_active"))
+    if want_active:
+        data["is_active"] = False
     tpl = repo.create(data)
+    if want_active:
+        repo.deactivate_others(str(project_id), data["doc_type"], tpl["id"])
+        tpl = repo.update(tpl["id"], {"is_active": True})
     AuditService().log(
         action="create",
         entity_type="document_template",
@@ -460,6 +468,41 @@ def update_template(
         new_value=data,
     )
     return updated
+
+
+@router.delete("/templates/{template_id}")
+def delete_template(
+    project_id: UUID,
+    template_id: UUID,
+    access: dict = Depends(require_cm_role),
+):
+    """Hard-delete letterhead template. Drafts.template_id → NULL (044 FK)."""
+    db = access["db"]
+    repo = DocumentTemplateRepository(db)
+    tpl = repo.get_or_404(str(template_id))
+    _assert_template_in_project(tpl, str(project_id))
+    chrome_paths = [
+        p
+        for p in (
+            tpl.get("header_image_path"),
+            tpl.get("footer_image_path"),
+            tpl.get("watermark_image_path"),
+        )
+        if p
+    ]
+    repo.hard_delete(str(template_id))
+    # Same orphan class as TB-35: drop Storage objects after DB row is gone.
+    for path in chrome_paths:
+        delete_document(path, str(project_id))
+    AuditService().log(
+        action="delete",
+        entity_type="document_template",
+        entity_id=str(template_id),
+        user_id=access["user"]["id"],
+        project_id=str(project_id),
+        old_value={"name": tpl.get("name"), "doc_type": tpl.get("doc_type")},
+    )
+    return {"ok": True}
 
 
 @router.post("/templates/{template_id}/chrome")
@@ -499,8 +542,46 @@ async def upload_template_chrome(
         "footer": "footer_image_path",
         "watermark": "watermark_image_path",
     }[slot]
+    old_path = tpl.get(col)
     updated = repo.update(str(template_id), {col: path})
+    # TB-35: drop prior object after successful replace (same project/entity path).
+    if old_path and old_path != path:
+        delete_document(old_path, str(project_id))
     return updated
+
+
+@router.get("/templates/{template_id}/chrome-url")
+def template_chrome_url(
+    project_id: UUID,
+    template_id: UUID,
+    slot: ChromeSlot = Query(...),
+    expires_in: int = Query(3600, le=86400),
+    access: dict = Depends(verify_project_access),
+):
+    """Signed URL for header/footer/watermark image (Config preview)."""
+    db = access["db"]
+    tpl = DocumentTemplateRepository(db).get_or_404(str(template_id))
+    _assert_template_in_project(tpl, str(project_id))
+    col = {
+        "header": "header_image_path",
+        "footer": "footer_image_path",
+        "watermark": "watermark_image_path",
+    }[slot]
+    path = tpl.get(col)
+    if not path:
+        raise NotFoundError("Bu slot için görsel yok.")
+    try:
+        url = get_signed_url(path, project_id=str(project_id), expires_in=expires_in)
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
+    except RuntimeError as exc:
+        raise ValidationError(str(exc)) from exc
+    return {
+        "template_id": str(template_id),
+        "slot": slot,
+        "signed_url": url,
+        "expires_in": expires_in,
+    }
 
 
 # ── Linkable references (authoring picker) ──────────────────────────────────
@@ -978,7 +1059,9 @@ def draft_docx_url(
     if not path:
         raise NotFoundError("DOCX henüz üretilmedi.")
     try:
-        url = get_signed_url(path, expires_in=expires_in)
+        url = get_signed_url(path, project_id=str(project_id), expires_in=expires_in)
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
     except RuntimeError as exc:
         raise ValidationError(str(exc)) from exc
     return {"draft_id": str(draft_id), "signed_url": url, "expires_in": expires_in}
@@ -998,7 +1081,9 @@ def draft_bundle_url(
     if not path:
         raise NotFoundError("Referans e-bundle henüz üretilmedi.")
     try:
-        url = get_signed_url(path, expires_in=expires_in)
+        url = get_signed_url(path, project_id=str(project_id), expires_in=expires_in)
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
     except RuntimeError as exc:
         raise ValidationError(str(exc)) from exc
     return {"draft_id": str(draft_id), "signed_url": url, "expires_in": expires_in}
@@ -1021,8 +1106,8 @@ def preview_draft(
     path = draft.get("docx_path")
     if path:
         try:
-            docx_bytes = download_document(path)
-        except RuntimeError:
+            docx_bytes = download_document(path, str(project_id))
+        except (RuntimeError, ValueError):
             docx_bytes = None
 
     if docx_bytes is None:

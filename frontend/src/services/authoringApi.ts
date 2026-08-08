@@ -58,6 +58,7 @@ export async function createAuthoringTemplate(
     header_text?: string;
     footer_text?: string;
     is_active?: boolean;
+    field_config?: Record<string, unknown>;
   }
 ): Promise<DocumentTemplate> {
   return api.post(`/projects/${projectId}/authoring/templates`, body);
@@ -77,6 +78,13 @@ export async function updateAuthoringTemplate(
   return api.patch(`/projects/${projectId}/authoring/templates/${templateId}`, body);
 }
 
+export async function deleteAuthoringTemplate(
+  projectId: string,
+  templateId: string
+): Promise<void> {
+  await api.delete(`/projects/${projectId}/authoring/templates/${templateId}`);
+}
+
 export async function uploadTemplateChrome(
   projectId: string,
   templateId: string,
@@ -89,6 +97,16 @@ export async function uploadTemplateChrome(
   return api.postForm(
     `/projects/${projectId}/authoring/templates/${templateId}/chrome`,
     fd
+  );
+}
+
+export async function fetchTemplateChromeUrl(
+  projectId: string,
+  templateId: string,
+  slot: "header" | "footer" | "watermark"
+): Promise<{ signed_url: string; expires_in: number; slot: string }> {
+  return api.get(
+    `/projects/${projectId}/authoring/templates/${templateId}/chrome-url?slot=${slot}`
   );
 }
 

@@ -15,6 +15,7 @@ import {
   fetchAuthoringDocxUrl,
   fetchAuthoringDraft,
   fetchAuthoringLinkable,
+  fetchTemplateChromeUrl,
   generateAuthoringDocx,
   fetchDocumentPageCount,
   getDocumentSignedUrl,
@@ -402,6 +403,48 @@ export default function AuthoringDraftPage() {
   const refPickerRef = useRef<HTMLDivElement | null>(null);
 
   const tpl = draft?.document_templates;
+  const [chromeUrls, setChromeUrls] = useState<{
+    header?: string;
+    footer?: string;
+    watermark?: string;
+  }>({});
+
+  useEffect(() => {
+    if (!projectId || !tpl?.id) {
+      setChromeUrls({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const next: { header?: string; footer?: string; watermark?: string } = {};
+      const slots = [
+        ["header", tpl.header_image_path],
+        ["footer", tpl.footer_image_path],
+        ["watermark", tpl.watermark_image_path],
+      ] as const;
+      await Promise.all(
+        slots.map(async ([slot, path]) => {
+          if (!path) return;
+          try {
+            const res = await fetchTemplateChromeUrl(projectId, tpl.id, slot);
+            next[slot] = res.signed_url;
+          } catch {
+            /* ignore */
+          }
+        })
+      );
+      if (!cancelled) setChromeUrls(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    projectId,
+    tpl?.id,
+    tpl?.header_image_path,
+    tpl?.footer_image_path,
+    tpl?.watermark_image_path,
+  ]);
 
   // Bootstrap: create or load
   useEffect(() => {
@@ -1223,6 +1266,24 @@ export default function AuthoringDraftPage() {
             borderRadius: 0,
           }}
         >
+          {chromeUrls.watermark && (
+            <img
+              src={chromeUrls.watermark}
+              alt=""
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "45%",
+                transform: "translate(-50%, -50%)",
+                maxWidth: "55%",
+                maxHeight: "42%",
+                objectFit: "contain",
+                opacity: 0.12,
+                pointerEvents: "none",
+                zIndex: 0,
+              }}
+            />
+          )}
           <div
             style={{
               position: "relative",
@@ -1241,9 +1302,28 @@ export default function AuthoringDraftPage() {
                 color: "var(--color-text-secondary)",
                 fontSize: 12,
                 fontFamily: "var(--font-ui)",
+                position: "relative",
               }}
             >
-              {tpl?.header_text || (lang === "tr" ? "(üst bilgi)" : "(header)")}
+              {chromeUrls.header && (
+                <img
+                  src={chromeUrls.header}
+                  alt=""
+                  style={{
+                    maxWidth: "42%",
+                    maxHeight: 56,
+                    objectFit: "contain",
+                    display: "block",
+                    margin: "0 auto 8px",
+                  }}
+                />
+              )}
+              {tpl?.header_text ||
+                (!chromeUrls.header
+                  ? lang === "tr"
+                    ? "(üst bilgi)"
+                    : "(header)"
+                  : null)}
             </div>
 
             <label style={fieldLabel}>{lang === "tr" ? "Konu" : "Subject"}</label>
@@ -2024,7 +2104,25 @@ export default function AuthoringDraftPage() {
                 flexShrink: 0,
               }}
             >
-              {tpl?.footer_text || (lang === "tr" ? "(alt bilgi)" : "(footer)")}
+              {tpl?.footer_text ||
+                (!chromeUrls.footer
+                  ? lang === "tr"
+                    ? "(alt bilgi)"
+                    : "(footer)"
+                  : null)}
+              {chromeUrls.footer && (
+                <img
+                  src={chromeUrls.footer}
+                  alt=""
+                  style={{
+                    maxWidth: "36%",
+                    maxHeight: 44,
+                    objectFit: "contain",
+                    display: "block",
+                    margin: "8px auto 0",
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>

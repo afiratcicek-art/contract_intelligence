@@ -5,7 +5,7 @@
 -- Config letterhead UX needs hard delete; drafts.template_id is ON DELETE SET NULL.
 
 BEGIN;
-
+DROP POLICY IF EXISTS document_templates_cm_delete ON document_templates;
 CREATE POLICY document_templates_cm_delete ON document_templates
     FOR DELETE
     USING (

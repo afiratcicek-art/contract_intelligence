@@ -1,0 +1,2 @@
+# Dev/test only — production requirements.txt'e GİRMEZ. Regresyon ağı (P-B6).
+pytest==8.3.4

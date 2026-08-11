@@ -38,3 +38,5 @@ htmlcov/
 !.cursor/rules/
 
 *_msg.txt
+
+.env.migrations

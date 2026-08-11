@@ -1,0 +1,2 @@
+# Migration-runner ops-only (ADR-0002). NE runtime requirements.txt'e NE CI'ın kurduğu requirements-dev.txt'e girer.
+psycopg[binary]==3.2.3

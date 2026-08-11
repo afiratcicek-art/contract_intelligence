@@ -1,8 +1,8 @@
-"""Migration runner — DB-free core (R-1 / ADR-0002).
+"""Migration runner — DB-free core (R-1) + status (R-2 / ADR-0002).
 
 Discover, checksum, plan-pending, and drift detection over
-``database/migrations/*.sql``. CLI subcommands that need a live DB raise
-``NotImplementedError`` until R-2+.
+``database/migrations/*.sql``. ``status`` bootstraps bookkeeping and reports
+applied/pending/drift. ``up`` / ``adopt`` land in R-3/R-4.
 """
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
+
+from scripts import _db
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "database" / "migrations"
 
@@ -76,14 +78,31 @@ def detect_drift(
     return drifted
 
 
-def _require_db() -> None:
-    raise NotImplementedError(
-        "R-2+ gerektirir: DB bağlantısı henüz yok (ADR-0002)"
-    )
+def _cmd_status() -> None:
+    """Bootstrap bookkeeping, then print applied / pending / drift summary."""
+    with _db.connect() as conn:
+        _db.bootstrap(conn)
+        applied = _db.fetch_applied(conn)
+
+    discovered = discover_migrations(MIGRATIONS_DIR)
+    pending = plan_pending(discovered, set(applied))
+    drift = detect_drift(discovered, applied)
+
+    applied_versions = sorted(applied.keys(), key=int)
+    pending_versions = [m.version for m in pending]
+
+    print(f"Applied: {len(applied)}" + (
+        f" ({', '.join(applied_versions)})" if applied_versions else ""
+    ))
+    print(f"Pending: {len(pending)}" + (
+        f" ({', '.join(pending_versions)})" if pending_versions else ""
+    ))
+    if drift:
+        print(f"UYARI: checksum drift — {', '.join(drift)}")
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Parse CLI; status/up/adopt are stubs until R-2+."""
+    """Parse CLI; ``status`` is live (R-2); ``up``/``adopt`` wait for R-3/R-4."""
     parser = argparse.ArgumentParser(
         prog="migrate",
         description="ClauseIQ migration runner (ADR-0002). DB wiring lands in R-2+.",
@@ -96,8 +115,13 @@ def main(argv: list[str] | None = None) -> None:
         help="Mark existing migrations applied without running SQL (R-2+).",
     )
     args = parser.parse_args(argv)
-    if args.command in ("status", "up", "adopt"):
-        _require_db()
+    if args.command == "status":
+        _cmd_status()
+    elif args.command in ("up", "adopt"):
+        raise NotImplementedError(
+            f"R-{'3' if args.command == 'up' else '4'} gerektirir: "
+            f"'{args.command}' henüz yok (ADR-0002)"
+        )
     else:
         parser.error(f"unknown command: {args.command}")
 

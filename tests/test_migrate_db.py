@@ -1,7 +1,8 @@
-"""DB-free unit tests for scripts._db (R-2 / ADR-0002)."""
+"""DB-free unit tests for scripts._db + adopt plan (R-2/R-3 / ADR-0002)."""
 import pytest
 
 from scripts._db import load_migration_url, redact
+from scripts.migrate import Migration, plan_adopt
 
 
 def test_redact_masks_password_keeps_user_host_db():
@@ -53,3 +54,31 @@ def test_load_migration_url_missing_raises_without_leaking(monkeypatch):
     assert "postgresql://" not in msg
     assert "PASSWORD" not in msg
     assert "s3cret" not in msg
+
+
+def _m(version: str, checksum: str = "abc") -> Migration:
+    return Migration(version=version, filename=f"{version}_x.sql", checksum=checksum)
+
+
+def test_plan_adopt_empty_applied_all_to_insert():
+    discovered = [_m("001"), _m("002"), _m("003")]
+    to_insert, drift = plan_adopt(discovered, {})
+    assert to_insert == discovered
+    assert drift == []
+
+
+def test_plan_adopt_partial_applied_matching_checksum():
+    discovered = [_m("001", "h1"), _m("002", "h2"), _m("003", "h3")]
+    applied = {"001": "h1"}
+    to_insert, drift = plan_adopt(discovered, applied)
+    assert [m.version for m in to_insert] == ["002", "003"]
+    assert drift == []
+
+
+def test_plan_adopt_drift_excludes_version_from_insert():
+    discovered = [_m("001", "disk-hash"), _m("002", "h2")]
+    applied = {"001": "other-hash"}
+    to_insert, drift = plan_adopt(discovered, applied)
+    assert drift == ["001"]
+    assert [m.version for m in to_insert] == ["002"]
+    assert "001" not in [m.version for m in to_insert]

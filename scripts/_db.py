@@ -95,3 +95,24 @@ def bootstrap(conn: Any) -> None:
 
     conn.execute(SCHEMA_MIGRATIONS_DDL)
     conn.commit()
+
+
+def insert_applied(conn: Any, migrations: list[tuple[str, str, str]]) -> None:
+    """Insert ``(version, filename, checksum)`` rows into ``schema_migrations``.
+
+    Single transaction via ``executemany``. Does **not** run migration SQL —
+    bookkeeping only (INV-4). Caller must send only missing versions; primary-key
+    collisions still surface as IntegrityError. Rolls back on error.
+    """
+    if not migrations:
+        return
+    try:
+        conn.executemany(
+            "INSERT INTO schema_migrations (version, filename, checksum) "
+            "VALUES (%s, %s, %s)",
+            migrations,
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise

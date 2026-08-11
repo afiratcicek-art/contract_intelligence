@@ -1,8 +1,8 @@
-"""Migration runner — DB-free core (R-1) + status (R-2 / ADR-0002).
+"""Migration runner — R-1 core + R-2 status + R-3 adopt (ADR-0002).
 
 Discover, checksum, plan-pending, and drift detection over
-``database/migrations/*.sql``. ``status`` bootstraps bookkeeping and reports
-applied/pending/drift. ``up`` / ``adopt`` land in R-3/R-4.
+``database/migrations/*.sql``. ``status`` reports applied/pending/drift.
+``adopt`` marks existing schemas applied without running SQL. ``up`` is R-4.
 """
 from __future__ import annotations
 
@@ -78,6 +78,21 @@ def detect_drift(
     return drifted
 
 
+def plan_adopt(
+    discovered: list[Migration], applied: dict[str, str]
+) -> tuple[list[Migration], list[str]]:
+    """Adopt planı (saf, DB-siz).
+
+    Dönüş: (to_insert, drift_versions)
+    - to_insert: applied'da OLMAYAN, INSERT edilecek migration'lar (sıralı).
+    - drift_versions: applied'da OLAN ama checksum'u diskle TUTMAYAN version'lar.
+    Çağıran: drift_versions boş DEĞİLSE hiçbir şey yazmadan fail-loud.
+    """
+    drift_versions = detect_drift(discovered, applied)
+    to_insert = [m for m in discovered if m.version not in applied]
+    return to_insert, drift_versions
+
+
 def _cmd_status() -> None:
     """Bootstrap bookkeeping, then print applied / pending / drift summary."""
     with _db.connect() as conn:
@@ -101,26 +116,81 @@ def _cmd_status() -> None:
         print(f"UYARI: checksum drift — {', '.join(drift)}")
 
 
+def _cmd_adopt(assume_yes: bool) -> None:
+    """Mark missing versions applied without running migration SQL (R-3)."""
+    with _db.connect() as conn:
+        _db.bootstrap(conn)
+        applied = _db.fetch_applied(conn)
+        discovered = discover_migrations(MIGRATIONS_DIR)
+        to_insert, drift = plan_adopt(discovered, applied)
+
+        if drift:
+            print(
+                "HATA: checksum drift — şu version'lar DB'de applied ama dosya "
+                f"değişmiş: {', '.join(drift)}. Adopt DURDU, hiçbir şey yazılmadı. "
+                "İnsan incelemesi gerekir."
+            )
+            raise SystemExit(1)
+
+        already_ok = len(discovered) - len(to_insert)
+        if not to_insert:
+            print(
+                "Adopt: eklenecek yeni migration yok "
+                "(tümü zaten applied, checksum tutuyor)."
+            )
+            return
+
+        versions = [m.version for m in to_insert]
+        print(
+            f"Adopt: şu {len(to_insert)} version ÇALIŞTIRILMADAN applied "
+            f"işaretlenecek: {', '.join(versions)}."
+        )
+        print(
+            "Bu, migration SQL'lerini KOŞMAZ; DB'nin bu şemaları GERÇEKTEN "
+            "içerdiğini beyan etmiş olursun."
+        )
+        if not assume_yes:
+            answer = input("Devam? [y/N]: ")
+            if answer.strip().lower() != "y":
+                print("İptal edildi, hiçbir şey yazılmadı.")
+                return
+
+        _db.insert_applied(
+            conn,
+            [(m.version, m.filename, m.checksum) for m in to_insert],
+        )
+        print(
+            f"Adopt tamam: {len(to_insert)} version applied işaretlendi. "
+            f"Zaten-vardı: {already_ok} (checksum tuttu)."
+        )
+
+
 def main(argv: list[str] | None = None) -> None:
-    """Parse CLI; ``status`` is live (R-2); ``up``/``adopt`` wait for R-3/R-4."""
+    """Parse CLI; ``status`` (R-2), ``adopt`` (R-3); ``up`` waits for R-4."""
     parser = argparse.ArgumentParser(
         prog="migrate",
         description="ClauseIQ migration runner (ADR-0002). DB wiring lands in R-2+.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status", help="Show applied vs pending migrations (R-2+).")
-    sub.add_parser("up", help="Apply pending migrations (R-2+).")
-    sub.add_parser(
+    sub.add_parser("up", help="Apply pending migrations (R-4).")
+    adopt_p = sub.add_parser(
         "adopt",
-        help="Mark existing migrations applied without running SQL (R-2+).",
+        help="Mark existing migrations applied without running SQL (R-3).",
+    )
+    adopt_p.add_argument(
+        "--yes",
+        action="store_true",
+        help="onay sorma; otomasyon için",
     )
     args = parser.parse_args(argv)
     if args.command == "status":
         _cmd_status()
-    elif args.command in ("up", "adopt"):
+    elif args.command == "adopt":
+        _cmd_adopt(assume_yes=args.yes)
+    elif args.command == "up":
         raise NotImplementedError(
-            f"R-{'3' if args.command == 'up' else '4'} gerektirir: "
-            f"'{args.command}' henüz yok (ADR-0002)"
+            "R-4 gerektirir: 'up' henüz yok (ADR-0002)"
         )
     else:
         parser.error(f"unknown command: {args.command}")

@@ -1,8 +1,9 @@
-"""Migration runner — R-1 core + R-2 status + R-3 adopt (ADR-0002).
+"""Migration runner — R-1 core + R-2 status + R-3 adopt + R-4 up (ADR-0002).
 
 Discover, checksum, plan-pending, and drift detection over
 ``database/migrations/*.sql``. ``status`` reports applied/pending/drift.
-``adopt`` marks existing schemas applied without running SQL. ``up`` is R-4.
+``adopt`` marks existing schemas applied without running SQL.
+``up`` applies pending migrations in version order.
 """
 from __future__ import annotations
 
@@ -165,15 +166,94 @@ def _cmd_adopt(assume_yes: bool) -> None:
         )
 
 
+def _cmd_up(assume_yes: bool) -> None:
+    """Apply pending migrations in version order (R-4).
+
+    Akış: bootstrap → applied oku → discover → apply-öncesi drift-kontrolü
+    (fail-loud, hiçbir şey uygulamadan) → plan_pending → onay → her pending için
+    disk-oku + apply-anı checksum re-doğrulama (TOCTOU) + _db.apply_migration.
+    İlk hatada DURUR ve uygulandı/patladı/koşulmadı özet-raporu basar; kalan
+    bekleyenleri KOŞMAZ.
+
+    Atomiklik penceresi (bilinçli): kendi BEGIN;/COMMIT;'ini taşıyan dosya,
+    SQL'i bookkeeping'den önce commit eder; o aralıkta süreç ölürse SQL
+    uygulanmış ama kaydedilmemiş kalır. KURTARMA: sonraki ``up`` "already exists"
+    ile durur → o tek version için ``adopt`` çalıştır → tekrar ``up``. tx-İFADESİZ
+    dosyalarda bu pencere YOKTUR (SQL+bookkeeping tek atomik tx). Yeni
+    migration'lar BEGIN;/COMMIT; OLMADAN yazılmalı (tx'i runner yönetir) —
+    bkz. scripts/README.md.
+    """
+    with _db.connect() as conn:
+        _db.bootstrap(conn)
+        applied = _db.fetch_applied(conn)
+        discovered = discover_migrations(MIGRATIONS_DIR)
+
+        drift = detect_drift(discovered, applied)
+        if drift:
+            print(
+                "HATA: checksum drift — şu applied version'ların dosyaları "
+                f"değişmiş: {', '.join(drift)}. up DURDU, hiçbir şey uygulanmadı. "
+                "İnsan incelemesi gerekir."
+            )
+            raise SystemExit(1)
+
+        pending = plan_pending(discovered, set(applied))
+        if not pending:
+            print("up: uygulanacak bekleyen migration yok (tümü applied).")
+            return
+
+        versions = [m.version for m in pending]
+        print(f"up: şu {len(pending)} migration ÇALIŞTIRILACAK: {', '.join(versions)}.")
+        print("Bu, migration SQL'lerini GERÇEKTEN koşar ve şemayı değiştirir.")
+        if not assume_yes:
+            answer = input("Devam? [y/N]: ")
+            if answer.strip().lower() != "y":
+                print("İptal edildi, hiçbir şey uygulanmadı.")
+                return
+
+        done: list[str] = []
+        for m in pending:
+            remaining = [x.version for x in pending
+                         if x.version not in done and x.version != m.version]
+            sql_bytes = (MIGRATIONS_DIR / m.filename).read_bytes()
+            if hashlib.sha256(sql_bytes).hexdigest() != m.checksum:
+                print(
+                    f"HATA: {m.filename} discover'dan sonra değişti (checksum "
+                    f"uyuşmuyor). up DURDU. Uygulandı: {len(done)} "
+                    f"({', '.join(done) or '-'}) | Koşulmadı: {len(remaining) + 1}."
+                )
+                raise SystemExit(1)
+            try:
+                _db.apply_migration(
+                    conn, m.version, m.filename, m.checksum,
+                    sql_bytes.decode("utf-8"),
+                )
+            except Exception as exc:
+                print(
+                    f"HATA: {m.filename} uygulanırken patladı: {exc}. up DURDU. "
+                    f"Uygulandı: {len(done)} ({', '.join(done) or '-'}) | "
+                    f"PATLADI: {m.version} | Koşulmadı: {len(remaining)}. "
+                    "NOT: dosya kendi BEGIN;/COMMIT;'ini taşıyorsa SQL commit "
+                    "olmuş ama bookkeeping yazılmamış olabilir — DB'yi elle "
+                    "incele; SQL gerçekten uygulandıysa `adopt` ile işaretle, "
+                    "sonra `up`."
+                )
+                raise SystemExit(1)
+            done.append(m.version)
+
+        print(f"up tamam: {len(done)} migration uygulandı ({', '.join(done)}).")
+
+
 def main(argv: list[str] | None = None) -> None:
-    """Parse CLI; ``status`` (R-2), ``adopt`` (R-3); ``up`` waits for R-4."""
+    """Parse CLI; ``status`` (R-2), ``adopt`` (R-3), ``up`` (R-4)."""
     parser = argparse.ArgumentParser(
         prog="migrate",
         description="ClauseIQ migration runner (ADR-0002). DB wiring lands in R-2+.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status", help="Show applied vs pending migrations (R-2+).")
-    sub.add_parser("up", help="Apply pending migrations (R-4).")
+    up_p = sub.add_parser("up", help="Apply pending migrations (R-4).")
+    up_p.add_argument("--yes", action="store_true", help="onay sorma; otomasyon için")
     adopt_p = sub.add_parser(
         "adopt",
         help="Mark existing migrations applied without running SQL (R-3).",
@@ -189,9 +269,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "adopt":
         _cmd_adopt(assume_yes=args.yes)
     elif args.command == "up":
-        raise NotImplementedError(
-            "R-4 gerektirir: 'up' henüz yok (ADR-0002)"
-        )
+        _cmd_up(assume_yes=args.yes)
     else:
         parser.error(f"unknown command: {args.command}")
 

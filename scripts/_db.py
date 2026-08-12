@@ -117,3 +117,39 @@ def insert_applied(conn: Any, migrations: list[tuple[str, str, str]]) -> None:
     except Exception:
         conn.rollback()
         raise
+
+
+def apply_migration(
+    conn: Any, version: str, filename: str, checksum: str, sql_text: str
+) -> None:
+    """Run one migration's SQL and record it — single outer transaction (R-4).
+
+    tx-model (ADR-0002 / YOL 2):
+      * The migration file runs AS-IS via one ``cur.execute(sql_text)``; the
+        bookkeeping INSERT is a SEPARATE parametreli ``execute`` in the SAME
+        outer transaction, then ``conn.commit()``.
+      * Neden tek execute'a gömülmedi: psycopg3 parametreli sorguda
+        çoklu-statement'ı reddeder ("cannot insert multiple commands into a
+        prepared statement"), o yüzden bookkeeping ayrı parametreli execute.
+      * Atomiklik: tx-İFADESİZ (BEGIN;/COMMIT; taşımayan) dosyalarda dış-tx
+        SQL+bookkeeping'i atomik sarar (ÖLÇÜLDÜ, pencere yok). Kendi
+        BEGIN;/COMMIT;'ini taşıyan (eski) dosyalarda, dosya-içi COMMIT dış-tx'i
+        erken kapatır → bookkeeping ikinci bir tx'e düşer → süreç tam o aralıkta
+        ölürse SQL uygulanmış ama kaydedilmemiş kalabilir. Bu pencere BİLİNÇLİ,
+        bug değil: eski migration'lar checksum-kilitli, değiştirilemez. Kurtarma
+        deterministik — bkz. scripts/README.md ve _cmd_up.
+      * execute/INSERT CURSOR'dan gider (psycopg3'te Connection.executemany yok).
+    Hata olursa rollback (aborted-tx güvenli).
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql_text)
+            cur.execute(
+                "INSERT INTO schema_migrations (version, filename, checksum) "
+                "VALUES (%s, %s, %s)",
+                (version, filename, checksum),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise

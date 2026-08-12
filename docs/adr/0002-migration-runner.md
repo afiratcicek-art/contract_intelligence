@@ -51,6 +51,7 @@ requirements-migrations.txt (ne runtime ne CI): app yüzeyi + CI yüzeyi değiş
    migration dizisine (055...) girmez.
 8. psycopg yalnız requirements-migrations.txt'te; runtime requirements.txt'e veya CI'ın kurduğu
    requirements-dev.txt'e sızması = ihlal.
+9. tx-model (up, YOL 2): her migration autocommit=False dış-tx'te koşulur; dosya SQL'i + bookkeeping INSERT aynı tx (execute/INSERT cursor'dan). tx-ifadesiz dosyalar tam-atomik; kendi BEGIN;/COMMIT;'ini taşıyan eski dosyalarda dar, bilinçli, adopt-ile-kurtarılabilir bir pencere kalır. Yeni migration'lar tx-ifadesiz yazılır (kural: scripts/README.md). Karar gerekçesi: byte-sadık provenance + küçük/fail-loud güvenlik yüzeyi + devir-edilebilirlik > runtime-SQL-strip'in sıfır-pencere avantajı.
 
 ## İzleme-tetikleri
 - Her canlı migration-apply öncesi git check-ignore -v .env.migrations (+ .env) — secret dosyası

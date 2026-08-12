@@ -1,5 +1,7 @@
 # Migration ledger — authoritative table map
 
+Yeni migration kuralı: BEGIN;/COMMIT; yazma — transaction'ı runner yönetir (scripts/README.md). Bu, SQL + bookkeeping'in tek atomik tx'te uygulanmasını sağlar.
+
 **Rule:** every new migration that creates or alters a table MUST update this index
 in the same change. Answer “what is the current shape of table X, and where?”
 from this file alone.

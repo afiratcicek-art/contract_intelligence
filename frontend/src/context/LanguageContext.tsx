@@ -23,6 +23,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   "module.deliverables": { tr: "Yükümlülükler", en: "Deliverables" },
   "module.chronologies": { tr: "Kronoloji", en: "Chronologies" },
   "module.documents": { tr: "Belgeler", en: "Documents" },
+  "module.intelligence": { tr: "Zeka", en: "Intelligence" },
   "module.config": { tr: "Ayarlar", en: "Config" },
   "module.system": { tr: "Sistem", en: "System" },
   // General

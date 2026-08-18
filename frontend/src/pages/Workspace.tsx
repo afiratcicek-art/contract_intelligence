@@ -13,8 +13,9 @@ import DocumentsModule from "../components/DocumentsModule";
 import ContractInForceView from "../components/ContractInForceView";
 import AuthoringTemplatesPanel from "../components/AuthoringTemplatesPanel";
 import DeliverablesModule from "../components/DeliverablesModule";
+import IntelligenceModule from "../components/IntelligenceModule";
 
-type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "config";
+type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "intelligence" | "config";
 
 interface SearchResult { module: string; label: string; ref: string; subject: string; status: string; date: string; id: string; parent_id?: string | null; has_response?: boolean; rfi_type?: string; }
 interface CorrItem { id: string; corr_number: string; subject: string; type: string; status: string; correspondence_date: string; direction: string; response_due_date: string | null; parent_id: string | null; has_response: boolean; }
@@ -27,7 +28,7 @@ const MODULE_LABELS: Record<Module, string> = {
   // Key stays "changes" (change-entity routes depend on it); it backs the
   // "Contracts & Amendments" section, whose Changes list is the Working sub-tab.
   changes: "Contracts & Amendments", deliverables: "Deliverables", chronologies: "Chronologies",
-  documents: "Documents", config: "Config",
+  documents: "Documents", intelligence: "Intelligence", config: "Config",
 };
 
 const dateInRange = (dateStr: string | null | undefined, from: string, to: string): boolean => {
@@ -48,14 +49,14 @@ export default function Workspace() {
   const [activeModule, setActiveModule] = useState<Module>(() => {
     const params = new URLSearchParams(location.search);
     const m = params.get("module") as Module | null;
-    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "documents", "config"];
+    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "documents", "intelligence", "config"];
     return m && valid.includes(m) ? m : "general";
   });
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const m = params.get("module") as Module | null;
-    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "documents", "config"];
+    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "documents", "intelligence", "config"];
     if (m && valid.includes(m)) {
       setActiveModule(m);
     }
@@ -270,7 +271,7 @@ export default function Workspace() {
   );
 
   const SIDEBAR_MAIN: Module[] = ["changes", "general", "alerts", "correspondence", "rfis", "deliverables", "chronologies"];
-  const SIDEBAR_SYS: Module[] = ["documents", "config"];
+  const SIDEBAR_SYS: Module[] = ["documents", "intelligence", "config"];
 
   const generalNavTarget = (mod: string, id: string) => {
     if (mod === "correspondence") return `/projects/${projectId}/workspace/correspondence/${id}`;
@@ -335,7 +336,7 @@ export default function Workspace() {
                   borderRadius: 0,
                 }}
               >
-                <span>{MODULE_LABELS[mod]}</span>
+                <span>{mod === "intelligence" ? t("module.intelligence") : MODULE_LABELS[mod]}</span>
                 {mod === "alerts" && alertCount > 0 && (
                   <span style={{
                     fontSize: 11,
@@ -382,7 +383,7 @@ export default function Workspace() {
                   borderRadius: 0,
                 }}
               >
-                {MODULE_LABELS[mod]}
+                {mod === "intelligence" ? t("module.intelligence") : MODULE_LABELS[mod]}
               </button>
             );
           })}
@@ -812,6 +813,9 @@ export default function Workspace() {
               projectId={String(projectId)}
             />
           )}
+          {activeModule === "intelligence" && (
+            <IntelligenceModule projectId={String(projectId)} />
+          )}
           {activeModule === "config" && (
             <div>
               <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
@@ -822,7 +826,7 @@ export default function Workspace() {
           )}
           {!["general", "alerts", "correspondence",
             "rfis", "changes", "deliverables",
-            "chronologies", "documents", "config"].includes(activeModule) && (
+            "chronologies", "documents", "intelligence", "config"].includes(activeModule) && (
             <div style={{
               display: "flex",
               alignItems: "center",

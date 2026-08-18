@@ -7,13 +7,16 @@ Gizli sistem prompt'u şifreli dosyadan okunur — kod içinde asla yazılmaz.
 """
 from __future__ import annotations
 
+import json
 import logging
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from typing import Optional, Protocol, runtime_checkable
 from backend.core.config import settings
 from backend.core.sanitizer import sanitize_contract_text
+from backend.services.intelligence_service import filter_citation_indices
 from backend.services.masking_service import MaskSession, MaskingProvider
 
 logger = logging.getLogger(__name__)
@@ -46,6 +49,19 @@ class ClauseAnalysisResult:
     clause_references: list[str] = field(default_factory=list)
     confidence_score: float = 0.0
     review_required: bool = False
+    warnings: list[str] = field(default_factory=list)
+    objectivity_flag: bool = False
+    resolved_by_gate: bool = False
+
+
+@dataclass
+class IntelligenceResult:
+    """Grounded project Q&A — answer + 1-based citation indices into retrieved sources."""
+
+    answer_text: str
+    cited_indices: list[int] = field(default_factory=list)
+    confidence_score: float = 0.0
+    review_required: bool = True
     warnings: list[str] = field(default_factory=list)
     objectivity_flag: bool = False
     resolved_by_gate: bool = False
@@ -123,6 +139,17 @@ class AIServiceProtocol(Protocol):
         project_id: str,
         user_id: str,
     ) -> ClauseAnalysisResult | GateBlockedResult: ...
+
+    def generate_intelligence_answer(
+        self,
+        question: str,
+        sources: list,
+        history: list,
+        project_context: dict,
+        language: str,
+        project_id: str,
+        user_id: str,
+    ) -> IntelligenceResult | GateBlockedResult: ...
 
 
 class ClaudeService:
@@ -1232,6 +1259,174 @@ class ClaudeService:
 
         return ClauseAnalysisResult(
             analysis_text=session.demask(clean_text),
+            confidence_score=confidence,
+            review_required=confidence < self.REVIEW_THRESHOLD,
+            warnings=gate.warnings,
+            objectivity_flag=gate.objectivity_flag,
+        )
+
+    def generate_intelligence_answer(
+        self,
+        question: str,
+        sources: list,
+        history: list,
+        project_context: dict,
+        language: str,
+        project_id: str,
+        user_id: str,
+    ) -> IntelligenceResult | GateBlockedResult:
+        """Project Q&A over retrieved source cards. Citations = validated indices only."""
+        start = time.time()
+        session_or_block = self._mask_session_or_block(project_id, user_id)
+        if isinstance(session_or_block, GateBlockedResult):
+            return session_or_block
+        session = session_or_block
+
+        safe_q = self._sanitize_input(question or "")
+        if not safe_q.strip():
+            return IntelligenceResult(
+                answer_text="",
+                cited_indices=[],
+                confidence_score=0.0,
+                warnings=["Empty question."],
+                review_required=True,
+            )
+
+        gate = self._run_gate_layer(
+            user_text=safe_q,
+            request_kind="intelligence_ask",
+            project_context={"id": project_id, **project_context},
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
+        )
+        if isinstance(gate, GateBlockedResult):
+            return gate
+        if gate.blocked:
+            return self._resolve_gate_block(gate, user_id, project_id)
+
+        effective_language = gate.detected_language or language
+        masked_ctx = session.mask_context(project_context)
+        effective_q = gate.corrected_text or safe_q
+
+        source_lines: list[str] = []
+        for i, src in enumerate(sources or [], start=1):
+            if not isinstance(src, dict):
+                continue
+            card = {
+                "ref": src.get("ref"),
+                "type": src.get("entity_type"),
+                "subject": src.get("subject"),
+                "date": src.get("date"),
+                "status": src.get("status"),
+                "snippet": src.get("snippet"),
+            }
+            masked_card = session.mask_context(card)
+            source_lines.append(f"[{i}] {masked_card}")
+
+        if not source_lines:
+            return IntelligenceResult(
+                answer_text=(
+                    "No matching project records were found for this question. "
+                    "Try different keywords, or open General Search."
+                    if effective_language == "en"
+                    else "Bu soru için eşleşen proje kaydı bulunamadı. "
+                    "Farklı anahtar kelimeler deneyin veya Genel Arama'yı kullanın."
+                ),
+                cited_indices=[],
+                confidence_score=0.0,
+                warnings=gate.warnings,
+                review_required=True,
+                objectivity_flag=gate.objectivity_flag,
+            )
+
+        hist_lines: list[str] = []
+        for msg in (history or [])[-8:]:
+            if not isinstance(msg, dict):
+                continue
+            role = str(msg.get("role") or "")
+            if role not in ("user", "assistant"):
+                continue
+            hist_lines.append(
+                f"{role.upper()}: {session.mask(str(msg.get('content') or ''))}"
+            )
+        transcript = "\n".join(hist_lines) if hist_lines else "(none)"
+
+        user_content = (
+            "You answer project record questions STRICTLY from the numbered SOURCES.\n"
+            "Return ONLY valid JSON (no markdown): "
+            '{"answer":"<text>","cite":[<1-based source indices>]}\n'
+            "Rules:\n"
+            "- Cite ONLY indices that exist in SOURCES.\n"
+            "- If sources are insufficient, say so in answer and use cite=[].\n"
+            "- Do not invent document numbers, dates, or obligations.\n"
+            "- Be objective; no guarantees or advocacy.\n"
+            f"Language: {effective_language}\n"
+            f"Project Context: {masked_ctx}\n"
+            f"Prior turns:\n{transcript}\n\n"
+            f"Question: {session.mask(effective_q)}\n\n"
+            "SOURCES:\n" + "\n".join(source_lines)
+        )
+
+        message = self._run_analysis_layer(
+            call_type="intelligence_ask",
+            user_content=user_content,
+            max_tokens=1500,
+            gate=gate,
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
+        )
+        if isinstance(message, GateBlockedResult):
+            return message
+
+        raw_text = message.content[0].text
+        clean_text = self._run_post_processor(
+            raw_text,
+            project_id=project_id or "",
+            user_id=user_id or "",
+            session=session,
+        )
+        if isinstance(clean_text, GateBlockedResult):
+            return clean_text
+
+        answer = clean_text
+        cite_raw: list = []
+        try:
+            stripped = clean_text.strip()
+            if stripped.startswith("```"):
+                stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
+                stripped = re.sub(r"\s*```$", "", stripped)
+            data = json.loads(stripped)
+            if isinstance(data, dict):
+                answer = str(data.get("answer") or "")
+                cite_raw = data.get("cite") or []
+        except (json.JSONDecodeError, TypeError, ValueError):
+            answer = clean_text
+            cite_raw = []
+
+        cited = filter_citation_indices(cite_raw, len(sources or []))
+        demasked = session.demask(answer)
+
+        duration_ms = int((time.time() - start) * 1000)
+        confidence = self._calculate_confidence()
+        self._log_call(
+            "intelligence_ask",
+            "project",
+            project_id,
+            project_id,
+            user_id,
+            message.usage.input_tokens,
+            message.usage.output_tokens,
+            confidence,
+            duration_ms,
+            model_used=settings.ANALYSIS_MODEL,
+            layer="analysis",
+        )
+
+        return IntelligenceResult(
+            answer_text=demasked,
+            cited_indices=cited,
             confidence_score=confidence,
             review_required=confidence < self.REVIEW_THRESHOLD,
             warnings=gate.warnings,

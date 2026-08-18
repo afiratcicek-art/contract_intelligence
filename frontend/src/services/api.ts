@@ -584,3 +584,36 @@ export async function fetchAlertDocuments(
     `/projects/${projectId}/alerts/${alertId}/documents`
   );
 }
+
+// ── Project Intelligence (SYSTEM tab) ─────────────────────────────────────
+export type IntelligenceCitation = {
+  index: number;
+  entity_type: "correspondence" | "rfi" | "change" | "deliverable";
+  entity_id: string;
+  ref: string;
+  subject: string;
+  date?: string | null;
+  status?: string | null;
+};
+
+export type IntelligenceAskResponse = {
+  answer_text: string;
+  citations: IntelligenceCitation[];
+  confidence_score: number;
+  warnings: string[];
+  review_required: boolean;
+  objectivity_flag: boolean;
+  retrieval_mode: "keyword";
+  source_count: number;
+};
+
+export async function askProjectIntelligence(
+  projectId: string,
+  body: {
+    question: string;
+    messages?: { role: "user" | "assistant"; content: string }[];
+    language?: "en" | "tr" | "ar";
+  },
+): Promise<IntelligenceAskResponse> {
+  return api.post(`/projects/${projectId}/intelligence/ask`, body);
+}

@@ -215,7 +215,7 @@ class ClaudeService:
         return self._client
 
     def _get_system_prompt(self) -> str:
-        """Şifreli sistem prompt'unu dosyadan okur. İçerik burada gösterilmez."""
+        """Sistem prompt'unu (ClauseIQ IP'si) düz-metin dosyadan okur; private-repo + gitignore ile korunur. İçerik burada gösterilmez."""
         if self._system_prompt is not None:
             return self._system_prompt
 
@@ -223,7 +223,7 @@ class ClaudeService:
             with open(settings.SYSTEM_PROMPT_PATH, "r", encoding="utf-8") as f:
                 self._system_prompt = f.read()
         except FileNotFoundError:
-            logger.warning("Sistem prompt dosyası bulunamadı: %s", settings.SYSTEM_PROMPT_PATH)
+            logger.error("Sistem prompt dosyası bulunamadı (%s) — jenerik fallback prompt'a düşüldü. Deploy paketinde prompts/system.txt eksik olabilir.", settings.SYSTEM_PROMPT_PATH)
             self._system_prompt = "Sen deneyimli bir Contracts & Commercial Engineer'sın."
 
         return self._system_prompt

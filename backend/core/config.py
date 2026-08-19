@@ -23,9 +23,8 @@ class Settings(BaseSettings):
     # Güvenlik
     SECRET_KEY: str = "change-me-in-production"
 
-    # Sistem prompt (şifreli dosya)
-    SYSTEM_PROMPT_PATH: str = "prompts/system.enc"
-    SYSTEM_PROMPT_KEY: str = ""
+    # Sistem prompt (düz-metin dosya, gitignored — ClauseIQ IP'si)
+    SYSTEM_PROMPT_PATH: str = "prompts/system.txt"
 
     # Uygulama
     APP_ENV: str = "development"

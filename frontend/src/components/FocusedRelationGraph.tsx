@@ -458,10 +458,10 @@ export default function FocusedRelationGraph({
 
   const controls = (
     <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-      <button onClick={() => zoomBy(1 / 1.2)} aria-label="Uzaklaştır"
-        style={{ width: 26, height: 26, background: aiBg, color: ai, border: `1px solid ${ai}`, borderRadius: 6, cursor: "pointer", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-      <button onClick={() => zoomBy(1.2)} aria-label="Yakınlaştır"
-        style={{ width: 26, height: 26, background: aiBg, color: ai, border: `1px solid ${ai}`, borderRadius: 6, cursor: "pointer", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+      <button onClick={() => zoomBy(1 / 1.2)} aria-label="Uzaklaştır" className="ai-icon-btn"
+        style={{ width: 26, height: 26, fontSize: 15, lineHeight: 1 }}>−</button>
+      <button onClick={() => zoomBy(1.2)} aria-label="Yakınlaştır" className="ai-icon-btn"
+        style={{ width: 26, height: 26, fontSize: 15, lineHeight: 1 }}>+</button>
       <button onClick={resetView}
         style={{ height: 26, padding: "0 10px", background: "transparent", color: textSec, border: `1px solid ${border}`, borderRadius: 0, cursor: "pointer", fontSize: 11, fontFamily: "var(--font-ui)" }}>Sıfırla</button>
       {!fullscreen && (
@@ -564,7 +564,7 @@ export default function FocusedRelationGraph({
       ref={wrapRef}
       style={{
         position: "relative" as const,
-        borderRadius: 12, overflow: "hidden",
+        borderRadius: 6, overflow: "hidden",
         height: heightVal,
         background: `radial-gradient(ellipse at 42% 50%, ${aiBg} 0%, transparent 62%), linear-gradient(155deg, var(--color-bg-secondary), var(--color-bg-primary))`,
         border: `1px solid ${border}`,
@@ -651,7 +651,7 @@ export default function FocusedRelationGraph({
             onClick={(e) => e.stopPropagation()}
             style={{
               background: bgPrimary, border: `1px solid ${border}`,
-              borderRadius: 12, width: "94vw", maxWidth: 1300, height: "90vh",
+              borderRadius: 6, width: "94vw", maxWidth: 1300, height: "90vh",
               display: "flex", flexDirection: "column" as const, padding: 20,
             }}
           >

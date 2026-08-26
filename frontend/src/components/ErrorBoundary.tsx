@@ -1,5 +1,6 @@
 import { Component } from "react";
 import type { ReactNode } from "react";
+import Button from "./Button";
 
 interface Props { children: ReactNode; }
 interface State { hasError: boolean; }
@@ -24,28 +25,15 @@ export default class ErrorBoundary extends Component<Props, State> {
           <p
             style={{
               fontFamily: "var(--font-brand)",
-              fontSize: "18px",
+              fontSize: "var(--type-h2)",
               color: "var(--color-text-primary)",
             }}
           >
             Bir şeyler ters gitti.
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              backgroundColor: "var(--color-accent)",
-              color: "var(--color-bg-primary)",
-              border: "none",
-              padding: "10px 24px",
-              fontSize: "14px",
-              fontWeight: 500,
-              letterSpacing: "0.5px",
-              cursor: "pointer",
-              borderRadius: 0,
-            }}
-          >
+          <Button type="button" onClick={() => window.location.reload()}>
             Sayfayı Yenile
-          </button>
+          </Button>
         </div>
       );
     }

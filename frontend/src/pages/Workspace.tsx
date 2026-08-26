@@ -3,10 +3,12 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "../hooks/useDebounce";
 import { api } from "../services/api";
 import ThemeToggle from "../components/ThemeToggle";
+import LanguageToggle from "../components/LanguageToggle";
 import Button from "../components/Button";
 import StatusChip from "../components/StatusChip";
 import { getAuth, clearAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
+import { formatDateCompact } from "../utils/format";
 import AlertsModule from "../components/AlertsModule";
 import ChronologiesModule from "../components/ChronologiesModule";
 import DocumentsModule from "../components/DocumentsModule";
@@ -17,19 +19,30 @@ import IntelligenceModule from "../components/IntelligenceModule";
 
 type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "intelligence" | "config";
 
+// Server-side cap on the list fetches. A capped list is a false negative in a
+// claim, so every list that hits it says so.
+const LIST_LIMIT = 100;
+
 interface SearchResult { module: string; label: string; ref: string; subject: string; status: string; date: string; id: string; parent_id?: string | null; has_response?: boolean; rfi_type?: string; }
 interface CorrItem { id: string; corr_number: string; subject: string; type: string; status: string; correspondence_date: string; direction: string; response_due_date: string | null; parent_id: string | null; has_response: boolean; }
 interface RFIItem { id: string; rfi_number: string; subject: string; status: string; submitted_date: string | null; response_due_date: string | null; discipline: string | null; parent_id: string | null; rfi_type: string; entry_mode: "authored" | "recorded"; }
 interface ChangeItem { id: string; change_number: string; title: string; status: string; origin: string; notice_due_date: string | null; created_at: string; }
 
-const MODULE_LABELS: Record<Module, string> = {
-  general: "General", alerts: "Alerts & Actions",
-  correspondence: "Correspondence", rfis: "RFIs",
-  // Key stays "changes" (change-entity routes depend on it); it backs the
-  // "Contracts & Amendments" section, whose Changes list is the Working sub-tab.
-  changes: "Contracts & Amendments", deliverables: "Deliverables", chronologies: "Chronologies",
-  documents: "Documents", intelligence: "Intelligence", config: "Config",
-};
+// Route key stays "changes"; the sidebar label is the contracts section.
+function moduleLabel(mod: Module, t: (key: string) => string): string {
+  switch (mod) {
+    case "general": return t("module.general");
+    case "alerts": return t("module.alerts");
+    case "correspondence": return t("module.correspondence");
+    case "rfis": return t("module.rfis");
+    case "changes": return t("module.contracts");
+    case "deliverables": return t("module.deliverables");
+    case "chronologies": return t("module.chronologies");
+    case "documents": return t("module.documents");
+    case "intelligence": return t("module.intelligence");
+    case "config": return t("module.config");
+  }
+}
 
 const dateInRange = (dateStr: string | null | undefined, from: string, to: string): boolean => {
   if (!dateStr) return true;
@@ -43,7 +56,7 @@ export default function Workspace() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const auth = getAuth();
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { t } = useLanguage();
   const location = useLocation();
 
   const [activeModule, setActiveModule] = useState<Module>(() => {
@@ -89,6 +102,7 @@ export default function Workspace() {
   const [corrs, setCorrs] = useState<CorrItem[]>([]);
   const [alertCount, setAlertCount] = useState<number>(0);
   const [corrLoading, setCorrLoading] = useState(false);
+  const [corrError, setCorrError] = useState(false);
   const [corrKeyword, setCorrKeyword] = useState("");
   const debouncedCorrKeyword = useDebounce(corrKeyword, corrKeyword.trim() ? 400 : 0);
   const [corrStatus, setCorrStatus] = useState("");
@@ -99,6 +113,7 @@ export default function Workspace() {
 
   const [rfis, setRfis] = useState<RFIItem[]>([]);
   const [rfiLoading, setRfiLoading] = useState(false);
+  const [rfiError, setRfiError] = useState(false);
   const [rfiKeyword, setRfiKeyword] = useState("");
   const debouncedRfiKeyword = useDebounce(rfiKeyword, rfiKeyword.trim() ? 400 : 0);
   const [rfiStatus, setRfiStatus] = useState("");
@@ -111,6 +126,7 @@ export default function Workspace() {
 
   const [changes, setChanges] = useState<ChangeItem[]>([]);
   const [changeLoading, setChangeLoading] = useState(false);
+  const [changeError, setChangeError] = useState(false);
   const [changeKeyword, setChangeKeyword] = useState("");
   const [changeStatus, setChangeStatus] = useState("");
   const [changeOrigin, setChangeOrigin] = useState("");
@@ -163,37 +179,52 @@ export default function Workspace() {
   }, [projectId, debouncedSearchQuery, handleSearch]);
 
   // Debounced backend search — replaces client-side filtering.
-  useEffect(() => {
-    if (activeModule !== "correspondence") return;
+  const loadCorrs = useCallback(() => {
     setCorrLoading(true);
-    let url = `/projects/${projectId}/correspondences?limit=100`;
+    setCorrError(false);
+    let url = `/projects/${projectId}/correspondences?limit=${LIST_LIMIT}`;
     if (corrStatus) url += `&status=${corrStatus}`;
     if (corrDir) url += `&direction=${corrDir}`;
     if (debouncedCorrKeyword.trim()) url += `&q=${encodeURIComponent(debouncedCorrKeyword.trim())}`;
-    api.get<CorrItem[]>(url).then(setCorrs).catch(() => setCorrs([])).finally(() => setCorrLoading(false));
-  }, [activeModule, projectId, corrStatus, corrDir, debouncedCorrKeyword]);
+    api.get<CorrItem[]>(url).then(setCorrs).catch(() => { setCorrs([]); setCorrError(true); }).finally(() => setCorrLoading(false));
+  }, [projectId, corrStatus, corrDir, debouncedCorrKeyword]);
+
+  useEffect(() => {
+    if (activeModule !== "correspondence") return;
+    loadCorrs();
+  }, [activeModule, loadCorrs]);
 
   // Debounced backend search — replaces client-side filtering.
   // q present → chain-aware RPC (search_rfi_chains).
   // q absent → standard list with status/discipline filters.
-  useEffect(() => {
-    if (activeModule !== "rfis") return;
+  const loadRfis = useCallback(() => {
     setRfiLoading(true);
-    let url = `/projects/${projectId}/rfis?limit=100`;
+    setRfiError(false);
+    let url = `/projects/${projectId}/rfis?limit=${LIST_LIMIT}`;
     if (rfiStatus) url += `&status=${rfiStatus}`;
     if (rfiDiscipline) url += `&discipline=${rfiDiscipline}`;
     if (debouncedRfiKeyword.trim()) url += `&q=${encodeURIComponent(debouncedRfiKeyword.trim())}`;
-    api.get<RFIItem[]>(url).then(setRfis).catch(() => setRfis([])).finally(() => setRfiLoading(false));
-  }, [activeModule, projectId, rfiStatus, rfiDiscipline, debouncedRfiKeyword]);
+    api.get<RFIItem[]>(url).then(setRfis).catch(() => { setRfis([]); setRfiError(true); }).finally(() => setRfiLoading(false));
+  }, [projectId, rfiStatus, rfiDiscipline, debouncedRfiKeyword]);
+
+  useEffect(() => {
+    if (activeModule !== "rfis") return;
+    loadRfis();
+  }, [activeModule, loadRfis]);
+
+  const loadChanges = useCallback(() => {
+    setChangeLoading(true);
+    setChangeError(false);
+    let url = `/projects/${projectId}/changes?limit=${LIST_LIMIT}`;
+    if (changeStatus) url += `&status=${changeStatus}`;
+    if (changeOrigin) url += `&origin=${changeOrigin}`;
+    api.get<ChangeItem[]>(url).then(setChanges).catch(() => { setChanges([]); setChangeError(true); }).finally(() => setChangeLoading(false));
+  }, [projectId, changeStatus, changeOrigin]);
 
   useEffect(() => {
     if (activeModule !== "changes") return;
-    setChangeLoading(true);
-    let url = `/projects/${projectId}/changes?limit=100`;
-    if (changeStatus) url += `&status=${changeStatus}`;
-    if (changeOrigin) url += `&origin=${changeOrigin}`;
-    api.get<ChangeItem[]>(url).then(setChanges).catch(() => setChanges([])).finally(() => setChangeLoading(false));
-  }, [activeModule, projectId, changeStatus, changeOrigin]);
+    loadChanges();
+  }, [activeModule, loadChanges]);
 
   const handleLogout = () => { clearAuth(); navigate("/login"); };
 
@@ -216,7 +247,7 @@ export default function Workspace() {
   const keywordSearch = (value: string, onChange: (v: string) => void) => (
     <div style={{ display: "flex", alignItems: "center", gap: 6, background: cardBg, border: `0.5px solid ${border}`, padding: "8px 10px", maxWidth: 280 }}>
       <span style={{ color: textSecondary, fontSize: 13 }}>⌕</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={t("filter.search")} style={{ background: "none", border: "none", outline: "none", fontSize: 12, color: textPrimary, fontFamily: "var(--font-ui)", width: "100%" }} />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={t("filter.search")} aria-label={t("filter.search")} style={{ background: "none", border: "none", outline: "none", fontSize: 12, color: textPrimary, fontFamily: "var(--font-ui)", width: "100%" }} />
       {value && <button onClick={() => onChange("")} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
     </div>
   );
@@ -237,8 +268,21 @@ export default function Workspace() {
   );
 
   const listHeader = (cols: { label: string; width: string }[]) => (
-    <div style={{ display: "grid", gridTemplateColumns: cols.map(c => c.width).join(" "), gap: 8, padding: "6px 12px", fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: textSecondary, borderBottom: `0.5px solid ${border}` }}>
+    <div className="list-row" style={{ display: "grid", gridTemplateColumns: cols.map(c => c.width).join(" "), gap: 8, padding: "6px 12px", fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: textSecondary, borderBottom: `0.5px solid ${border}` }}>
       {cols.map(c => <span key={c.label}>{c.label}</span>)}
+    </div>
+  );
+
+  const truncationNotice = () => (
+    <div style={{ fontSize: 11, fontFamily: "var(--font-meta)", color: "var(--color-warning)", padding: "6px 12px", background: "var(--color-warning-bg)", marginBottom: 2 }}>
+      {t("state.truncated").replace("{n}", String(LIST_LIMIT))}
+    </div>
+  );
+
+  const loadFailed = (onRetry: () => void) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ fontSize: 12, color: "var(--color-alert-red)" }}>{t("state.loadfailed")}</span>
+      <Button size="sm" variant="secondary" onClick={onRetry}>{t("action.retry")}</Button>
     </div>
   );
 
@@ -283,7 +327,7 @@ export default function Workspace() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: bg, display: "flex", flexDirection: "column" }}>
-      <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+      <nav className="app-chrome-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
           <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
@@ -294,9 +338,7 @@ export default function Workspace() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecondary }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: `1px solid ${border}`, cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
           <ThemeToggle />
           <button onClick={handleLogout} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: textSecondary }}>{t("nav.signout")}</button>
         </div>
@@ -336,7 +378,7 @@ export default function Workspace() {
                   borderRadius: 0,
                 }}
               >
-                <span>{mod === "intelligence" ? t("module.intelligence") : MODULE_LABELS[mod]}</span>
+                <span>{moduleLabel(mod, t)}</span>
                 {mod === "alerts" && alertCount > 0 && (
                   <span style={{
                     fontSize: 11,
@@ -356,7 +398,7 @@ export default function Workspace() {
             );
           })}
           <div style={{ height: "0.5px", background: border, margin: "8px 16px" }} />
-          <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-tertiary)", padding: "4px 16px", fontFamily: "var(--font-meta)" }}>System</div>
+          <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-tertiary)", padding: "4px 16px", fontFamily: "var(--font-meta)" }}>{t("module.system")}</div>
           {SIDEBAR_SYS.map((mod) => {
             const active = activeModule === mod;
             return (
@@ -383,7 +425,7 @@ export default function Workspace() {
                   borderRadius: 0,
                 }}
               >
-                {mod === "intelligence" ? t("module.intelligence") : MODULE_LABELS[mod]}
+                {moduleLabel(mod, t)}
               </button>
             );
           })}
@@ -402,9 +444,9 @@ export default function Workspace() {
                 {searchQuery && <button onClick={() => { setSearchQuery(""); handleSearch(""); }} style={{ fontSize: 11, color: textSecondary, background: "none", border: "none", cursor: "pointer" }}>✕</button>}
               </div>
               {filterRow(
-                ...["", "correspondence", "rfi", "change", "deliverable"].map((m) => chip(m === "" ? t("filter.all") : m === "rfi" ? "RFIs" : m === "change" ? "Changes" : m === "deliverable" ? "Deliverables" : "Correspondence", genModFilter === m, () => setGenModFilter(m))),
+                ...["", "correspondence", "rfi", "change", "deliverable"].map((m) => chip(m === "" ? t("filter.all") : t(m === "rfi" ? "module.rfis" : m === "change" ? "module.changes" : m === "deliverable" ? "module.deliverables" : "module.correspondence"), genModFilter === m, () => setGenModFilter(m))),
                 <div key="div1" style={{ width: "0.5px", background: border, height: 20 }} />,
-                ...["", "open", "draft", "under_review", "approved", "published", "closed", "overdue"].map((s) => chip(s === "" ? t("filter.allstatus") : s.replace("_", " "), genStatusFilter === s, () => setGenStatusFilter(s)))
+                ...["", "open", "draft", "under_review", "approved", "published", "closed", "overdue"].map((s) => chip(s === "" ? t("filter.allstatus") : t(`status.${s}`), genStatusFilter === s, () => setGenStatusFilter(s)))
               )}
               {filterRow(
                 chip(t("filter.issuedate"), genDateField === "date", () => setGenDateField("date")),
@@ -417,7 +459,7 @@ export default function Workspace() {
               {["correspondence", "rfi", "change", "deliverable"].map((mod) => {
                 const group = filteredGeneral.filter((r) => r.module === mod);
                 if (group.length === 0) return null;
-                const label = mod === "correspondence" ? "Correspondence" : mod === "rfi" ? "RFIs" : mod === "change" ? "Changes" : "Deliverables";
+                const label = t(mod === "correspondence" ? "module.correspondence" : mod === "rfi" ? "module.rfis" : mod === "change" ? "module.changes" : "module.deliverables");
 
                 // Correspondence — parent-child gruplama
                 if (mod === "correspondence") {
@@ -429,8 +471,9 @@ export default function Workspace() {
                   });
                   const corrParents = group.filter(r => !r.parent_id);
                   const renderCorrRow = (r: SearchResult, isChild = false) => (
-                    <div key={r.id}>
+                    <div key={r.id} className={isChild ? "chain-branch" : undefined}>
                       <div
+                        className={isChild ? "chain-node" : undefined}
                         onClick={() => navigate(generalNavTarget(mod, r.id))}
                         style={{
                           display: "flex", alignItems: "center",
@@ -438,17 +481,16 @@ export default function Workspace() {
                           padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
                           background: isChild ? "var(--color-bg-primary)" : cardBg,
                           marginBottom: 2, cursor: "pointer",
-                          borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "var(--color-accent)"}`,
+                          borderLeft: `2px solid ${r.status === "responded" ? ("var(--color-success)") : "var(--color-accent)"}`,
                         }}
                       >
-                        <div>
-                          <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
-                            {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
-                            {r.ref}
-                            {r.has_response && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>↩</span>}
-                          </span>
-                          <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
-                          <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
+                        <div style={{ minWidth: 0 }}>
+                          <span className="ref-number">{r.ref}</span>
+                          <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>
+                            {r.has_response && <span aria-label={t("status.responded")} style={{ fontSize: 11, color: "var(--color-accent-text)", marginInlineEnd: 5 }}>↩</span>}
+                            {r.subject}
+                          </p>
+                          <p className="data-figure" style={{ color: textSecondary, marginTop: 1 }}>{formatDateCompact(r.date)}</p>
                         </div>
                         <StatusChip status={r.status} />
                       </div>
@@ -475,8 +517,9 @@ export default function Workspace() {
                   });
                   const rfiSParents = group.filter(r => !r.parent_id);
                   const renderRfiRow = (r: SearchResult, isChild = false) => (
-                    <div key={r.id}>
+                    <div key={r.id} className={isChild ? "chain-branch" : undefined}>
                       <div
+                        className={isChild ? "chain-node" : undefined}
                         onClick={() => navigate(generalNavTarget(mod, r.id))}
                         style={{
                           display: "flex", alignItems: "center",
@@ -484,25 +527,22 @@ export default function Workspace() {
                           padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
                           background: isChild ? "var(--color-bg-primary)" : cardBg,
                           marginBottom: 2, cursor: "pointer",
-                          borderLeft: `2px solid ${isChild ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "var(--color-accent)"}`,
+                          borderLeft: `2px solid ${r.status === "responded" ? ("var(--color-success)") : "var(--color-accent)"}`,
                         }}
                       >
-                        <div>
-                          <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
-                            {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
-                            {r.ref}
+                        <div style={{ minWidth: 0 }}>
+                          <span className="ref-number">{r.ref}</span>
+                          <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>
                             {r.rfi_type && r.rfi_type !== "original" && (
-                              <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? "var(--color-success-bg)" : "var(--color-bg-secondary)", color: r.rfi_type === "response" ? "var(--color-success)" : "var(--color-text-secondary)", textTransform: "uppercase" as const }}>
-                                {r.rfi_type === "response" ? (lang === "tr" ? "YNT" : "RES") : (lang === "tr" ? "REV" : "REV")}
+                              <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", marginInlineEnd: 6, whiteSpace: "nowrap", backgroundColor: r.rfi_type === "response" ? "var(--color-success-bg)" : "var(--color-bg-secondary)", color: r.rfi_type === "response" ? "var(--color-success)" : "var(--color-text-secondary)" }}>
+                                {r.rfi_type === "response" ? t("rfitype.response") : t("rfitype.revision")}
                               </span>
                             )}
-                          </span>
-                          <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
-                          <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
+                            {r.subject}
+                          </p>
+                          <p className="data-figure" style={{ color: textSecondary, marginTop: 1 }}>{formatDateCompact(r.date)}</p>
                         </div>
-                        {r.rfi_type === "response"
-                          ? <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-bg-secondary)", color: "var(--color-text-secondary)", textTransform: "uppercase" as const, letterSpacing: "0.04em", fontFamily: "var(--font-ui)", borderRadius: 0 }}>RESPONSE</span>
-                          : <StatusChip status={r.status} />}
+                        <StatusChip status={r.status} />
                       </div>
                       {(rfiSChildMap.get(r.id) ?? []).map(child => renderRfiRow(child, true))}
                     </div>
@@ -523,9 +563,9 @@ export default function Workspace() {
                     {group.map((r) => (
                       <div key={r.id} onClick={() => navigate(generalNavTarget(mod, r.id))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: cardBg, marginBottom: 4, borderLeft: `2px solid ${"var(--color-accent)"}`, cursor: "pointer" }}>
                         <div>
-                          <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary }}>{r.ref}</span>
+                          <span className="ref-number">{r.ref}</span>
                           <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500, marginTop: 2 }}>{r.subject}</p>
-                          <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{r.date}</p>
+                          <p className="data-figure" style={{ color: textSecondary, marginTop: 1 }}>{formatDateCompact(r.date)}</p>
                         </div>
                         <StatusChip status={r.status} />
                       </div>
@@ -540,7 +580,7 @@ export default function Workspace() {
           {activeModule === "correspondence" && (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
-                <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500 }}>Correspondence</div>
+                <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500 }}>{t("module.correspondence")}</div>
                 <div style={{ position: "relative" as const }}>
                   <Button size="sm" type="button" onClick={() => setCorrDropdown(!corrDropdown)}>
                     {t("action.newcorrespondence")} ▾
@@ -564,14 +604,14 @@ export default function Workspace() {
                 <div key="div1" style={{ width: "0.5px", background: border, height: 20 }} />,
                 ...["", "incoming", "outgoing"].map((d) => chip(d === "" ? t("filter.alldirections") : d === "incoming" ? t("filter.incoming") : t("filter.outgoing"), corrDir === d, () => setCorrDir(d)))
               )}
-              {filterRow(...["", "open", "responded", "draft", "under_review", "approved", "published", "closed", "overdue"].map((s) => chip(s === "" ? t("filter.all") : s.replace("_", " "), corrStatus === s, () => setCorrStatus(s))))}
+              {filterRow(...["", "open", "responded", "draft", "under_review", "approved", "published", "closed", "overdue"].map((s) => chip(s === "" ? t("filter.all") : t(`status.${s}`), corrStatus === s, () => setCorrStatus(s))))}
               {filterRow(
                 chip(t("filter.issuedate"), corrDateField === "correspondence_date", () => setCorrDateField("correspondence_date")),
                 chip(t("filter.duedate"), corrDateField === "response_due_date", () => setCorrDateField("response_due_date")),
                 <div key="cdiv" style={{ width: "0.5px", background: border, height: 20 }} />,
                 dateRange(corrDateField === "correspondence_date" ? t("filter.issuedate") : t("filter.duedate"), corrDateFrom, corrDateTo, setCorrDateFrom, setCorrDateTo)
               )}
-              {corrLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : filteredCorrs.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.nocorrespondence")}</p> : (() => {
+              {corrLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : corrError ? loadFailed(loadCorrs) : filteredCorrs.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.nocorrespondence")}</p> : (() => {
                 // Parent-child gruplama
                 const allIds = new Set(filteredCorrs.map(c => c.id));
                 
@@ -591,34 +631,36 @@ export default function Workspace() {
                 });
 
                 const corrRow = (c: CorrItem, isChild = false) => (
-                  <div key={c.id}>
+                  <div key={c.id} className={isChild ? "chain-branch" : undefined}>
                     <div
+                      className={isChild ? "list-row chain-node" : "list-row"}
                       onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${c.id}`)}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "90px 1fr 90px 90px 90px 90px",
+                        gridTemplateColumns: "var(--gutter-ref) 1fr 90px 90px 90px var(--gutter-status)",
                         gap: 8,
                         padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
                         background: isChild ? "var(--color-bg-primary)" : cardBg,
                         marginBottom: 2,
                         cursor: "pointer",
-                        borderLeft: isChild
-                          ? `2px solid ${"var(--color-accent)"}`
-                          : `2px solid ${c.status === "overdue" ? "var(--color-alert-red)" : c.status === "open" ? "var(--color-accent)" : c.status === "responded" ? ("var(--color-success)") : "transparent"}`,
+                        // The left rail carries status on every row, parent or child.
+                        // Chain membership is the thread's job, not the rail's.
+                        borderLeft: `2px solid ${c.status === "overdue" ? "var(--color-alert-red)" : c.status === "open" ? "var(--color-accent)" : c.status === "responded" ? ("var(--color-success)") : "transparent"}`,
                       }}
                     >
-                      <span style={{ fontFamily: "var(--font-meta)", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
-                        {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
-                        {c.corr_number}
-                        {c.has_response && <span style={{ fontSize: 11, color: "var(--color-accent-text)" }}>🔗</span>}
-                      </span>
+                      {/* Reference cell holds the reference and nothing else — markers
+                          and badges live with the subject, where there is room to grow. */}
+                      <span className="ref-number">{c.corr_number}</span>
                       <div>
-                        <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, margin: 0 }}>{c.subject}</p>
-                        <p style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>{c.type}</p>
+                        <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500, margin: 0 }}>
+                          {c.has_response && <span aria-label={t("status.responded")} style={{ fontSize: 11, color: "var(--color-accent-text)", marginInlineEnd: 5 }}>↩</span>}
+                          {c.subject}
+                        </p>
+                        <p style={{ fontSize: 11, color: textSecondary, marginTop: 1, textTransform: "capitalize" as const }}>{c.type?.replace(/_/g, " ")}</p>
                       </div>
-                      <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const }}>{c.direction}</span>
-                      <span style={{ fontSize: 11, color: textSecondary }}>{c.correspondence_date?.slice(0, 10)}</span>
-                      <span style={{ fontSize: 11, color: c.response_due_date && c.response_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{c.response_due_date?.slice(0, 10) ?? "—"}</span>
+                      <span style={{ fontSize: 11, color: textSecondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.direction === "incoming" ? t("filter.incoming") : c.direction === "outgoing" ? t("filter.outgoing") : c.direction}</span>
+                      <span className="data-figure" style={{ color: textSecondary }}>{formatDateCompact(c.correspondence_date)}</span>
+                      <span className="data-figure" style={{ color: c.response_due_date && c.response_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{formatDateCompact(c.response_due_date)}</span>
                       <StatusChip status={c.status} />
                     </div>
                     {/* Children */}
@@ -628,7 +670,8 @@ export default function Workspace() {
 
                 return (
                   <div>
-                    {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.subject"), width: "1fr" }, { label: t("col.direction"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.deadline"), width: "90px" }, { label: t("col.status"), width: "90px" }])}
+                    {corrs.length >= LIST_LIMIT && truncationNotice()}
+                    {listHeader([{ label: t("col.no"), width: "var(--gutter-ref)" }, { label: t("col.subject"), width: "1fr" }, { label: t("col.direction"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.deadline"), width: "90px" }, { label: t("col.status"), width: "var(--gutter-status)" }])}
                     {parents.map(c => corrRow(c, false))}
                   </div>
                 );
@@ -640,7 +683,7 @@ export default function Workspace() {
           {activeModule === "rfis" && (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, position: "relative" as const }}>
-                <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500 }}>RFIs</div>
+                <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500 }}>{t("module.rfis")}</div>
                 <div style={{ position: "relative" as const }}>
                   <Button size="sm" type="button" onClick={() => setRfiDropdown(!rfiDropdown)}>
                     {t("action.newrfi")} ▾
@@ -672,16 +715,16 @@ export default function Workspace() {
               {filterRow(
                 keywordSearch(rfiKeyword, setRfiKeyword),
                 <div key="div1" style={{ width: "0.5px", background: border, height: 20 }} />,
-                ...["", "open", "overdue", "responded", "closed"].map((s) => chip(s === "" ? t("filter.all") : s, rfiStatus === s, () => setRfiStatus(s)))
+                ...["", "open", "overdue", "responded", "closed"].map((s) => chip(s === "" ? t("filter.all") : t(`status.${s}`), rfiStatus === s, () => setRfiStatus(s)))
               )}
-              {filterRow(...["", "Civil", "Architectural", "Structural", "Mechanical", "Electrical", "Plumbing", "Other"].map((d) => chip(d === "" ? t("filter.alldisciplines") : d, rfiDiscipline === d, () => setRfiDiscipline(d))))}
+              {filterRow(...["", "Civil", "Architectural", "Structural", "Mechanical", "Electrical", "Plumbing", "Other"].map((d) => chip(d === "" ? t("filter.alldisciplines") : t(`discipline.${d.toLowerCase()}`), rfiDiscipline === d, () => setRfiDiscipline(d))))}
               {filterRow(
                 chip(t("filter.submitteddate"), rfiDateField === "submitted_date", () => setRfiDateField("submitted_date")),
                 chip(t("filter.duedate"), rfiDateField === "response_due_date", () => setRfiDateField("response_due_date")),
                 <div key="rdiv" style={{ width: "0.5px", background: border, height: 20 }} />,
                 dateRange(rfiDateField === "submitted_date" ? t("filter.submitteddate") : t("filter.duedate"), rfiDateFrom, rfiDateTo, setRfiDateFrom, setRfiDateTo)
               )}
-              {rfiLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : filteredRfis.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.norfis")}</p> : (() => {
+              {rfiLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : rfiError ? loadFailed(loadRfis) : filteredRfis.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.norfis")}</p> : (() => {
                 // Parent-child gruplama
                 const rfiAllIds = new Set(filteredRfis.map(r => r.id));
                 const rfiGhostParents = rfis.filter(r =>
@@ -697,50 +740,46 @@ export default function Workspace() {
                   rfiChildMap.set(r.parent_id!, arr);
                 });
                 const rfiRow = (r: RFIItem, isChild = false) => (
-                  <div key={r.id}>
+                  <div key={r.id} className={isChild ? "chain-branch" : undefined}>
                     <div
+                      className={isChild ? "list-row chain-node" : "list-row"}
                       onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${r.id}`)}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "90px 1fr 100px 90px 90px 80px",
+                        gridTemplateColumns: "var(--gutter-ref) 1fr 100px 90px 90px var(--gutter-status)",
                         gap: 8,
                         padding: isChild ? "8px 12px 8px 28px" : "8px 12px",
                         background: isChild ? "var(--color-bg-primary)" : cardBg,
                         marginBottom: 2,
                         cursor: "pointer",
-                        borderLeft: isChild
-                          ? `2px solid ${"var(--color-accent)"}`
-                          : `2px solid ${r.status === "overdue" ? "var(--color-alert-red)" : r.status === "open" ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "transparent"}`,
+                        borderLeft: `2px solid ${r.status === "overdue" ? "var(--color-alert-red)" : r.status === "open" ? "var(--color-accent)" : r.status === "responded" ? ("var(--color-success)") : "transparent"}`,
                       }}
                     >
-                      <span style={{ fontFamily: "var(--font-meta)", fontSize: isChild ? 9 : 10, color: textSecondary, display: "flex", alignItems: "center", gap: 4 }}>
-                        {isChild && <span style={{ color: "var(--color-accent-text)", marginRight: 2 }}>└</span>}
-                        {r.rfi_number}
+                      {/* Reference cell holds the reference and nothing else — the type
+                          badge lives with the subject, where there is room to grow. */}
+                      <span className="ref-number">{r.rfi_number}</span>
+                      <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500 }}>
                         {r.rfi_type && r.rfi_type !== "original" && (
-                          <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", backgroundColor: r.rfi_type === "response" ? "var(--color-success-bg)" : "var(--color-bg-secondary)", color: r.rfi_type === "response" ? "var(--color-success)" : "var(--color-text-secondary)", textTransform: "uppercase" as const }}>
-                            {r.rfi_type === "response" ? (lang === "tr" ? "YNT" : "RES") : (lang === "tr" ? "REV" : "REV")}
+                          <span style={{ fontSize: 11, fontWeight: 500, padding: "1px 4px", marginInlineEnd: 6, backgroundColor: r.rfi_type === "response" ? "var(--color-success-bg)" : "var(--color-bg-secondary)", color: r.rfi_type === "response" ? "var(--color-success)" : "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
+                            {r.rfi_type === "response" ? t("rfitype.response") : t("rfitype.revision")}
                           </span>
                         )}
+                        {r.subject}
+                      </p>
+                      <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.discipline ?? "—"}</span>
+                      <span className="data-figure" style={{ color: textSecondary }}>
+                        {formatDateCompact(r.submitted_date)}
                       </span>
-                      <p style={{ fontSize: isChild ? 11 : 12, color: textPrimary, fontWeight: 500 }}>{r.subject}</p>
-                      <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize" as const }}>{r.discipline ?? "—"}</span>
-                      <span style={{ fontSize: 11, color: textSecondary }}>
-                        {r.submitted_date ? r.submitted_date.slice(0, 10) : "—"}
-                      </span>
-                      <span style={{ fontSize: 11, color: r.response_due_date && r.response_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{r.response_due_date?.slice(0, 10) ?? "—"}</span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        {r.rfi_type === "response" && (
-                          <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", backgroundColor: "var(--color-success-bg)", color: "var(--color-success)", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>RESPONSE</span>
-                        )}
-                        <StatusChip status={r.status} />
-                      </span>
+                      <span className="data-figure" style={{ color: r.response_due_date && r.response_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{formatDateCompact(r.response_due_date)}</span>
+                      <StatusChip status={r.status} />
                     </div>
                     {(rfiChildMap.get(r.id) ?? []).map(child => rfiRow(child, true))}
                   </div>
                 );
                 return (
                   <div>
-                    {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.subject"), width: "1fr" }, { label: t("col.discipline"), width: "100px" }, { label: t("col.submitted"), width: "90px" }, { label: t("col.due"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
+                    {rfis.length >= LIST_LIMIT && truncationNotice()}
+                    {listHeader([{ label: t("col.no"), width: "var(--gutter-ref)" }, { label: t("col.subject"), width: "1fr" }, { label: t("col.discipline"), width: "100px" }, { label: t("col.submitted"), width: "90px" }, { label: t("col.due"), width: "90px" }, { label: t("col.status"), width: "var(--gutter-status)" }])}
                     {rfiParents.map(r => rfiRow(r, false))}
                   </div>
                 );
@@ -754,33 +793,35 @@ export default function Workspace() {
               {/* Sub-tabs — reuse the chip + filterRow primitives, no new component/styling.
                   Working = the existing Changes list; In-Force = the B3 resolution view. */}
               {filterRow(
-                chip("Değişiklikler", contractTab === "working", () => setContractTab("working")),
-                chip("Yürürlük (In-Force)", contractTab === "inforce", () => setContractTab("inforce")),
+                chip(t("inforce.tab.working"), contractTab === "working", () => setContractTab("working")),
+                chip(t("inforce.tab.inforce"), contractTab === "inforce", () => setContractTab("inforce")),
               )}
               {contractTab === "working" && (
               <div>
-              {moduleHeader("Changes", () => navigate(`/projects/${projectId}/workspace/changes/new`), t("action.newchange"))}
+              {moduleHeader(t("module.changes"), () => navigate(`/projects/${projectId}/workspace/changes/new`), t("action.newchange"))}
               {filterRow(
                 keywordSearch(changeKeyword, setChangeKeyword),
                 <div key="div1" style={{ width: "0.5px", background: border, height: 20 }} />,
-                ...["", "draft", "open", "under_review", "approved", "rejected", "closed"].map((s) => chip(s === "" ? t("filter.all") : s.replace("_", " "), changeStatus === s, () => setChangeStatus(s)))
+                ...["", "draft", "open", "under_review", "approved", "rejected", "closed"].map((s) => chip(s === "" ? t("filter.all") : t(`status.${s}`), changeStatus === s, () => setChangeStatus(s)))
               )}
-              {filterRow(...["", "client", "contractor", "engineer", "variation", "other"].map((o) => chip(o === "" ? t("filter.allorigins") : o, changeOrigin === o, () => setChangeOrigin(o))))}
+              {filterRow(...["", "client", "contractor", "engineer", "variation", "other"].map((o) => chip(o === "" ? t("filter.allorigins") : t(`origin.${o}`), changeOrigin === o, () => setChangeOrigin(o))))}
               {filterRow(
                 chip(t("filter.createddate"), changeDateField === "created_at", () => setChangeDateField("created_at")),
                 chip(t("filter.duedate"), changeDateField === "notice_due_date", () => setChangeDateField("notice_due_date")),
                 <div key="chgdiv" style={{ width: "0.5px", background: border, height: 20 }} />,
                 dateRange(changeDateField === "created_at" ? t("filter.createddate") : t("filter.duedate"), changeDateFrom, changeDateTo, setChangeDateFrom, setChangeDateTo)
               )}
-              {changeLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : filteredChanges.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.nochanges")}</p> : (
+              {changeLoading ? <p style={{ fontSize: 12, color: textSecondary }}>{t("state.loading")}</p> : changeError ? loadFailed(loadChanges) : filteredChanges.length === 0 ? <p style={{ fontSize: 12, color: textSecondary, fontStyle: "italic" }}>{t("state.nochanges")}</p> : (
                 <div>
-                  {listHeader([{ label: t("col.no"), width: "90px" }, { label: t("col.title"), width: "1fr" }, { label: t("col.origin"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.status"), width: "80px" }])}
+                  {changes.length >= LIST_LIMIT && truncationNotice()}
+                  {listHeader([{ label: t("col.no"), width: "var(--gutter-ref)" }, { label: t("col.title"), width: "1fr" }, { label: t("col.origin"), width: "90px" }, { label: t("col.date"), width: "90px" }, { label: t("col.noticedue"), width: "90px" }, { label: t("col.status"), width: "var(--gutter-status)" }])}
                   {filteredChanges.map((c) => (
-                    <div key={c.id} onClick={() => navigate(`/projects/${projectId}/workspace/changes/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "90px 1fr 90px 90px 80px", gap: 8, padding: "8px 12px", background: cardBg, marginBottom: 4, cursor: "pointer", borderLeft: `2px solid ${c.status === "open" ? "var(--color-accent)" : "transparent"}` }}>
-                      <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecondary }}>{c.change_number}</span>
+                    <div key={c.id} className="list-row" onClick={() => navigate(`/projects/${projectId}/workspace/changes/${c.id}`)} style={{ display: "grid", gridTemplateColumns: "var(--gutter-ref) 1fr 90px 90px 90px var(--gutter-status)", gap: 8, padding: "8px 12px", background: cardBg, marginBottom: 2, cursor: "pointer", borderLeft: `2px solid ${c.status === "open" ? "var(--color-accent)" : "transparent"}` }}>
+                      <span className="ref-number">{c.change_number}</span>
                       <p style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{c.title}</p>
                       <span style={{ fontSize: 11, color: textSecondary, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{c.origin}</span>
-                      <span style={{ fontSize: 11, color: textSecondary, whiteSpace: "nowrap" }}>{c.created_at?.slice(0, 10)}</span>
+                      <span className="data-figure" style={{ color: textSecondary }}>{formatDateCompact(c.created_at)}</span>
+                      <span className="data-figure" style={{ color: c.notice_due_date && c.notice_due_date < today ? "var(--color-alert-red)" : textSecondary }}>{formatDateCompact(c.notice_due_date)}</span>
                       <StatusChip status={c.status} />
                     </div>
                   ))}
@@ -819,7 +860,7 @@ export default function Workspace() {
           {activeModule === "config" && (
             <div>
               <div style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1-module)", color: textPrimary, fontWeight: 500, marginBottom: 8 }}>
-                Config
+                {t("module.config")}
               </div>
               <AuthoringTemplatesPanel projectId={String(projectId)} />
             </div>
@@ -841,7 +882,7 @@ export default function Workspace() {
                   color: textPrimary,
                   marginBottom: 8,
                 }}>
-                  {MODULE_LABELS[activeModule]}
+                  {moduleLabel(activeModule, t)}
                 </p>
                 <p style={{
                   fontSize: 12,

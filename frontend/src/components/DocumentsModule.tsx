@@ -15,6 +15,8 @@ import {
 import DocumentStatsPanel, { chronologyTypeLabel } from "./DocumentStatsPanel";
 import FocusedRelationGraph from "./FocusedRelationGraph";
 import StatusChip from "./StatusChip";
+import { formatDateCompact } from "../utils/format";
+import { useLanguage } from "../context/LanguageContext";
 
 /* ── Local types ───────────────────────────────────────────
    Mirrors Workspace.tsx SearchResult + minimal RFI/Corr
@@ -82,6 +84,7 @@ interface Props {
 export default function DocumentsModule({ projectId }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
   const [query, setQuery]     = useState("");
   const debouncedQuery = useDebounce(query, 400);
 
@@ -413,8 +416,9 @@ export default function DocumentsModule({ projectId }: Props) {
     const parents = group.filter((r) => !r.parent_id);
 
     const renderRow = (r: DocSearchResult, isChild = false) => (
-      <div key={r.id}>
+      <div key={r.id} className={isChild ? "chain-branch" : undefined}>
         <div
+          className={isChild ? "chain-node" : undefined}
           onClick={() => navigate(navTarget(r.module, r.id))}
           style={{
             display: "flex", alignItems: "center",
@@ -423,36 +427,28 @@ export default function DocumentsModule({ projectId }: Props) {
             background: isChild ? bg : cardBg,
             marginBottom: 2, cursor: "pointer",
             borderLeft: `2px solid ${
-              isChild ? accent
-              : r.status === "responded" ? "var(--color-success)"
-              : accent
+              r.status === "responded" ? "var(--color-success)" : accent
             }`,
           }}
         >
-          <div>
-            <span style={{
-              fontFamily: "var(--font-meta)", fontSize: 11,
-              color: textSecond, display: "flex", alignItems: "center", gap: 4,
-            }}>
-              {isChild && (
-                <span style={{ color: accentText, marginRight: 2 }}>└</span>
-              )}
-              {r.ref}
-              {r.has_response && (
-                <span style={{ fontSize: 11, color: accentText }}>↩</span>
-              )}
-            </span>
+          {/* minWidth:0 lets a long subject wrap instead of pushing the action
+              buttons out of the row. */}
+          <div style={{ minWidth: 0 }}>
+            <span className="ref-number">{r.ref}</span>
             <p style={{
               fontSize: isChild ? 11 : 12, color: textPrimary,
               fontWeight: 500, marginTop: 2,
             }}>
+              {r.has_response && (
+                <span style={{ fontSize: 11, color: accentText, marginInlineEnd: 5 }}>↩</span>
+              )}
               {r.subject}
             </p>
-            <p style={{ fontSize: 11, color: textSecond, marginTop: 1 }}>
-              {r.date}
+            <p className="data-figure" style={{ color: textSecond, marginTop: 1 }}>
+              {formatDateCompact(r.date)}
             </p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -466,13 +462,7 @@ export default function DocumentsModule({ projectId }: Props) {
               }}
               title="İlişki haritasını gör"
               aria-label="İlişki haritasını gör"
-              style={{
-                background: "var(--color-ai-bg)", color: "var(--color-ai)",
-                border: "1px solid var(--color-ai)", borderRadius: 6,
-                width: 22, height: 22, display: "flex",
-                alignItems: "center", justifyContent: "center",
-                cursor: "pointer", padding: 0, flexShrink: 0,
-              }}
+              className="ai-icon-btn"
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="5" r="2.5" />
@@ -520,8 +510,9 @@ export default function DocumentsModule({ projectId }: Props) {
     const parents = group.filter((r) => !r.parent_id);
 
     const renderRow = (r: DocSearchResult, isChild = false) => (
-      <div key={r.id}>
+      <div key={r.id} className={isChild ? "chain-branch" : undefined}>
         <div
+          className={isChild ? "chain-node" : undefined}
           onClick={() => navigate(navTarget(r.module, r.id))}
           style={{
             display: "flex", alignItems: "center",
@@ -530,24 +521,20 @@ export default function DocumentsModule({ projectId }: Props) {
             background: isChild ? bg : cardBg,
             marginBottom: 2, cursor: "pointer",
             borderLeft: `2px solid ${
-              isChild ? accent
-              : r.status === "responded" ? "var(--color-success)"
-              : accent
+              r.status === "responded" ? "var(--color-success)" : accent
             }`,
           }}
         >
-          <div>
-            <span style={{
-              fontFamily: "var(--font-meta)", fontSize: 11,
-              color: textSecond, display: "flex", alignItems: "center", gap: 4,
+          <div style={{ minWidth: 0 }}>
+            <span className="ref-number">{r.ref}</span>
+            <p style={{
+              fontSize: isChild ? 11 : 12, color: textPrimary,
+              fontWeight: 500, marginTop: 2,
             }}>
-              {isChild && (
-                <span style={{ color: accentText, marginRight: 2 }}>└</span>
-              )}
-              {r.ref}
               {r.rfi_type && r.rfi_type !== "original" && (
                 <span style={{
                   fontSize: 11, fontWeight: 500, padding: "1px 4px",
+                  marginInlineEnd: 6, whiteSpace: "nowrap",
                   backgroundColor:
                     r.rfi_type === "response"
                       ? "var(--color-success-bg)"
@@ -556,23 +543,17 @@ export default function DocumentsModule({ projectId }: Props) {
                     r.rfi_type === "response"
                       ? "var(--color-success)"
                       : textSecond,
-                  textTransform: "uppercase" as const,
                 }}>
-                  {r.rfi_type === "response" ? "RES" : "REV"}
+                  {r.rfi_type === "response" ? t("rfitype.response") : t("rfitype.revision")}
                 </span>
               )}
-            </span>
-            <p style={{
-              fontSize: isChild ? 11 : 12, color: textPrimary,
-              fontWeight: 500, marginTop: 2,
-            }}>
               {r.subject}
             </p>
-            <p style={{ fontSize: 11, color: textSecond, marginTop: 1 }}>
-              {r.date}
+            <p className="data-figure" style={{ color: textSecond, marginTop: 1 }}>
+              {formatDateCompact(r.date)}
             </p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -586,13 +567,7 @@ export default function DocumentsModule({ projectId }: Props) {
               }}
               title="İlişki haritasını gör"
               aria-label="İlişki haritasını gör"
-              style={{
-                background: "var(--color-ai-bg)", color: "var(--color-ai)",
-                border: "1px solid var(--color-ai)", borderRadius: 6,
-                width: 22, height: 22, display: "flex",
-                alignItems: "center", justifyContent: "center",
-                cursor: "pointer", padding: 0, flexShrink: 0,
-              }}
+              className="ai-icon-btn"
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="5" r="2.5" />
@@ -602,16 +577,7 @@ export default function DocumentsModule({ projectId }: Props) {
                 <line x1="12" y1="7.5" x2="17.5" y2="17" />
               </svg>
             </button>
-            {r.rfi_type === "response" ? (
-              <span style={{
-                fontSize: 11, fontWeight: 500, padding: "2px 8px",
-                backgroundColor: "var(--color-success-bg)",
-                color: "var(--color-success)",
-                textTransform: "uppercase" as const, letterSpacing: "0.04em",
-              }}>
-                RESPONSE
-              </span>
-            ) : <StatusChip status={r.status} />}
+            <StatusChip status={r.status} />
           </div>
         </div>
         {(childMap.get(r.id) ?? []).map((child) =>
@@ -655,13 +621,8 @@ export default function DocumentsModule({ projectId }: Props) {
           borderLeft: `2px solid ${accent}`,
         }}
       >
-        <div>
-          <span style={{
-            fontFamily: "var(--font-meta)", fontSize: 11,
-            color: textSecond,
-          }}>
-            {r.ref}
-          </span>
+        <div style={{ minWidth: 0 }}>
+          <span className="ref-number">{r.ref}</span>
           <p style={{
             fontSize: 12, color: textPrimary,
             fontWeight: 500, marginTop: 2,
@@ -669,12 +630,12 @@ export default function DocumentsModule({ projectId }: Props) {
             {r.subject}
           </p>
           {r.date && (
-            <p style={{ fontSize: 11, color: textSecond, marginTop: 1 }}>
-              {r.date}
+            <p className="data-figure" style={{ color: textSecond, marginTop: 1 }}>
+              {formatDateCompact(r.date)}
             </p>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <StatusChip status={r.status} />
         </div>
       </div>

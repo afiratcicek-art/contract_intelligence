@@ -1,12 +1,16 @@
 ﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import LanguageToggle from "../components/LanguageToggle";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
 import Button from "../components/Button";
+import AiActionButton from "../components/AiActionButton";
 import EntryModeMenu from "../components/EntryModeMenu";
 import { useLanguage } from "../context/LanguageContext";
 import RelationPopup from "../components/RelationPopup";
+import StatusChip from "../components/StatusChip";
+import { formatDateCompact } from "../utils/format";
 import DocumentLink from "../components/DocumentLink";
 import ReferenceLink from "../components/ReferenceLink";
 import { DOCUMENT_TYPE_LABELS, parseStatusLabel, type RefItem } from "../constants/documentTypes";
@@ -55,7 +59,7 @@ export default function CorrespondenceDetail() {
   const { projectId, corrId } = useParams<{ projectId: string; corrId: string }>();
   const navigate = useNavigate();
   const auth = getAuth();
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
 
   const [corr, setCorr] = useState<CorrDetail | null>(null);
   const [refs, setRefs] = useState<RefItem[]>([]);
@@ -187,7 +191,7 @@ export default function CorrespondenceDetail() {
     <div style={{ minHeight: "100vh", backgroundColor: bg }}>
 
       {/* Nav */}
-      <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <nav className="app-chrome-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
           <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
@@ -196,13 +200,11 @@ export default function CorrespondenceDetail() {
           <span style={{ color: "var(--color-text-secondary)" }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=correspondence`)}>{t("module.correspondence")}</span>
           <span style={{ color: "var(--color-text-secondary)" }}>/</span>
-            <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "var(--font-meta)", fontSize: 11 }}>{corr.corr_number}</span>
+            <span className="ref-number" style={{ color: textPrimary, fontWeight: 500 }}>{corr.corr_number}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
           <ThemeToggle />
         </div>
       </nav>
@@ -211,25 +213,27 @@ export default function CorrespondenceDetail() {
 
         {/* Parent zinciri breadcrumb */}
         {corr.breadcrumb && corr.breadcrumb.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 16, padding: "8px 12px", backgroundColor: cardBg, borderLeft: `2px solid ${"var(--color-accent)"}` }}>
-            <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, marginRight: 4 }}>
-              {lang === "tr" ? "Zincir:" : "Chain:"}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "8px 12px", backgroundColor: cardBg, borderLeft: `2px solid ${"var(--color-accent)"}` }}>
+            <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: textSecond, flexShrink: 0 }}>
+              {t("chain.label")}
             </span>
-            {corr.breadcrumb.map((b, idx) => (
-              <span key={b.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* Horizontal chain thread: stops sit on a rule, the one you are
+                reading is the filled marker. */}
+            <div className="chain-rail">
+              {corr.breadcrumb.map((b) => (
                 <span
+                  key={b.id}
+                  className="chain-stop ref-number"
                   onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${b.id}`)}
-                  style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: "var(--color-accent-text)", cursor: "pointer", textDecoration: "underline" }}
+                  style={{ color: "var(--color-accent-text)", cursor: "pointer" }}
                 >
                   {b.corr_number}
                 </span>
-                {idx < corr.breadcrumb.length - 1 && (
-                  <span style={{ fontSize: 11, color: textSecond }}>→</span>
-                )}
+              ))}
+              <span className="chain-stop chain-stop-current ref-number" style={{ color: textPrimary, fontWeight: 500 }}>
+                {corr.corr_number}
               </span>
-            ))}
-            <span style={{ fontSize: 11, color: textSecond }}>→</span>
-            <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textPrimary, fontWeight: 500 }}>{corr.corr_number}</span>
+            </div>
           </div>
         )}
 
@@ -237,31 +241,29 @@ export default function CorrespondenceDetail() {
         {!isLatest && corr.response_corr_id && (
           <div style={{ backgroundColor: warnBg, border: `0.5px solid ${warnBorder}`, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, color: warnBorder, fontFamily: "var(--font-ui)", fontWeight: 500 }}>
-              {lang === "tr"
-                ? "⚠ Bu yazışma zincirinin en güncel belgesi değil."
-                : "⚠ This is not the latest document in the correspondence chain."}
+              {t("chain.notlatest")}
             </span>
             <button
               onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${corr.response_corr_id}`)}
               style={{ fontSize: 11, fontWeight: 500, color: warnBorder, background: "none", border: `0.5px solid ${warnBorder}`, padding: "3px 10px", cursor: "pointer", fontFamily: "var(--font-ui)" }}
             >
-              {lang === "tr" ? "En Güncele Git →" : "Go to Latest →"}
+              {t("chain.golatest")}
             </button>
           </div>
         )}
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
+        <div className="detail-header">
           <div>
-            <p style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecond, marginBottom: 4 }}>{corr.corr_number}</p>
+            <p className="ref-number" style={{ marginBottom: 4 }}>{corr.corr_number}</p>
             <h1 style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1)", color: textPrimary, fontWeight: 500, lineHeight: 1.3, marginBottom: 8 }}>{corr.subject}</h1>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               {directionPill(corr.direction)}
-              <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.type}</span>
-              <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.status}</span>
+              <span style={{ fontSize: 11, fontWeight: 500, textTransform: "capitalize" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: cardBg, color: textSecond }}>{corr.type?.replace(/_/g, " ")}</span>
+              <StatusChip status={corr.status} />
               {corr.parent_id && (
-                <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" }}>
-                  🔗 {lang === "tr" ? "Zincirde" : "In Chain"}
+                <span className="chain-stop" style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.04em", padding: "2px 8px", backgroundColor: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" }}>
+                  {t("chain.inchain")}
                 </span>
               )}
             </div>
@@ -274,12 +276,15 @@ export default function CorrespondenceDetail() {
               registerPath={`/projects/${projectId}/workspace/correspondence/new?mode=response&parent_id=${corr.id}&parent_number=${encodeURIComponent(corr.corr_number)}`}
               createPath={`/projects/${projectId}/workspace/authoring/new?doc_type=letter&relation=response&parent_id=${corr.id}&parent_number=${encodeURIComponent(corr.corr_number)}`}
             />
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant="warning"
               onClick={() => setFlagOpen(true)}
-              style={{ backgroundColor: "transparent", color: "var(--color-warning)", border: "1px solid var(--color-warning)", padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "var(--font-ui)" }}>
-              ⚠ {lang === "tr" ? "Potansiyel Etki" : "Potential Impact"}
-            </button>
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {lang === "tr" ? "Potansiyel Etki" : "Potential Impact"}
+            </Button>
             <EntryModeMenu
               label={t("action.addfollowup")}
               variant="secondary"
@@ -290,7 +295,7 @@ export default function CorrespondenceDetail() {
         </div>
 
         {/* Fields */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, padding: 20, backgroundColor: cardBg, marginBottom: 16 }}>
+        <div className="meta-grid-3" style={{ padding: 20, backgroundColor: cardBg, marginBottom: 16 }}>
           <div>
             <label style={labelStyle}>{lang === "tr" ? "TARİH" : "DATE"}</label>
             <p style={fieldStyle}>{corr.correspondence_date}</p>
@@ -359,18 +364,20 @@ export default function CorrespondenceDetail() {
                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${child.id}`)}
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: cardBg, marginBottom: 4, borderLeft: `2px solid ${child.has_response ? textSecond : "var(--color-accent)"}`, cursor: "pointer" }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: "var(--color-accent-text)" }}>{child.corr_number}</span>
+                {/* minWidth:0 lets a long subject wrap instead of growing the left
+                    side over the date block, which cannot shrink. */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <span className="ref-number" style={{ color: "var(--color-accent-text)" }}>{child.corr_number}</span>
                   {directionPill(child.direction)}
-                  <span style={{ fontSize: 12, color: textPrimary, fontWeight: 500 }}>{child.subject}</span>
+                  <span style={{ fontSize: 12, color: textPrimary, fontWeight: 500, minWidth: 0 }}>{child.subject}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   {child.has_response && (
                     <span style={{ fontSize: 11, color: textSecond, fontStyle: "italic" }}>
-                      {lang === "tr" ? "yanıtlandı" : "responded"}
+                      {t("status.responded")}
                     </span>
                   )}
-                  <span style={{ fontSize: 11, color: textSecond }}>{child.correspondence_date?.slice(0, 10)}</span>
+                  <span className="data-figure" style={{ color: textSecond }}>{formatDateCompact(child.correspondence_date)}</span>
                 </div>
               </div>
             ))}
@@ -465,28 +472,9 @@ export default function CorrespondenceDetail() {
           display: "flex", justifyContent: "flex-end",
           marginTop: 24, marginBottom: 8,
         }}>
-          <button
-            onClick={() => setShowRelations(true)}
-            style={{
-              background: "var(--color-ai-bg)",
-              color: "var(--color-ai)",
-              border: "1px solid var(--color-ai)",
-              borderRadius: 0,
-              padding: "8px 18px",
-              fontSize: 11, fontWeight: 500,
-              letterSpacing: "0.04em",
-              display: "flex", alignItems: "center", gap: 6,
-              cursor: "pointer",
-              fontFamily: "var(--font-ui)",
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18h6" />
-              <path d="M10 22h4" />
-              <path d="M12 2a7 7 0 0 0-4.24 12.6c.7.53 1.24 1.4 1.24 2.4v.5h6v-.5c0-1 .54-1.87 1.24-2.4A7 7 0 0 0 12 2z" />
-            </svg>
-            Benzerlik Tespit Edilen Kayıtlar
-          </button>
+          <AiActionButton onClick={() => setShowRelations(true)}>
+            {lang === "tr" ? "Benzerlik Tespit Edilen Kayıtlar" : "Related records"}
+          </AiActionButton>
         </div>
       </div>
 
@@ -599,15 +587,21 @@ export default function CorrespondenceDetail() {
             </div>
 
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => { setFlagOpen(false); setFlagForm({ narrative: "", notice_config_id: "", assigned_to_user: "", document_references: [], newFile: null }); }}
                 disabled={flagSubmitting}
-                style={{ background: "none", border: `1px solid ${border}`, padding: "8px 16px", fontSize: 12, color: textSecond, cursor: "pointer", fontFamily: "var(--font-ui)" }}
               >
                 {lang === "tr" ? "İptal" : "Cancel"}
-              </button>
-              <button
+              </Button>
+              <Button
+                type="button"
+                size="sm"
                 disabled={flagSubmitting || !flagForm.narrative.trim()}
+                loading={flagSubmitting}
+                loadingText={lang === "tr" ? "Gönderiliyor…" : "Submitting…"}
                 onClick={async () => {
                   if (!projectId || !corr) return;
                   setFlagSubmitting(true);
@@ -638,12 +632,9 @@ export default function CorrespondenceDetail() {
                     setFlagSubmitting(false);
                   }
                 }}
-                style={{ backgroundColor: flagForm.narrative.trim() ? "var(--color-accent)" : "var(--color-border-medium)", color: flagForm.narrative.trim() ? "var(--color-bg-primary)" : textSecond, border: "none", padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: flagSubmitting ? "wait" : "pointer", fontFamily: "var(--font-ui)", opacity: flagSubmitting ? 0.6 : 1 }}
               >
-                {flagSubmitting
-                  ? (lang === "tr" ? "Gönderiliyor…" : "Submitting…")
-                  : (lang === "tr" ? "Flag Olarak İşaretle" : "Flag as Potential Impact")}
-              </button>
+                {lang === "tr" ? "Flag Olarak İşaretle" : "Flag as Potential Impact"}
+              </Button>
             </div>
           </div>
         </div>

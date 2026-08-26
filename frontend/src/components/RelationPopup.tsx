@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import { useLanguage } from "../context/LanguageContext";
 import { entityPath } from "../utils/entityPath";
 
 interface RelationItem {
@@ -32,6 +33,7 @@ export default function RelationPopup({
   onClose,
 }: Props) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [data,    setData]    = useState<RelationsResponse | null>(null);
   const [loading, setLoading]         = useState(true);
   const [bridgeMode, setBridgeMode]   = useState(false);
@@ -83,6 +85,15 @@ export default function RelationPopup({
     navigate(entityPath(projectId, item.entity_type, item.id));
   };
 
+  // A bare 0.73 tells a contract manager nothing and reads as false precision.
+  // The raw value stays on the title attribute for anyone who wants it.
+  const matchLabel = (score: number) =>
+    score >= 0.75
+      ? t("relation.matchstrong")
+      : score >= 0.45
+        ? t("relation.matchmoderate")
+        : t("relation.matchweak");
+
   const goToGraph = () => {
     onClose();
     const params = new URLSearchParams({
@@ -102,6 +113,7 @@ export default function RelationPopup({
           key={item.id}
           role="checkbox"
           aria-checked={checked}
+          className={isChild ? "chain-node-single" : undefined}
           onClick={() => toggleId(item.id)}
           style={{
             display: "flex", alignItems: "center", gap: 10,
@@ -128,15 +140,8 @@ export default function RelationPopup({
               </svg>
             )}
           </div>
-          <div style={{ flex: 1 }}>
-            <span style={{
-              fontFamily: "var(--font-meta)",
-              fontSize: 11, color: textS,
-              display: "flex", alignItems: "center", gap: 4,
-            }}>
-              {isChild && <span style={{ color, marginRight: 2 }}>└</span>}
-              {item.ref}
-            </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span className="ref-number">{item.ref}</span>
             <p style={{ fontSize: isChild ? 11 : 12, color: textP, margin: "2px 0 0" }}>
               {item.subject}
             </p>
@@ -147,6 +152,7 @@ export default function RelationPopup({
     return (
       <button
         key={item.id}
+        className={isChild ? "chain-node-single" : undefined}
         onClick={() => goTo(item)}
         style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -158,21 +164,14 @@ export default function RelationPopup({
           cursor: "pointer", fontFamily: "var(--font-ui)",
         }}
       >
-        <div>
-          <span style={{
-            fontFamily: "var(--font-meta)",
-            fontSize: 11, color: textS,
-            display: "flex", alignItems: "center", gap: 4,
-          }}>
-            {isChild && <span style={{ color, marginRight: 2 }}>└</span>}
-            {item.ref}
-          </span>
+        <div style={{ minWidth: 0 }}>
+          <span className="ref-number">{item.ref}</span>
           <p style={{ fontSize: isChild ? 11 : 12, color: textP, margin: "2px 0 0" }}>
             {item.subject}
           </p>
         </div>
-        <span style={{ fontSize: 11, color: textS }}>
-          {item.score.toFixed(2)}
+        <span style={{ fontSize: 11, color: textS, flexShrink: 0, marginInlineStart: 8 }} title={item.score.toFixed(2)}>
+          {matchLabel(item.score)}
         </span>
       </button>
     );
@@ -287,7 +286,7 @@ export default function RelationPopup({
 
         {loading && (
           <p style={{ fontSize: 12, color: textS, fontFamily: "var(--font-ui)" }}>
-            Yükleniyor…
+            {t("state.loading")}
           </p>
         )}
 
@@ -296,14 +295,14 @@ export default function RelationPopup({
             fontSize: 12, color: textS, fontStyle: "italic",
             fontFamily: "var(--font-ui)",
           }}>
-            İlişkili kayıt bulunamadı.
+            {t("relation.none")}
           </p>
         )}
 
         {!loading && data && (
           <>
-            {renderGroup("Zincir (Parent / Child)", data.chain, "var(--color-ai)", true)}
-            {renderGroup("İçerik Benzerliği", data.content, textS, true)}
+            {renderGroup(t("relation.chain"), data.chain, "var(--color-ai)", true)}
+            {renderGroup(t("relation.content"), data.content, textS, true)}
             {total > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
 

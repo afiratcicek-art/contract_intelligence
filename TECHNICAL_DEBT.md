@@ -388,3 +388,40 @@ Chronologies (`list_linkable_documents`) ve authoring (`linkable_service`) RFI/C
 - **TB-55** (LOW, open): `backend/routers/document_authoring.py` `delete_template` orphan-storage cleanup döngüsü storage-delete'i try/except'siz çağırıyor. Bir chrome path silme patlarsa (already-gone vb.) döngü kırılır ve `AuditService.log` çağrısına ulaşılmayabilir → DB satırı silinmiş ama audit-kaydı düşmemiş + kalan chrome orphan kalır. Forensic değil (satır zaten gitti). Fix: her `delete_document` çağrısını izole try/except'e al, best-effort sil, audit her hâlde düşsün. TB-35 orphan-sınıfının kardeşi.
 - **TB-56** (LOW, open): `chronologies.py:159-160` ve `linkable_service.py:48/74` `list_by_project(limit=500)` ile satırları çekip `status != draft` filtresini Python-comprehension'da yapıyor → draft satırlar boşuna transfer ediliyor. N+1 DEĞİL (tek round-trip, bounded 500-cap). Micro-opt: filtreyi `.neq("status", "draft")` ile SQL'e it. Perf, pilot'u etkilemez.
 - **TB-57** (LOW, open): Sistem-prompt at-rest şifrelemesi ertelendi (ADR-0003, P-S2). Bugün düz-metin + gitignore + private-repo; gerçek şifreleme KSA-server/KMS deploy-turunda kurulacak (KMS'ten anahtar + boot-decrypt + fallback 5b fail-loud). P-B4'e bağlı.
+
+## TB-58 — Google Fonts CDN: her sayfa yüklemesinde kullanıcı IP'si üçüncü tarafa gidiyor (residency)
+
+Status: open. Önceden-var; Arapça turunda yüzey 4 → 6 aileye büyüdü.
+
+**Konum:** `frontend/src/index.css:1` (`@import url('https://fonts.googleapis.com/…')`),
+`frontend/index.html` (`preconnect` → `fonts.googleapis.com`, `fonts.gstatic.com`).
+
+**Sorun:** Fontlar runtime'da Google CDN'inden çekiliyor. Her sayfa yüklemesinde
+tarayıcı Google'a bir istek atıyor ve bu istek kullanıcının IP adresini +
+`Referer`'ı üçüncü tarafa gösteriyor. Uygulama başka hiçbir üçüncü-taraf kaynak
+yüklemiyor; bu tek kalan dış çağrı. KSA/PDPL incelemesinde ve "in-region /
+residency" iddiasında sorulacak kalem — TB-41'in (masking) kurduğu
+*veri-yurt-içinde* invariant'ıyla aynı aileden, ama tamamen farklı bir kanal:
+orada içerik sızıyor, burada kullanıcı metadata'sı.
+
+**Neden şimdi kayda giriyor:** Bağımlılık *değil* (npm paketi yok, `package.json`
+değişmedi), o yüzden CVE/audit taramalarına (TD-005) hiç görünmüyor. Sessiz
+kalması bu yüzden riskli. Arapça desteğiyle aile sayısı 4'ten 6'ya çıktı
+(+Amiri, +IBM Plex Sans Arabic) — yani ileride taşıma maliyeti de büyüdü.
+
+**Yan etki (ikincil):** Dış `@import` render-blocking; CDN yavaşlarsa ilk boya
+gecikiyor. Şantiye/zayıf bağlantı senaryosunda ölçülebilir.
+
+**Çözüm:** Fontları self-host et.
+  1. Altı ailenin woff2 dosyalarını `frontend/public/fonts/` altına vendor'la
+     (Playfair Display, Inter, JetBrains Mono, Source Serif 4, Amiri,
+     IBM Plex Sans Arabic — kullanılan ağırlıklar ve `Source Serif 4`'ün
+     variable `opsz` ekseni dahil).
+  2. `@import` yerine yerel `@font-face` blokları + `font-display: swap`.
+  3. `index.html`'deki iki `preconnect` satırını kaldır (artık ölü).
+  4. Lisans kontrolü: hepsi OFL/Apache-2.0, self-host serbest — `LICENSE`
+     dosyalarını vendor klasörüne koy.
+  5. `--font-*` token'ları değişmez; DS'de görsel etki yok.
+
+**Ne zaman:** KSA server / production deployment turunda, TB-41 ve P-B4 ile aynı
+pakette. Pilotu bloklamaz.

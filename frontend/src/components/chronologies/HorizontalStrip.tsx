@@ -142,7 +142,7 @@ function HorizontalStrip({
           minHeight: 72,
           position: "sticky",
           top: 0,
-          zIndex: 10,
+          zIndex: "var(--z-sticky)" as unknown as number,
         }}
       >
       {events.map((ev, idx) => (

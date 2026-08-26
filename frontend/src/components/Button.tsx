@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "primary" | "secondary" | "destructive";
+type Variant = "primary" | "secondary" | "destructive" | "warning";
 type Size = "default" | "sm";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -33,10 +33,17 @@ const styles: Record<Variant, string> = {
     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-alert-red)]",
     "disabled:opacity-40 disabled:cursor-not-allowed",
   ].join(" "),
+  warning: [
+    "bg-transparent border border-[var(--color-warning)] text-[var(--color-warning)]",
+    "hover:bg-[var(--color-warning-wash)]",
+    "active:scale-[0.98]",
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-warning)]",
+    "disabled:opacity-40 disabled:cursor-not-allowed",
+  ].join(" "),
 };
 
 const sizes: Record<Size, string> = {
-  default: "px-6 py-2 text-sm",
+  default: "px-6 py-2 text-[13px]",
   sm: "px-3 py-1.5 text-xs",
 };
 

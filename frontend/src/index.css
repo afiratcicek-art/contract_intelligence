@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap');
+/* TECHNICAL DEBT: TB-58 — third-party font CDN leaks user IP on every load;
+   self-host these six families in the KSA deployment round. */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -13,7 +15,10 @@
 ──────────────────────────────────────────────────────── */
 
 :root {
-  /* z-index scale (TB-21 ConfirmModal=1500, FocusedGraph fullscreen=1100) */
+  /* z-index scale (TB-21 ConfirmModal=1500, FocusedGraph fullscreen=1100).
+     Single-digit values inside a component are local paper-stacking and stay
+     raw; anything that has to outrank *other components* comes from here. */
+  --z-sticky: 20;
   --z-dropdown: 100;
   --z-modal: 1000;
   --z-graph-fullscreen: 1100;
@@ -28,11 +33,14 @@
   /* Document writing surface only (authoring letter island) — not page chrome */
   --color-surface-paper: #FAF7F2;
 
-  /* Typography — Concept C roles */
-  --font-brand:    "Playfair Display", Georgia, serif;
-  --font-ui:       Inter, system-ui, sans-serif;
-  --font-meta:     "JetBrains Mono", Menlo, monospace;
-  --font-document: "Source Serif 4", Georgia, serif;
+  /* Typography — Concept C roles.
+     Arabic faces are appended as fallbacks, not swapped in: font matching is
+     per-glyph, so Latin keeps Playfair/Inter while Arabic text resolves to the
+     naskh/sans companions. Amiri carries the same serif gravity as Playfair. */
+  --font-brand:    "Playfair Display", Amiri, Georgia, serif;
+  --font-ui:       Inter, "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-meta:     "JetBrains Mono", "IBM Plex Sans Arabic", Menlo, monospace;
+  --font-document: "Source Serif 4", Amiri, Georgia, serif;
 
   /* Text */
   --color-text-primary:   #1C1917;
@@ -45,6 +53,16 @@
   --type-h1-module:   1.25rem;  /* 20px workspace / authoring */
   --type-h2:          1.125rem; /* 18px section */
   --type-title-card:  1rem;     /* 16px card / panel */
+
+  /* Measures — one reference column width for the whole app. Lists, detail
+     eyebrows and chain rails all hang off this so the left edge reads as a
+     single spine rather than a per-page decision.
+     Sized for the longest reference a user actually types (RFI-012-RES, 11ch of
+     JetBrains Mono at 11px ≈ 78px) plus the 16px chain indent a child row adds. */
+  --gutter-ref: 104px;
+  /* Status column. Must hold the widest translated chip — EN "UNDER REVIEW"
+     uppercased is the worst case — or the chip clips against the row edge. */
+  --gutter-status: 104px;
 
   /* Accent */
   --color-accent:        #6B5D3F;
@@ -92,6 +110,18 @@
   /* Soft fills (hover washes) */
   --color-accent-wash:    color-mix(in srgb, var(--color-accent) 8%, transparent);
   --color-alert-wash:     color-mix(in srgb, var(--color-alert-red) 8%, transparent);
+  --color-warning-wash:   color-mix(in srgb, var(--color-warning) 8%, transparent);
+
+  /* Print / WYSIWYG letter island — light-stable; do NOT redefine in html.dark */
+  --color-print-paper:      #FBF9F5;
+  --color-print-ink:        #1a1a1a;
+  --color-print-muted:      #9a9488;
+  --color-print-body:       #3d3a34;
+  --color-print-hint:       #B0A99C;
+  --color-print-rule:       #E8E4DE;
+  --color-print-edge:       #D4CFC8;
+  --color-print-text-wash:  rgba(255, 255, 255, 0.85);
+  --color-print-paper-wash: rgba(251, 249, 245, 0.9);
 
   /* Aliases — backward compat */
   --color-background-primary:   var(--color-bg-primary);
@@ -163,6 +193,7 @@ html.dark {
 
   --color-accent-wash:    color-mix(in srgb, var(--color-accent) 12%, transparent);
   --color-alert-wash:     color-mix(in srgb, var(--color-alert-red) 12%, transparent);
+  --color-warning-wash:   color-mix(in srgb, var(--color-warning) 12%, transparent);
 
   /* Aliases */
   --color-background-primary:   var(--color-bg-primary);
@@ -235,5 +266,309 @@ html.dark {
   .tab-active {
     font-weight: 600;
     border-bottom: 3px solid var(--color-accent);
+  }
+
+  /* Detail künye: workstation 3 col; tablet ≤900 stacks to 2 */
+  .meta-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .app-chrome-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 10px 24px;
+    flex-shrink: 0;
+    background-color: var(--color-bg-primary);
+    border-bottom: 0.5px solid var(--color-border-medium);
+  }
+  @media (max-width: 900px) {
+    .meta-grid-3 {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  /* Letterframe segmented control — two equal stamps in one paper window.
+     Not a ChatGPT pill group: sharp corners, hairline frame, ink fill vs cream ghost. */
+  .letterframe-seg {
+    display: flex;
+    width: 100%;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--color-border-medium);
+    background: var(--color-bg-tertiary);
+    border-radius: 0;
+    box-sizing: border-box;
+  }
+  .letterframe-seg__opt {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 6px 10px;
+    font-family: var(--font-ui);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0;
+    text-align: center;
+    appearance: none;
+    border: 1px solid var(--color-border-medium);
+    border-radius: 0;
+    cursor: pointer;
+    background: var(--color-surface-paper);
+    color: var(--color-text-primary);
+    box-sizing: border-box;
+  }
+  .letterframe-seg__opt[aria-pressed="true"] {
+    background: var(--color-text-primary);
+    color: var(--color-bg-primary);
+    border-color: var(--color-text-primary);
+  }
+  .letterframe-seg__opt:hover:not(:disabled):not([aria-pressed="true"]) {
+    background: var(--color-bg-primary);
+  }
+  .letterframe-seg__opt:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+  .letterframe-seg__opt:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  /* Intelligence-layer CTA — radius 6 is the locked contrast to admin sharp (0) */
+  .ai-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    padding: 8px 12px;
+    background: var(--color-ai-bg);
+    color: var(--color-ai);
+    border: 1px solid var(--color-ai);
+    border-radius: 6px;
+    font-weight: 500;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    transition: background-color 150ms ease, opacity 150ms ease;
+  }
+  .ai-action-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-ai) 16%, var(--color-ai-bg));
+  }
+  .ai-action-btn:active:not(:disabled) {
+    background: color-mix(in srgb, var(--color-ai) 24%, var(--color-ai-bg));
+  }
+  .ai-action-btn:focus-visible {
+    outline: 2px solid var(--color-ai);
+    outline-offset: 2px;
+  }
+  .ai-action-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  /* Compact AI icon control (relation-graph launcher) — same geometry family */
+  .ai-icon-btn {
+    background: var(--color-ai-bg);
+    color: var(--color-ai);
+    border: 1px solid var(--color-ai);
+    border-radius: 6px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background-color 150ms ease;
+  }
+  .ai-icon-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-ai) 16%, var(--color-ai-bg));
+  }
+  .ai-icon-btn:focus-visible {
+    outline: 2px solid var(--color-ai);
+    outline-offset: 2px;
+  }
+
+  /* Portfolio card hover — flat wash, not a shadow. A raised card is the one
+     thing that contradicts the sharp-edge chrome elsewhere. */
+  .project-card {
+    transition: background-color 150ms ease-out;
+  }
+  .project-card:hover {
+    background-color: var(--color-bg-tertiary) !important;
+  }
+
+  /* ── Reference gutter ──────────────────────────────────
+     A record is addressed by its number before anything else, so the number
+     gets one treatment everywhere it appears: list column, detail eyebrow,
+     chain stop, relation row. Tabular figures matter — without them a column
+     of proportional digits will not line up and the list stops being scannable. */
+  .ref-number {
+    font-family: var(--font-meta);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--color-text-secondary);
+    /* Guard, not the normal case: the gutter is sized to fit real references, but
+       reference numbers are typed by hand and nothing stops someone entering a
+       long one. Clipping keeps it inside its own track; without this it silently
+       runs under the subject and the two columns collide. */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Dates and amounts sitting in a scanned column. Colour is left to the caller
+     so overdue rows can still go red. */
+  .data-figure {
+    font-family: var(--font-meta);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Scanned list row ──────────────────────────────────
+     Grid children resolve to min-width:auto, so any cell holding nowrap content
+     grows past its declared track and overlaps its neighbour instead of being
+     held by the column. Every fixed-column list row carries this so the track
+     definition is what actually decides the geometry. */
+  .list-row > * {
+    min-width: 0;
+  }
+
+  /* ── Chain thread ──────────────────────────────────────
+     A reply is not a separate record that happens to sit below another one;
+     it hangs off its parent. The thread draws that, so a chain reads as one
+     object in a single vertical sweep instead of N indented rows.
+     Only rows that actually belong to a chain carry it. */
+  .chain-branch { position: relative; }
+  .chain-node   { position: relative; }
+  .chain-node::before,
+  .chain-node::after {
+    content: "";
+    position: absolute;
+    background-color: var(--color-accent-light);
+    pointer-events: none;
+  }
+  /* Vertical run. Starts 2px above the row to bridge the inter-row gap, so the
+     thread is continuous rather than dashed. */
+  .chain-node::before {
+    inset-inline-start: 15px;
+    top: -2px;
+    bottom: 0;
+    width: 1px;
+  }
+  /* The last branch terminates at its own node instead of dangling past it. */
+  .chain-branch:last-child > .chain-node::before {
+    bottom: auto;
+    height: calc(50% + 2px);
+  }
+  /* Tick into the reference number. */
+  .chain-node::after {
+    inset-inline-start: 15px;
+    top: 50%;
+    width: 7px;
+    height: 1px;
+  }
+
+  /* Single elbow, for card-style rows separated by a real gap (relation popup,
+     linked-document lists). A continuous run there would read as broken, so the
+     row carries only its own turn of the thread. */
+  .chain-node-single { position: relative; }
+  .chain-node-single::before,
+  .chain-node-single::after {
+    content: "";
+    position: absolute;
+    background-color: var(--color-accent-light);
+    pointer-events: none;
+  }
+  .chain-node-single::before {
+    inset-inline-start: 14px;
+    top: 0;
+    height: 50%;
+    width: 1px;
+  }
+  .chain-node-single::after {
+    inset-inline-start: 14px;
+    top: 50%;
+    width: 7px;
+    height: 1px;
+  }
+
+  /* Horizontal form of the same thread, for the detail-page chain breadcrumb.
+     Each stop carries a marker; the one you are reading is filled. The connector
+     is drawn per-stop into the flex gap rather than as one rule behind them, so
+     a long chain can wrap without the line running through empty space. */
+  .chain-rail {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    min-width: 0;
+  }
+  .chain-stop {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .chain-stop::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    flex-shrink: 0;
+    border: 1px solid var(--color-accent);
+  }
+  .chain-stop-current::before {
+    background-color: var(--color-accent);
+  }
+  /* Connector back to the previous stop — width matches the column gap exactly. */
+  .chain-stop + .chain-stop::after {
+    content: "";
+    position: absolute;
+    inset-inline-end: 100%;
+    top: 50%;
+    width: 14px;
+    height: 1px;
+    background-color: var(--color-accent-light);
+  }
+
+  /* ── RTL (Arabic) ──────────────────────────────────────
+     Scope note: flex/grid order, text alignment and the design-system classes
+     below mirror automatically off [dir="rtl"]. Physical offsets written as
+     inline styles in list rows and detail panes cannot be reached from here
+     and still need a logical-property pass. */
+  [dir="rtl"] {
+    text-align: right;
+  }
+  /* Sidebar file-divider tick moves to the reading edge. */
+  [dir="rtl"] .nav-item-active {
+    border-left: none;
+    border-right: 3px solid var(--color-accent);
+  }
+  /* Latin identifiers (doc numbers, refs, ISO dates) must not be reordered by
+     the bidi algorithm when they sit inside Arabic sentences. */
+  [dir="rtl"] .ltr-inline {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
   }
 }

@@ -2,27 +2,12 @@
  * Intelligence-layer CTA — product-wide canonical control.
  * Tokens: --color-ai / --color-ai-bg. Shape: non-rect (borderRadius 6), not admin sharp (0).
  * Use for every equivalent AI generate/assist action (authoring, chronology, future).
+ * Hover / active / focus live in `.ai-action-btn` (index.css) — do not restyle per call site.
  */
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
-};
-
-const style: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 4,
-  fontSize: 11,
-  padding: "8px 12px",
-  background: "var(--color-ai-bg)",
-  color: "var(--color-ai)",
-  border: "1px solid var(--color-ai)",
-  borderRadius: 6,
-  fontWeight: 500,
-  cursor: "pointer",
-  fontFamily: "var(--font-ui)",
 };
 
 function SparkIcon() {
@@ -44,6 +29,7 @@ function SparkIcon() {
 export default function AiActionButton({
   children,
   disabled,
+  className = "",
   style: styleOverride,
   ...props
 }: Props) {
@@ -52,12 +38,8 @@ export default function AiActionButton({
       type="button"
       {...props}
       disabled={disabled}
-      style={{
-        ...style,
-        ...styleOverride,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.55 : 1,
-      }}
+      className={`ai-action-btn ${className}`.trim()}
+      style={styleOverride as CSSProperties | undefined}
     >
       <SparkIcon />
       {children}

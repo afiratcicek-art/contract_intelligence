@@ -17,6 +17,7 @@ import {
   type CSSProperties,
 } from "react";
 import AiActionButton from "./AiActionButton";
+import StatusChip from "./StatusChip";
 import {
   askProjectIntelligence,
   ApiError,
@@ -468,6 +469,7 @@ export default function IntelligenceModule({ projectId }: Props) {
             gap: 10,
             position: "sticky",
             top: 16,
+            zIndex: "var(--z-sticky)" as unknown as number,
             alignSelf: "start",
             height: "calc(100vh - 180px)",
             maxHeight: "calc(100vh - 180px)",
@@ -543,7 +545,7 @@ export default function IntelligenceModule({ projectId }: Props) {
                     <span
                       style={{
                         fontFamily: "var(--font-meta)",
-                        fontSize: 10,
+                        fontSize: 11,
                         textTransform: "uppercase",
                         letterSpacing: "0.04em",
                         color: "var(--color-text-secondary)",
@@ -582,18 +584,14 @@ export default function IntelligenceModule({ projectId }: Props) {
                       style={{
                         marginTop: 4,
                         fontFamily: "var(--font-meta)",
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "var(--color-text-tertiary)",
                         display: "flex",
                         gap: 8,
                       }}
                     >
-                      {c.date && <span>{String(c.date).slice(0, 10)}</span>}
-                      {c.status && (
-                        <span style={{ textTransform: "uppercase" }}>
-                          {c.status}
-                        </span>
-                      )}
+                      {c.date && <span className="data-figure">{String(c.date).slice(0, 10)}</span>}
+                      {c.status && <StatusChip status={String(c.status)} />}
                     </div>
                   )}
                 </a>

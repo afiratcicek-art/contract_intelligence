@@ -40,6 +40,33 @@ Do **not** use `--font-brand` at ≤14px. Do not use `--font-document` outside t
   - `.gold-line-nav` — 32px (app chrome)
   - `.gold-line-compact` — 20px (workspace / detail breadcrumbs)
 
+## Reference gutter
+
+One measure for the record number across the whole app: `--gutter-ref` (104px). Use it for the "No." column in every list grid and for the ref slot in overview rows — never a literal pixel value or a Tailwind width. Status columns get `--gutter-status`; it is sized for the widest translated chip, so a narrower literal will clip the label.
+
+- `.ref-number` — the only treatment for a record number, anywhere it appears (list column, detail eyebrow, chain stop, nav breadcrumb, relation row). Carries `tabular-nums`; do not restate font/size/letter-spacing inline.
+- **The reference cell holds the reference and nothing else.** Response arrows, RES/REV badges and any other marker belong beside the subject, where the `1fr` track can absorb them. Packing them into the gutter is what makes the number collide with the next column on chain-indented rows.
+- `.data-figure` — dates and amounts sitting in a scanned column. Colour stays with the caller so overdue rows can still go red. It is `nowrap` and clips, so it takes the figure only — a status word appended to a date goes in its own span.
+- Proportional figures in a column of numbers are a defect: if it is a date or an identifier being compared down a column, it gets one of these two classes.
+
+## List row geometry
+
+Grid and flex children resolve to `min-width: auto`, so a `nowrap` cell grows past its declared track and renders over its neighbour instead of being held by the column. The track definition alone does not constrain anything.
+
+- Every fixed-column list row (and its header) carries `className="list-row"`. That is the only thing putting `min-width: 0` on its cells; without it the columns are advisory.
+- A chain-indented child adds 16px of left padding, which comes out of the reference track. Size the gutter for the longest real reference **plus** that indent, not for the parent row alone.
+- In a `space-between` flex row, the text side needs `minWidth: 0` and the action side needs `flexShrink: 0`. Otherwise a long subject pushes the buttons out of the row. This applies to the chain-child rows on detail pages, not just to lists.
+- Layering: anything that must outrank another component takes a `--z-*` token — `--z-sticky` for sticky panels and rails, `--z-dropdown` for any menu or autocomplete. Single-digit raw values are fine for paper-stacking *inside* one component, and should stay below the token scale so a real dropdown always wins.
+
+## Chain thread
+
+The parent/child relationship is drawn, not implied by indentation. Never use a `└` text glyph.
+
+- List: wrapper gets `.chain-branch`, the child row gets `.chain-node`. The thread and its elbow are pseudo-elements; the indent stays at 28px so the tick lands clear of the number.
+- The 2px left rail carries **status** on every row, parent and child alike. Chain membership is the thread's job — do not overload the rail with both.
+- Detail breadcrumb: `.chain-rail` wrapping `.chain-stop` items, current node `.chain-stop-current`. No arrow glyphs, no underlined links.
+- Thread colour is `--color-accent-light`; it should read as quiet structure, not as an accent.
+
 ## Workspace sidebar (file dividers)
 
 - Left stack of modules = dossier tabs / file dividers (association, not literal tab shapes).
@@ -54,7 +81,30 @@ Do **not** use `--font-brand` at ≤14px. Do not use `--font-document` outside t
 ## Patterns
 
 - Inline styles + CSS variables (house style). Shared actions via `Button`; status via `StatusChip`.
+- Deterministic CTA: `Button` (`rounded-none`). Intelligence CTA: `AiActionButton` / `.ai-action-btn` (radius 6, `--color-ai`). Compact graph launcher: `.ai-icon-btn`. Do not mix geometries.
+- Filter chips: active text `var(--color-bg-primary)` — never raw parchment hex.
 - Status chips map to `--color-alert-*` / `--color-success*` / `--color-warning*` / `--color-ai*`.
+- `Button` variants: primary / secondary / destructive / **warning** (`--color-warning`, `--color-warning-wash`). Sizes: default **13px** (page CTA), sm **12px** (inline).
+- List-row left ticks stay **2px**. Tabs / file-dividers stay **3px**. Do not unify.
+- Print / letterhead WYSIWYG uses `--color-print-*` (defined only on `:root`, not `html.dark`).
+- Destructive confirms use `ConfirmModal`, not `window.confirm`. Chrome nav: `.app-chrome-nav` (wraps on tablet). Detail künye: `.meta-grid-3` (3→2 col at 900px).
+- Unsaved work: `useUnsavedGuard(active)` on any surface that holds server-unaccepted input.
+
+## Language, dates, money
+
+- Three languages: `tr` / `en` / `ar`. All user-facing copy goes through `t("key")` in `LanguageContext`; never hardcode a literal, and never write a two-branch `lang === "tr" ? … : …` for new strings.
+- Every dictionary entry must carry all three languages. Enforced by `node scripts/check-i18n.mjs` — run it before UI sign-off.
+- Chrome language control is `<LanguageToggle />` (segmented EN/TR/AR). No per-page toggle buttons.
+- Arabic sets `dir="rtl"` on `<html>`. Arabic faces (Amiri, IBM Plex Sans Arabic) are **fallbacks appended** to the existing stacks — never swap fonts per language. Wrap Latin identifiers inside Arabic prose in `.ltr-inline`.
+- Dates: `formatDateCompact()` (ISO) in scanned table columns, `formatDate()` / `formatDateTime()` in prose and detail fields. Money: `formatMoney()`. All from `utils/format.ts` — never bare `toLocaleDateString` / `toLocaleString`, which follow the reader's browser locale.
+- Never surface raw system values (HTTP codes, enum keys, similarity floats). `StatusChip` resolves `status.*` keys; unmapped enums degrade to spaced text.
+- Two record vocabularies, not interchangeable: `module.*` is the plural navigation name (sidebar, tabs, chart legend), `entity.*` is the singular name for one record in prose (alert rows, deadline rows). A server-supplied display label (`"CORR"`, `"DEL"`) is a fallback for unknown types only — resolve the machine `type` through the dictionary first.
+- Charts are UI, not data dumps: series names, axis ticks and tooltip labels all go through `t()`. A legend reading `Correspondence` next to Arabic body copy is the same defect as a hardcoded string anywhere else.
+
+## Absence vs failure
+
+- A failed fetch must never render as an empty result set. Lists show `state.loadfailed` plus a retry control, distinct from the "no records" copy.
+- A server-capped list shows `state.truncated` above the header row. Silent truncation is a false negative in a claim.
 
 ## Audit commands (re-run before UI sign-off)
 
@@ -73,4 +123,15 @@ rg -n "font-brand.*fontSize:\s*1[0-4]|fontSize:\s*1[0-4].*font-brand" frontend/s
 
 # Inline gold gradients (prefer .gold-line)
 rg -n "linear-gradient\(to bottom" frontend/src -g "*.{tsx,ts}"
+
+# Reference numbers not using the shared treatment
+rg -n 'fontFamily: "var\(--font-meta\)", fontSize: 11' frontend/src -g "*.tsx"
+
+# Hardcoded gutter width instead of --gutter-ref
+rg -n '"90px"|w-24' frontend/src -g "*.tsx"
+
+# Tree glyphs standing in for the chain thread
+rg -n "└" frontend/src -g "*.tsx"
 ```
+
+Type-check with `npx tsc -p tsconfig.app.json --noEmit` (or `npm run build`). A bare `npx tsc --noEmit` at the frontend root resolves the solution-style config and silently checks nothing.

@@ -99,7 +99,7 @@ const SECTION_LABEL: CSSProperties = {
 };
 
 const SUB_SECTION_LABEL: CSSProperties = {
-  fontSize: 10, fontWeight: 500,
+  fontSize: 11, fontWeight: 500,
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   color: "var(--color-text-secondary)",

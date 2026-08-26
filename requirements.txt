@@ -16,6 +16,5 @@ pytesseract==0.3.13
 # Mevcut pydantic==2.12.4 uyumlu — LlamaParse API key
 # hazır olduğunda eklenecek.
 # İlgili kod: backend/services/pdf_pipeline_service.py
-openai==1.59.9  # text-embedding-3-small for document embeddings
 python-multipart==0.0.32
 pillow==12.2.0

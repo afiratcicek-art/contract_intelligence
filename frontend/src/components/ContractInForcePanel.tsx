@@ -27,6 +27,7 @@ import type {
   InForceAmendment,
   ResolutionResponse,
 } from "../services/api";
+import { useLanguage } from "../context/LanguageContext";
 import ContractDocumentsSection from "./ContractDocumentsSection";
 import DocumentLink from "./DocumentLink";
 
@@ -96,8 +97,8 @@ const NESTED: CSSProperties = {
   borderLeft: "1px solid var(--color-border-light)",
 };
 
-// Status → house colour tokens (COLOUR only; the displayed TEXT comes from
-// STATUS_LABELS below). Unknown statuses fall back to neutral.
+// Status → house colour tokens (COLOUR only; displayed text comes from t("status.*")).
+// Unknown statuses fall back to neutral.
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   identified:        { bg: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" },
   notified:          { bg: "var(--color-warning-bg)",   color: "var(--color-warning)" },
@@ -108,40 +109,30 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   closed:            { bg: "var(--color-success-bg)",   color: "var(--color-success)" },
 };
 
-// Small frontend display map mirroring the StatsPanel vocab (documents.py:833-837).
-// Only agreed/closed reach the In-Force view; anything else falls back to its raw
-// value (defensive). The full status-vocab unification is §6 (deferred).
-const STATUS_LABELS: Record<string, string> = {
-  agreed: "Approved",
-  closed: "Closed",
-};
-
-// Taraf rolleri — migration 039 CHECK vocab'ının görünen karşılığı.
-const ROLE_LABELS: Record<string, string> = {
-  employer:   "İşveren",
-  contractor: "Yüklenici",
-  engineer:   "Mühendis",
-  other:      "Diğer",
-};
-
-// Mirrors ProjectDetail.tsx CONTRACT_LABEL / ContractType enum.
-const CONTRACT_TYPE_LABELS: Record<string, string> = {
-  lump_sum: "Lump Sum",
-  remeasure: "Remeasure",
-  cost_plus: "Cost Plus",
-  target_cost: "Target Cost",
-  epc: "EPC",
-  epcm: "EPCM",
-  framework: "Framework",
-  other: "Other",
-};
-
-// ── Component ─────────────────────────────────────────────────────────────
-
 export default function ContractInForcePanel({ resolution, projectId, onDocumentsChanged }: Props) {
+  const { t } = useLanguage();
   // clauses[] bilinçli olarak destructure edilmiyor: madde-seviyesi motor
   // payload'da kalır (drill-down / RAG), dashboard'da render edilmez (ADR-014).
   const { contract, amendments, change_orders } = resolution;
+
+  const typeLabel = (code: string | null) => {
+    if (!code) return "—";
+    const key = `contract.type.${code}`;
+    const translated = t(key);
+    return translated === key ? code : translated;
+  };
+
+  const partyLabel = (role: string) => {
+    const key = `party.${role}`;
+    const translated = t(key);
+    return translated === key ? role : translated;
+  };
+
+  const pathLabel = (path: string) => {
+    const key = `inforce.path.${path}`;
+    const translated = t(key);
+    return translated === key ? path : translated;
+  };
 
   // Status chip — StatsPanel-aligned display label (agreed→Approved,
   // closed→Closed); raw value as defensive fallback. §6 unifies later.
@@ -149,9 +140,11 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
     const c = STATUS_COLORS[status] ?? {
       bg: "var(--color-bg-secondary)", color: "var(--color-text-secondary)",
     };
+    const statusKey = status === "agreed" ? "status.approved" : `status.${status}`;
+    const label = t(statusKey);
     return (
       <span style={{ ...chipBase, background: c.bg, color: c.color }}>
-        {STATUS_LABELS[status] ?? status}
+        {label === statusKey ? status : label}
       </span>
     );
   };
@@ -166,7 +159,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
         textDecoration: "underline",
         textUnderlineOffset: 2,
       }}
-      title="Belgeyi aç"
+      title={t("inforce.opendoc")}
     >
       {text}
     </DocumentLink>
@@ -175,7 +168,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
   // ── Kök: SÖZLEŞME kartı ───────────────────────────────────────────────
   const infoCell = (label: string, value: string) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 120 }}>
-      <span style={{ ...MONO, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+      <span style={{ ...MONO, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>
         {label}
       </span>
       <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontFamily: "var(--font-ui)" }}>
@@ -201,7 +194,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
           background: "var(--color-accent)",
           color: "var(--color-bg-primary)",
         }}>
-          Sözleşme · Yürürlükte
+          {t("inforce.badge.contract")}
         </span>
       </div>
 
@@ -209,23 +202,21 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
         <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
           {c.parties.map((p) => (
             <div key={`${p.role}-${p.name}`}>
-              {infoCell(ROLE_LABELS[p.role] ?? p.role, p.name)}
+              {infoCell(partyLabel(p.role), p.name)}
             </div>
           ))}
         </div>
       )}
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-        {infoCell("Commencement", c.commencement_date ?? "—")}
-        {infoCell("Süre", c.duration_days != null ? `${c.duration_days} gün` : "—")}
+        {infoCell(t("inforce.commencement"), c.commencement_date ?? "—")}
+        {infoCell(t("inforce.duration"), c.duration_days != null ? t("unit.days").replace("{n}", String(c.duration_days)) : "—")}
         {/* DLP uzunluk olarak saklanır; penceresi FİİLİ tamamlanmadan türetilir
             (ADR-014) — sabit bitiş tarihi göstermek yanlış olurdu. */}
-        {infoCell("DLP", c.dlp_days != null ? `${c.dlp_days} gün (fiili tamamlanmadan türetilir)` : "—")}
+        {infoCell(t("inforce.dlp"), c.dlp_days != null ? t("inforce.dlpvalue").replace("{n}", String(c.dlp_days)) : "—")}
         {infoCell(
-          "Tip",
-          c.contract_type
-            ? (CONTRACT_TYPE_LABELS[c.contract_type] ?? c.contract_type)
-            : "—",
+          t("inforce.type"),
+          typeLabel(c.contract_type),
         )}
       </div>
 
@@ -252,7 +243,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
         <span style={{ ...MONO, display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           <span>{a.amendment_date ?? "—"}</span>
           <span>·</span>
-          <span style={{ textTransform: "uppercase", letterSpacing: "0.04em" }}>{a.arrival_path}</span>
+          <span style={{ textTransform: "uppercase", letterSpacing: "0.04em" }}>{pathLabel(a.arrival_path)}</span>
         </span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -262,7 +253,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
           background: "var(--color-ai-bg)", color: "var(--color-ai)",
           border: "0.5px solid var(--color-ai)",
         }}>
-          Amendment
+          {t("inforce.badge.amendment")}
         </span>
       </div>
     </div>
@@ -287,7 +278,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
             background: "var(--color-ai-bg)", color: "var(--color-ai)",
             border: "0.5px solid var(--color-ai)",
           }}>
-            Amendment ile yönetiliyor: {c.superseded_by_amendment.amendment_number}
+            {t("inforce.governedby").replace("{n}", c.superseded_by_amendment.amendment_number)}
           </span>
         )}
       </div>
@@ -298,7 +289,7 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
             textTransform: "none",
             background: "var(--color-warning-bg)", color: "var(--color-warning)",
           }}>
-            kabul edildi, amendment bekliyor
+            {t("inforce.amendmentpending")}
           </span>
         )}
         {statusChip(c.status)}
@@ -315,9 +306,9 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
 
       {/* ── Katman 2 — Amendments ── */}
       <div style={contract ? NESTED : undefined}>
-        <p style={SECTION_LABEL}>Amendments</p>
+        <p style={SECTION_LABEL}>{t("inforce.amendments")}</p>
         {amendments.length === 0 ? (
-          <p style={EMPTY_STATE}>Kayıtlı amendment yok — sözleşme değişmemiş halde yürürlükte</p>
+          <p style={EMPTY_STATE}>{t("inforce.noamendments")}</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
             {amendments.map(amendmentRow)}
@@ -327,9 +318,9 @@ export default function ContractInForcePanel({ resolution, projectId, onDocument
 
       {/* ── Katman 3 — Change Orders ── */}
       <div style={contract ? NESTED : undefined}>
-        <p style={SECTION_LABEL}>Değişiklik Emirleri</p>
+        <p style={SECTION_LABEL}>{t("inforce.changeorders")}</p>
         {change_orders.length === 0 ? (
-          <p style={EMPTY_STATE}>Yürürlükte değişiklik emri yok</p>
+          <p style={EMPTY_STATE}>{t("inforce.nochangeorders")}</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
             {change_orders.map(changeRow)}

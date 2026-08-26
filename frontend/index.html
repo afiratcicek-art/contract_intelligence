@@ -5,8 +5,22 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ClauseIQ</title>
+    <!-- TECHNICAL DEBT: TB-58 — remove both preconnects when fonts are self-hosted. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <script>
+      // Apply the stored language before first paint; React sets it again on
+      // mount, but without this Arabic users get a frame of LTR layout.
+      (function () {
+        try {
+          var l = localStorage.getItem("clauseiq_lang");
+          if (l === "tr" || l === "en" || l === "ar") {
+            document.documentElement.lang = l;
+            document.documentElement.dir = l === "ar" ? "rtl" : "ltr";
+          }
+        } catch (e) { /* private mode — fall back to the markup defaults */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

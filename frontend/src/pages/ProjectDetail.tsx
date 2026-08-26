@@ -5,18 +5,14 @@ import { useProjectDetail, useProjectTabs, useOverviewActivity, useUpcomingDeadl
 import { getAuth, clearAuth } from "../store/auth";
 import { useState } from "react";
 import ThemeToggle from "../components/ThemeToggle";
+import LanguageToggle from "../components/LanguageToggle";
 import Button from "../components/Button";
 import StatusChip from "../components/StatusChip";
 import { useLanguage } from "../context/LanguageContext";
+import { formatDateCompact, formatMoney } from "../utils/format";
 import { useTheme } from "../context/ThemeContext";
 
 type Tab = "correspondence" | "rfis" | "changes" | "deliverables" | "alerts";
-
-const CONTRACT_LABEL: Record<string, string> = {
-  lump_sum: "Lump Sum", remeasure: "Remeasure", cost_plus: "Cost Plus",
-  target_cost: "Target Cost", epc: "EPC", epcm: "EPCM",
-  framework: "Framework", other: "Other",
-};
 
 function MetricCard({ value, label }: { value: string | number; label: string }) {
   return (
@@ -60,7 +56,22 @@ export default function ProjectDetail() {
   const overdueRFI = rfis.filter((r) => r.status === "overdue").length;
   const daysLeft = project?.end_date ? daysUntil(project.end_date) : null;
   const { dark: chartDark } = useTheme();
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
+  // The deadline/overdue endpoints ship a short English code ("CORR", "DEL")
+  // alongside the machine type. Name the record from the type and keep the
+  // server code only as a fallback for types the client does not know yet.
+  const itemTypeLabel = (type: string, fallback: string) => {
+    const key = `entity.${type}`;
+    const translated = t(key);
+    return translated === key ? fallback : translated;
+  };
+  // Alert types are an open enum on the server; unmapped ones degrade to
+  // spaced text rather than showing a raw snake_case key.
+  const alertTypeLabel = (type: string) => {
+    const key = `alerts.type.${type}`;
+    const translated = t(key);
+    return translated === key ? type.replace(/_/g, " ") : translated;
+  };
   const { data: activityData } = useOverviewActivity(String(projectId));
   const { items: deadlineItems } = useUpcomingDeadlines(String(projectId));
   const { items: overdueItems } = useOverdue(String(projectId));
@@ -71,17 +82,17 @@ export default function ProjectDetail() {
   }
 
   const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: "correspondence", label: "Correspondence", count: correspondences.length },
-    { key: "rfis", label: "RFIs", count: rfis.length },
-    { key: "changes", label: "Changes", count: changes.length },
-    { key: "deliverables", label: "Deliverables", count: deliverables.length },
-    { key: "alerts", label: "Alerts & Actions", count: alerts.filter(a => a.status === "pending").length },
+    { key: "correspondence", label: t("module.correspondence"), count: correspondences.length },
+    { key: "rfis", label: t("module.rfis"), count: rfis.length },
+    { key: "changes", label: t("module.changes"), count: changes.length },
+    { key: "deliverables", label: t("module.deliverables"), count: deliverables.length },
+    { key: "alerts", label: t("overview.tab.alerts"), count: alerts.filter(a => a.status === "pending").length },
   ];
 
   if (projLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--color-bg-primary)" }}>
-        <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Loading...</p>
+        <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{t("state.loading")}</p>
       </div>
     );
   }
@@ -89,7 +100,7 @@ export default function ProjectDetail() {
   if (!project) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--color-bg-primary)" }}>
-        <p className="text-sm" style={{ color: "var(--color-alert-red)" }}>{lang === "tr" ? "Proje bulunamadı." : "Project not found."}</p>
+        <p className="text-sm" style={{ color: "var(--color-alert-red)" }}>{t("project.notfound")}</p>
       </div>
     );
   }
@@ -98,7 +109,7 @@ export default function ProjectDetail() {
     <div className="min-h-screen" style={{ backgroundColor: "var(--color-bg-primary)" }}>
       {/* Nav */}
       <nav
-        className="flex items-center justify-between px-8 py-4 border-b"
+        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-8 py-4 border-b"
         style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-bg-primary)" }}
       >
         <div className="flex items-center gap-3">
@@ -115,9 +126,7 @@ export default function ProjectDetail() {
         </div>
         <div className="flex items-center gap-6">
           <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
           <ThemeToggle />
           <button onClick={handleLogout} className="text-sm transition-opacity hover:opacity-70" style={{ color: "var(--color-text-secondary)" }}>
             {t("nav.signout")}
@@ -155,15 +164,17 @@ export default function ProjectDetail() {
 
           <div className="flex gap-6 text-xs" style={{ color: "var(--color-text-secondary)" }}>
             {project.contract_type && (
-              <span>{CONTRACT_LABEL[project.contract_type] ?? project.contract_type}</span>
+              <span>{t(`contract.type.${project.contract_type}`)}</span>
             )}
             {project.contract_value && (
-              <span style={{ fontFamily: "var(--font-meta)" }}>
-                {project.currency} {project.contract_value.toLocaleString()}
+              <span className="data-figure">
+                {formatMoney(project.contract_value, project.currency, lang)}
               </span>
             )}
             {project.start_date && (
-              <span>{project.start_date} → {project.end_date ?? "—"}</span>
+              <span className="data-figure">
+                {formatDateCompact(project.start_date)} → {formatDateCompact(project.end_date)}
+              </span>
             )}
           </div>
         </div>
@@ -173,7 +184,7 @@ export default function ProjectDetail() {
           <MetricCard value={openCorr} label={t("overview.opencorr").toUpperCase()} />
           <MetricCard value={overdueRFI} label={t("overview.overduerfis").toUpperCase()} />
           <MetricCard
-            value={daysLeft !== null ? `${daysLeft}d` : "—"}
+            value={daysLeft !== null ? t("unit.days").replace("{n}", String(daysLeft)) : "—"}
             label={t("overview.daystocompletion").toUpperCase()}
           />
         </div>
@@ -194,7 +205,7 @@ export default function ProjectDetail() {
               <ActivityChart data={activityData.days} today={activityData.today} dark={chartDark} prePeriod={activityData.pre_period ?? { correspondence: 0, rfi: 0, change: 0, deliverable: 0 }} />
             ) : (
               <div style={{ height: 140, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Veri yükleniyor...</span>
+                <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>{t("state.loading")}</span>
               </div>
             )}
           </Suspense>
@@ -229,12 +240,12 @@ export default function ProjectDetail() {
                 return (
                   <div key={item.id} className="flex items-center justify-between py-2 border-b" style={{ borderColor: "var(--color-border-light)" }}>
                     <div>
-                      <span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>{item.ref}</span>
+                      <span className="ref-number">{item.ref}</span>
                       <p className="text-xs font-medium mt-0.5" style={{ color: "var(--color-text-primary)" }}>{item.subject}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{item.label}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{itemTypeLabel(item.type, item.label)}</p>
                     </div>
                     <span className="text-xs font-semibold px-2 py-0.5 ml-2 shrink-0" style={{ backgroundColor: badgeBg, color: badgeText }}>
-                      {daysLeft === 0 ? t("overview.today") : daysLeft === 1 ? t("overview.tomorrow") : `${daysLeft}g`}
+                      {daysLeft === 0 ? t("overview.today") : daysLeft === 1 ? t("overview.tomorrow") : t("unit.days").replace("{n}", String(daysLeft))}
                     </span>
                   </div>
                 );
@@ -261,10 +272,10 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-2">
                       <div style={{ width: 2, height: 32, backgroundColor: "var(--color-alert-red)", flexShrink: 0 }} />
                       <div>
-                        <span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>{item.ref}</span>
+                        <span className="ref-number">{item.ref}</span>
                         <p className="text-xs font-medium mt-0.5" style={{ color: "var(--color-text-primary)" }}>{item.subject}</p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--color-alert-red)" }}>
-                          {item.label} · {daysOver}g gecikmiş
+                          {itemTypeLabel(item.type, item.label)} · {t("overview.daysoverdue").replace("{n}", String(daysOver ?? 0))}
                         </p>
                       </div>
                     </div>
@@ -293,15 +304,21 @@ export default function ProjectDetail() {
                 style={{
                   color: activeTab === tab.key ? "var(--color-text-primary)" : "var(--color-text-secondary)",
                   fontFamily: "var(--font-ui)",
-                  borderBottom: activeTab === tab.key ? "2px solid var(--color-accent)" : "2px solid transparent",
+                  borderBottom: activeTab === tab.key ? "3px solid var(--color-accent)" : "3px solid transparent",
                   backgroundColor: "transparent",
-                  fontWeight: activeTab === tab.key ? 500 : 400,
+                  fontWeight: activeTab === tab.key ? 600 : 400,
                 }}
               >
                 {tab.label}
                 <span
-                  className="ml-2 text-xs px-1.5 py-0.5 rounded-full"
-                  style={{ backgroundColor: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" }}
+                  className="ml-2 px-1.5 py-0.5"
+                  style={{
+                    backgroundColor: "var(--color-bg-secondary)",
+                    color: "var(--color-text-secondary)",
+                    fontSize: 11,
+                    fontFamily: "var(--font-meta)",
+                    borderRadius: 0,
+                  }}
                 >
                   {tab.count}
                 </span>
@@ -312,14 +329,14 @@ export default function ProjectDetail() {
 
         {/* Tab content */}
         {tabLoading ? (
-          <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Loading...</p>
+          <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{t("state.loading")}</p>
         ) : (
           <div>
             {/* Correspondence */}
             {activeTab === "correspondence" && (
               <div className="flex flex-col gap-2">
                 {correspondences.length === 0 && (
-                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>No correspondence yet.</p>
+                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>{t("overview.nocorrespondence")}</p>
                 )}
                 {correspondences.map((c) => (
                   <div
@@ -331,17 +348,14 @@ export default function ProjectDetail() {
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-bg-secondary)")}
                   >
                     <div className="flex items-center gap-4">
-                      <span
-                        className="text-xs w-24 shrink-0"
-                        style={{ fontFamily: "var(--font-meta)", color: "var(--color-text-secondary)" }}
-                      >
+                      <span className="ref-number shrink-0" style={{ width: "var(--gutter-ref)" }}>
                         {c.corr_number}
                       </span>
                       <div>
                         <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>{c.subject}</p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
-                          {c.direction} · {c.type}
-                          {c.response_due_date && ` · Due ${c.response_due_date}`}
+                          {c.direction === "incoming" ? t("filter.incoming") : c.direction === "outgoing" ? t("filter.outgoing") : c.direction} · {c.type?.replace(/_/g, " ")}
+                          {c.response_due_date && ` · ${t("col.due")} ${formatDateCompact(c.response_due_date)}`}
                         </p>
                       </div>
                     </div>
@@ -355,7 +369,7 @@ export default function ProjectDetail() {
             {activeTab === "rfis" && (
               <div className="flex flex-col gap-2">
                 {rfis.length === 0 && (
-                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>No RFIs yet.</p>
+                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>{t("overview.norfis")}</p>
                 )}
                 {rfis.map((r) => (
                   <div
@@ -367,17 +381,14 @@ export default function ProjectDetail() {
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-bg-secondary)")}
                   >
                     <div className="flex items-center gap-4">
-                      <span
-                        className="text-xs w-24 shrink-0"
-                        style={{ fontFamily: "var(--font-meta)", color: "var(--color-text-secondary)" }}
-                      >
+                      <span className="ref-number shrink-0" style={{ width: "var(--gutter-ref)" }}>
                         {r.rfi_number}
                       </span>
                       <div>
                         <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>{r.subject}</p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
-                          {r.discipline ?? "General"}
-                          {r.response_due_date && ` · Due ${r.response_due_date}`}
+                          {r.discipline ?? "—"}
+                          {r.response_due_date && ` · ${t("col.due")} ${formatDateCompact(r.response_due_date)}`}
                         </p>
                       </div>
                     </div>
@@ -391,7 +402,7 @@ export default function ProjectDetail() {
             {activeTab === "changes" && (
               <div className="flex flex-col gap-2">
                 {changes.length === 0 && (
-                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>No changes yet.</p>
+                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>{t("overview.nochanges")}</p>
                 )}
                 {changes.map((c) => (
                   <div
@@ -403,17 +414,14 @@ export default function ProjectDetail() {
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-bg-secondary)")}
                   >
                     <div className="flex items-center gap-4">
-                      <span
-                        className="text-xs w-24 shrink-0"
-                        style={{ fontFamily: "var(--font-meta)", color: "var(--color-text-secondary)" }}
-                      >
+                      <span className="ref-number shrink-0" style={{ width: "var(--gutter-ref)" }}>
                         {c.change_number}
                       </span>
                       <div>
                         <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>{c.title}</p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
                           {c.origin}
-                          {c.notice_due_date && ` · Notice due ${c.notice_due_date}`}
+                          {c.notice_due_date && ` · ${t("col.noticedue")} ${formatDateCompact(c.notice_due_date)}`}
                         </p>
                       </div>
                     </div>
@@ -427,7 +435,7 @@ export default function ProjectDetail() {
             {activeTab === "deliverables" && (
               <div className="flex flex-col gap-2">
                 {deliverables.length === 0 && (
-                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>No deliverables yet.</p>
+                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>{t("overview.nodeliverables")}</p>
                 )}
                 {deliverables.map((d) => (
                   <div
@@ -443,9 +451,9 @@ export default function ProjectDetail() {
                       <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
                         {(d.category ?? "—").replace("_", " ")}
                         {d.kind ? ` · ${d.kind}` : ""}
-                        {d.pending_detail ? " · pending detail" : ""}
-                        {d.due_date && ` · Due ${d.due_date}`}
-                        {d.time_status === "overdue" ? " · overdue" : d.time_status === "expiring_soon" ? " · expiring soon" : ""}
+                        {d.pending_detail ? ` · ${t("state.pendingdetail")}` : ""}
+                        {d.due_date && ` · ${t("col.due")} ${formatDateCompact(d.due_date)}`}
+                        {d.time_status === "overdue" ? ` · ${t("status.overdue")}` : d.time_status === "expiring_soon" ? ` · ${t("status.expiring_soon")}` : ""}
                       </p>
                     </div>
                     <StatusChip status={d.status} />
@@ -457,7 +465,7 @@ export default function ProjectDetail() {
             {activeTab === "alerts" && (
               <div className="flex flex-col gap-2">
                 {alerts.length === 0 && (
-                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>No pending alerts.</p>
+                  <p className="text-sm py-8 text-center" style={{ color: "var(--color-text-secondary)" }}>{t("overview.noalerts")}</p>
                 )}
                 {alerts.map((a) => (
                   <div
@@ -477,10 +485,10 @@ export default function ProjectDetail() {
                   >
                     <div className="flex items-center gap-4">
                       <span
-                        className="text-xs w-24 shrink-0 uppercase"
-                        style={{ fontFamily: "var(--font-meta)", color: "var(--color-text-secondary)", letterSpacing: "0.05em" }}
+                        className="text-xs shrink-0"
+                        style={{ width: "var(--gutter-ref)", fontFamily: "var(--font-ui)", color: "var(--color-text-secondary)" }}
                       >
-                        {a.source_entity_type ?? "system"}
+                        {itemTypeLabel(a.source_entity_type ?? "system", a.source_entity_type ?? "system")}
                       </span>
                       <div>
                         <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>
@@ -491,8 +499,8 @@ export default function ProjectDetail() {
                             : "—"}
                         </p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
-                          {a.alert_type.replace("_", " ")}
-                          {a.notice_deadline && ` · Deadline: ${a.notice_deadline}`}
+                          {alertTypeLabel(a.alert_type)}
+                          {a.notice_deadline && ` · ${t("col.duedate")}: ${formatDateCompact(a.notice_deadline)}`}
                         </p>
                       </div>
                     </div>
@@ -501,7 +509,7 @@ export default function ProjectDetail() {
                       className="text-xs shrink-0 ml-2"
                       style={{ color: "var(--color-accent-text)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "var(--font-ui)" }}
                     >
-                      Review →
+                      {t("overview.review")}
                     </button>
                   </div>
                 ))}

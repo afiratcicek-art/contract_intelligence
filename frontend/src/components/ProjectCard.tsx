@@ -1,6 +1,8 @@
 import { useProjectHealth } from "../hooks/useProjects";
 import type { Project } from "../hooks/useProjects";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "../context/LanguageContext";
+import { formatMoney } from "../utils/format";
 import StatusChip from "./StatusChip";
 
 interface Props {
@@ -42,29 +44,12 @@ function HealthBadge({
 
 export default function ProjectCard({ project }: Props) {
   const navigate = useNavigate();
+  const { t, lang } = useLanguage();
   const health = useProjectHealth(project.id);
-
-  const contractTypeLabel: Record<string, string> = {
-    lump_sum: "Lump Sum",
-    remeasure: "Remeasure",
-    cost_plus: "Cost Plus",
-    target_cost: "Target Cost",
-    epc: "EPC",
-    epcm: "EPCM",
-    framework: "Framework",
-    other: "Other",
-  };
 
   return (
     <div
-      className="rounded-none cursor-pointer"
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 12px var(--color-shadow)";
-        (e.currentTarget as HTMLElement).style.transition = "box-shadow 150ms ease-out";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = "none";
-      }}
+      className="rounded-none cursor-pointer project-card"
       style={{
         backgroundColor: "var(--color-bg-secondary)",
         borderLeft: "3px solid var(--color-accent)",
@@ -96,7 +81,7 @@ export default function ProjectCard({ project }: Props) {
       <div className="flex gap-4 mb-4">
         {project.contract_type && (
           <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
-            {contractTypeLabel[project.contract_type] ?? project.contract_type}
+            {t(`contract.type.${project.contract_type}`)}
           </span>
         )}
         {project.contract_value && (
@@ -107,8 +92,7 @@ export default function ProjectCard({ project }: Props) {
               fontFamily: "var(--font-meta)",
             }}
           >
-            {project.currency}{" "}
-            {project.contract_value.toLocaleString()}
+            {formatMoney(project.contract_value, project.currency, lang)}
           </span>
         )}
       </div>
@@ -116,23 +100,23 @@ export default function ProjectCard({ project }: Props) {
       {/* Alt — health indicators */}
       {health.loading ? (
         <div className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
-          Loading...
+          {t("state.loading")}
         </div>
       ) : (
         <div className="flex gap-2">
           <HealthBadge
             count={health.open_correspondences}
-            label="Open Letters"
+            label={t("card.openletters")}
             urgency={health.open_correspondences > 0 ? "amber" : "normal"}
           />
           <HealthBadge
             count={health.overdue_rfis}
-            label="Overdue RFIs"
+            label={t("card.overduerfis")}
             urgency={health.overdue_rfis > 0 ? "red" : "normal"}
           />
           <HealthBadge
             count={health.upcoming_deadlines}
-            label="Due in 7d"
+            label={t("card.due7d")}
             urgency={health.upcoming_deadlines > 0 ? "amber" : "normal"}
           />
         </div>

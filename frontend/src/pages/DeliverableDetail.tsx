@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
+import LanguageToggle from "../components/LanguageToggle";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage, type Lang } from "../context/LanguageContext";
+import { useUnsavedGuard } from "../hooks/useUnsavedGuard";
 import StatusChip from "../components/StatusChip";
 import ConfirmModal from "../components/ConfirmModal";
+import Button from "../components/Button";
 
 type SubItem = {
   id: string;
@@ -86,11 +89,11 @@ const FILE_ACCEPT =
   ".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.jpg,.jpeg,.png,.dwg,.dxf,.txt,.csv";
 const PERIOD_KW_PREFIX = "deliv_period:";
 
-const SOURCE_LABEL: Record<string, { tr: string; en: string }> = {
-  contract_clause: { tr: "Kontrat maddesi", en: "Contract clause" },
-  handover: { tr: "Handover", en: "Handover" },
-  employer_imposition: { tr: "İşveren gereklilikleri", en: "Employer requirements" },
-  statutory: { tr: "Mevzuat", en: "Statutory" },
+const SOURCE_LABEL: Record<string, Record<Lang, string>> = {
+  contract_clause: { tr: "Kontrat maddesi", en: "Contract clause", ar: "بند تعاقدي" },
+  handover: { tr: "Handover", en: "Handover", ar: "تسليم" },
+  employer_imposition: { tr: "İşveren gereklilikleri", en: "Employer requirements", ar: "متطلبات صاحب العمل" },
+  statutory: { tr: "Mevzuat", en: "Statutory", ar: "نظامي" },
 };
 
 function dateFieldsForCadence(cadence: string): { due: boolean; expiry: boolean } {
@@ -170,7 +173,7 @@ export default function DeliverableDetail() {
     deliverableId: string;
   }>();
   const navigate = useNavigate();
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
   const auth = getAuth();
 
   const [item, setItem] = useState<Deliverable | null>(null);
@@ -188,6 +191,8 @@ export default function DeliverableDetail() {
   const [periodMonth, setPeriodMonth] = useState(""); // YYYY-MM for recurring
   const [periodEnd, setPeriodEnd] = useState(""); // YYYY-MM-DD for standing_renewal
   const [periodLabel, setPeriodLabel] = useState("");
+
+  useUnsavedGuard(dirty && !saving);
   const [periodFile, setPeriodFile] = useState<File | null>(null);
   const [newStep, setNewStep] = useState("");
   const [newStepDue, setNewStepDue] = useState("");
@@ -498,16 +503,7 @@ export default function DeliverableDetail() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: bg }}>
-      <nav
-        style={{
-          backgroundColor: bg,
-          borderBottom: `0.5px solid ${border}`,
-          padding: "10px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+      <nav className="app-chrome-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
           <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>
@@ -528,22 +524,7 @@ export default function DeliverableDetail() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecond }}>{auth?.full_name}</span>
-          <button
-            onClick={toggleLang}
-            style={{
-              background: "none",
-              border: `1px solid ${border}`,
-              cursor: "pointer",
-              fontSize: 11,
-              color: textSecond,
-              padding: "2px 8px",
-              fontFamily: "var(--font-meta)",
-              fontWeight: 500,
-              letterSpacing: "0.5px",
-            }}
-          >
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
         </div>
       </nav>
 
@@ -559,21 +540,14 @@ export default function DeliverableDetail() {
             flexWrap: "wrap",
           }}
         >
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={() => navigate(listUrl)}
-            style={{
-              background: "none",
-              border: `1px solid ${border}`,
-              color: textSecond,
-              padding: "8px 14px",
-              fontSize: 12,
-              fontFamily: "var(--font-ui)",
-              cursor: "pointer",
-            }}
           >
             {lang === "tr" ? "← Listeye dön" : "← Back to list"}
-          </button>
+          </Button>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {savedFlash && !dirty && (
               <span style={{ fontSize: 12, color: "var(--color-success)" }}>
@@ -585,49 +559,31 @@ export default function DeliverableDetail() {
                 {lang === "tr" ? "Kaydedilmedi" : "Unsaved"}
               </span>
             )}
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="sm"
               onClick={() => setDeleteOpen(true)}
               disabled={deleting}
-              style={{
-                background: "none",
-                border: `1px solid var(--color-alert-red)`,
-                color: "var(--color-alert-red)",
-                padding: "8px 14px",
-                fontSize: 12,
-                fontFamily: "var(--font-ui)",
-                cursor: deleting ? "not-allowed" : "pointer",
-              }}
             >
               {lang === "tr" ? "Sil" : "Delete"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
               onClick={handleSave}
               disabled={saving || !form || (!dirty && !item?.pending_detail)}
-              style={{
-                backgroundColor: "var(--color-accent)",
-                color: "#F5F2ED",
-                border: "none",
-                padding: "8px 18px",
-                fontSize: 13,
-                fontFamily: "var(--font-ui)",
-                cursor: saving ? "not-allowed" : "pointer",
-                opacity: saving || (!dirty && !item?.pending_detail) ? 0.55 : 1,
-              }}
+              loading={saving}
+              loadingText={lang === "tr" ? "Kaydediliyor…" : "Saving…"}
             >
-              {saving
+              {item?.pending_detail
                 ? lang === "tr"
-                  ? "Kaydediliyor…"
-                  : "Saving…"
-                : item?.pending_detail
-                  ? lang === "tr"
-                    ? "Kaydet ve onayla"
-                    : "Save & confirm"
-                  : lang === "tr"
-                    ? "Kaydet"
-                    : "Save"}
-            </button>
+                  ? "Kaydet ve onayla"
+                  : "Save & confirm"
+                : lang === "tr"
+                  ? "Kaydet"
+                  : "Save"}
+            </Button>
           </div>
         </div>
 
@@ -892,7 +848,7 @@ export default function DeliverableDetail() {
                     style={{
                       background:
                         form.status === s ? "var(--color-accent)" : "transparent",
-                      color: form.status === s ? "#F5F2ED" : textSecond,
+                      color: form.status === s ? "var(--color-bg-primary)" : textSecond,
                       border: `1px solid ${
                         form.status === s ? "var(--color-accent)" : border
                       }`,
@@ -993,7 +949,7 @@ export default function DeliverableDetail() {
                         {isPeriodCadence(item.cadence) && (
                           <span
                             style={{
-                              fontSize: 10,
+                              fontSize: 11,
                               fontWeight: 600,
                               letterSpacing: "0.06em",
                               textTransform: "uppercase",
@@ -1200,46 +1156,25 @@ export default function DeliverableDetail() {
                     </div>
 
                     <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                      <button
+                      <Button
                         type="button"
+                        variant="secondary"
+                        size="sm"
                         onClick={resetPeriodForm}
                         disabled={uploading}
-                        style={{
-                          background: "none",
-                          border: `1px solid ${border}`,
-                          color: textSecond,
-                          padding: "8px 14px",
-                          fontSize: 12,
-                          fontFamily: "var(--font-ui)",
-                          cursor: "pointer",
-                        }}
                       >
                         {lang === "tr" ? "Vazgeç" : "Cancel"}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        size="sm"
                         onClick={() => void submitPeriodEvidence()}
                         disabled={uploading || !periodFile}
-                        style={{
-                          backgroundColor: "var(--color-accent)",
-                          color: "#F5F2ED",
-                          border: "none",
-                          padding: "8px 16px",
-                          fontSize: 12,
-                          fontFamily: "var(--font-ui)",
-                          cursor:
-                            uploading || !periodFile ? "not-allowed" : "pointer",
-                          opacity: uploading || !periodFile ? 0.55 : 1,
-                        }}
+                        loading={uploading}
+                        loadingText={lang === "tr" ? "Kaydediliyor…" : "Saving…"}
                       >
-                        {uploading
-                          ? lang === "tr"
-                            ? "Kaydediliyor…"
-                            : "Saving…"
-                          : lang === "tr"
-                            ? "Dönemi kaydet"
-                            : "Save period"}
-                      </button>
+                        {lang === "tr" ? "Dönemi kaydet" : "Save period"}
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -1339,9 +1274,10 @@ export default function DeliverableDetail() {
               {(item.sub_items ?? []).map((sub) => (
                 <div
                   key={sub.id}
+                  className="list-row"
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 90px 80px 28px",
+                    gridTemplateColumns: "1fr 90px var(--gutter-status) 28px",
                     gap: 8,
                     padding: "10px 12px",
                     backgroundColor: cardBg,
@@ -1380,15 +1316,14 @@ export default function DeliverableDetail() {
                       padding: "4px 6px",
                       cursor: "pointer",
                       fontFamily: "var(--font-ui)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}
                   >
                     {sub.fulfillment === "fulfilled"
-                      ? lang === "tr"
-                        ? "İfa edildi"
-                        : "Fulfilled"
-                      : lang === "tr"
-                        ? "Bekliyor"
-                        : "Pending"}
+                      ? t("status.fulfilled")
+                      : t("status.pending")}
                   </button>
                   <StatusChip status={sub.status} />
                   <button
@@ -1410,6 +1345,7 @@ export default function DeliverableDetail() {
               ))}
 
               <div
+                className="list-row"
                 style={{
                   display: "grid",
                   gridTemplateColumns: "1fr 140px auto",
@@ -1434,23 +1370,14 @@ export default function DeliverableDetail() {
                   value={newStepDue}
                   onChange={(e) => setNewStepDue(e.target.value)}
                 />
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   onClick={addSubItem}
                   disabled={saving || !newStep.trim()}
-                  style={{
-                    backgroundColor: "var(--color-accent)",
-                    color: "#F5F2ED",
-                    border: "none",
-                    padding: "8px 14px",
-                    fontSize: 12,
-                    fontFamily: "var(--font-ui)",
-                    cursor: !newStep.trim() ? "not-allowed" : "pointer",
-                    opacity: !newStep.trim() ? 0.5 : 1,
-                  }}
                 >
                   {lang === "tr" ? "Ekle" : "Add"}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -1464,34 +1391,21 @@ export default function DeliverableDetail() {
                 borderTop: `0.5px solid ${border}`,
               }}
             >
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => navigate(listUrl)}
-                style={{
-                  background: "none",
-                  border: `1px solid ${border}`,
-                  color: textSecond,
-                  padding: "8px 14px",
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
               >
                 {lang === "tr" ? "Listeye dön" : "Back to list"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                size="sm"
                 onClick={handleSave}
                 disabled={saving || (!dirty && !item.pending_detail)}
-                style={{
-                  backgroundColor: "var(--color-accent)",
-                  color: "#F5F2ED",
-                  border: "none",
-                  padding: "8px 18px",
-                  fontSize: 13,
-                  fontFamily: "var(--font-ui)",
-                  cursor: "pointer",
-                  opacity: saving || (!dirty && !item.pending_detail) ? 0.55 : 1,
-                }}
+                loading={saving}
+                loadingText={lang === "tr" ? "Kaydediliyor…" : "Saving…"}
               >
                 {item.pending_detail
                   ? lang === "tr"
@@ -1500,7 +1414,7 @@ export default function DeliverableDetail() {
                   : lang === "tr"
                     ? "Kaydet"
                     : "Save"}
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -1515,6 +1429,7 @@ export default function DeliverableDetail() {
         }
         confirmLabel={deleting ? (lang === "tr" ? "Siliniyor…" : "Deleting…") : (lang === "tr" ? "Sil" : "Delete")}
         cancelLabel={lang === "tr" ? "İptal" : "Cancel"}
+        variant="destructive"
         onConfirm={() => {
           if (!deleting) void handleDelete();
         }}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import LanguageToggle from "../components/LanguageToggle";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../services/api";
@@ -14,7 +15,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
 
   useEffect(() => {
     const saved = localStorage.getItem("clauseiq_remembered_email");
@@ -135,9 +136,7 @@ export default function Login() {
       {/* Sağ panel — form */}
       <div className="relative flex flex-1 items-center justify-center px-8">
         <div className="absolute top-4 right-4 flex items-center gap-2">
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
           <ThemeToggle />
         </div>
         <div className="w-full max-w-sm">
@@ -189,8 +188,8 @@ export default function Login() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-xs font-medium mb-1 uppercase tracking-wide"
-                style={{ color: "var(--color-text-secondary)" }}
+                className="block font-medium mb-1 uppercase tracking-wide"
+                style={{ color: "var(--color-text-secondary)", fontSize: 11 }}
               >
                 {t("login.email")}
               </label>
@@ -212,8 +211,8 @@ export default function Login() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-xs font-medium mb-1 uppercase tracking-wide"
-                style={{ color: "var(--color-text-secondary)" }}
+                className="block font-medium mb-1 uppercase tracking-wide"
+                style={{ color: "var(--color-text-secondary)", fontSize: 11 }}
               >
                 {t("login.password")}
               </label>
@@ -243,8 +242,8 @@ export default function Login() {
               />
               <label
                 htmlFor="rememberMe"
-                className="text-xs cursor-pointer select-none"
-                style={{ color: "var(--color-text-secondary)" }}
+                className="cursor-pointer select-none"
+                style={{ color: "var(--color-text-secondary)", fontSize: 11 }}
               >
                 {t("login.remember")}
               </label>

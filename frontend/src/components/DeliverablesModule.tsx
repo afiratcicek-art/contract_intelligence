@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import Button from "./Button";
 import StatusChip from "./StatusChip";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage, type Lang } from "../context/LanguageContext";
+import { formatDateCompact } from "../utils/format";
 
 export type DeliverableRow = {
   id: string;
@@ -56,10 +57,10 @@ const CATEGORY_ORDER = [
   "other",
 ];
 
-const CADENCE_LABEL: Record<string, { tr: string; en: string }> = {
-  one_time: { tr: "Tek sefer", en: "One-time" },
-  recurring: { tr: "Tekrarlayan", en: "Recurring" },
-  standing_renewal: { tr: "Yenilemeli", en: "Renewal" },
+const CADENCE_LABEL: Record<string, Record<Lang, string>> = {
+  one_time: { tr: "Tek sefer", en: "One-time", ar: "مرة واحدة" },
+  recurring: { tr: "Tekrarlayan", en: "Recurring", ar: "متكرر" },
+  standing_renewal: { tr: "Yenilemeli", en: "Renewal", ar: "قابل للتجديد" },
 };
 
 export default function DeliverablesModule({ projectId }: Props) {
@@ -234,13 +235,14 @@ export default function DeliverablesModule({ projectId }: Props) {
       onClick={onClick}
       style={{
         background: active ? "var(--color-accent)" : "transparent",
-        color: active ? "#F5F2ED" : textSecond,
+        color: active ? "var(--color-bg-primary)" : textSecond,
         border: `1px solid ${active ? "var(--color-accent)" : border}`,
         padding: "4px 10px",
         fontSize: 11,
         fontFamily: "var(--font-ui)",
         cursor: "pointer",
         textTransform: "capitalize",
+        borderRadius: 0,
       }}
     >
       {label}
@@ -411,6 +413,7 @@ export default function DeliverablesModule({ projectId }: Props) {
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder={lang === "tr" ? "Ara…" : "Search…"}
+          aria-label={lang === "tr" ? "Teslimat ara" : "Search deliverables"}
           style={{
             background: cardBg,
             border: `1px solid ${border}`,
@@ -515,7 +518,9 @@ export default function DeliverablesModule({ projectId }: Props) {
                         borderLeft: "2px solid var(--color-warning)",
                       }}
                     >
-                      {n.nudge[lang]}
+                      {/* Server-side nudge copy carries tr/en only, so Arabic
+                          readers get the English line until the backend adds it. */}
+                      {n.nudge[lang === "ar" ? "en" : lang]}
                     </p>
                   ))}
                 </div>
@@ -558,6 +563,7 @@ export default function DeliverablesModule({ projectId }: Props) {
                   filteredSuggestions.map((s) => (
                   <label
                     key={s.key}
+                    className="list-row"
                     style={{
                       display: "grid",
                       gridTemplateColumns: "24px 1fr auto",
@@ -746,41 +752,38 @@ export default function DeliverablesModule({ projectId }: Props) {
                       alignItems: "baseline",
                     }}
                   >
+                    {/* The date is a figure and stays on one line; the time-status
+                        word beside it is prose and must be free to wrap, so the
+                        two are separate spans rather than one figure carrying both. */}
                     <span
                       style={{
                         fontSize: 12,
-                        fontFamily: "var(--font-meta)",
+                        minWidth: 0,
                         color: d.pending_detail
                           ? textSecond
                           : timeColor(d.time_status),
                       }}
                     >
-                      {d.pending_detail
-                        ? lang === "tr"
-                          ? "Onay bekliyor"
-                          : "Awaiting confirm"
-                        : (trackDate(d) ?? "—")}
-                      {!d.pending_detail && d.time_status === "overdue"
-                        ? lang === "tr"
-                          ? " · geçmiş"
-                          : " · overdue"
-                        : !d.pending_detail && d.time_status === "expiring_soon"
-                          ? lang === "tr"
-                            ? " · yaklaşıyor"
-                            : " · soon"
-                          : ""}
+                      {d.pending_detail ? (
+                        t("state.pendingdetail")
+                      ) : (
+                        <>
+                          <span className="data-figure" style={{ fontSize: 12 }}>
+                            {formatDateCompact(trackDate(d))}
+                          </span>
+                          {d.time_status === "overdue"
+                            ? ` · ${t("status.overdue")}`
+                            : d.time_status === "expiring_soon"
+                              ? ` · ${t("status.expiring_soon")}`
+                              : ""}
+                        </>
+                      )}
                     </span>
                     {!d.pending_detail &&
                       d.days_remaining != null &&
                       d.time_status && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: textSecond,
-                          fontFamily: "var(--font-meta)",
-                        }}
-                      >
-                        {d.days_remaining}d
+                      <span className="data-figure" style={{ color: textSecond, flexShrink: 0, marginInlineStart: 8 }}>
+                        {t("unit.days").replace("{n}", String(d.days_remaining))}
                       </span>
                     )}
                   </div>

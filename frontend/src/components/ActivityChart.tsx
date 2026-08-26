@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts";
 import type { ActivityPoint, PrePeriod } from "../hooks/useProjectDetail";
+import { useLanguage } from "../context/LanguageContext";
 
 interface Props {
   data: ActivityPoint[];
@@ -8,14 +9,17 @@ interface Props {
   prePeriod?: PrePeriod;
 }
 
+// Series names come from the module.* dictionary so the legend matches the
+// sidebar rather than introducing a second set of terms for the same records.
 const SERIES = [
-  { key: "correspondence", label: "Correspondence", fill: "var(--color-chart-correspondence)" },
-  { key: "rfi", label: "RFI", fill: "var(--color-chart-rfi)" },
-  { key: "change", label: "Change", fill: "var(--color-chart-change)" },
-  { key: "deliverable", label: "Deliverable", fill: "var(--color-chart-deliverable)" },
+  { key: "correspondence", labelKey: "module.correspondence", fill: "var(--color-chart-correspondence)" },
+  { key: "rfi", labelKey: "module.rfis", fill: "var(--color-chart-rfi)" },
+  { key: "change", labelKey: "module.changes", fill: "var(--color-chart-change)" },
+  { key: "deliverable", labelKey: "module.deliverables", fill: "var(--color-chart-deliverable)" },
 ] as const;
 
 export default function ActivityChart({ data, today, dark: _dark, prePeriod }: Props) {
+  const { t } = useLanguage();
   const safePre = prePeriod ?? { correspondence: 0, rfi: 0, change: 0, deliverable: 0 };
   const hasPrePeriod = Object.values(safePre).some((v) => v > 0);
 
@@ -36,7 +40,7 @@ export default function ActivityChart({ data, today, dark: _dark, prePeriod }: P
       return (
         <g transform={`translate(${x},${y})`}>
           <text x={0} y={0} dy={12} textAnchor="middle" fill="var(--color-alert-red)" fontSize={11} fontFamily="var(--font-ui)">
-            ≤-15g
+            {t("chart.prebucket")}
           </text>
         </g>
       );
@@ -45,7 +49,7 @@ export default function ActivityChart({ data, today, dark: _dark, prePeriod }: P
       return (
         <g transform={`translate(${x},${y})`}>
           <text x={0} y={0} dy={12} textAnchor="middle" fill="var(--color-alert-red)" fontSize={11} fontFamily="var(--font-ui)">
-            Bugün
+            {t("overview.today")}
           </text>
         </g>
       );
@@ -73,13 +77,9 @@ export default function ActivityChart({ data, today, dark: _dark, prePeriod }: P
               fontSize: 11,
               fontFamily: "var(--font-ui)",
             }}
-            formatter={(value, name) => {
-              const nameStr = String(name ?? "");
-              return [value, nameStr.charAt(0).toUpperCase() + nameStr.slice(1)];
-            }}
             labelFormatter={(label) => {
-              if (label === "pre") return "Chart başlangıcından önce overdue";
-              if (label === today) return "Bugün";
+              if (label === "pre") return t("chart.pretooltip");
+              if (label === today) return t("overview.today");
               return label;
             }}
           />
@@ -100,7 +100,7 @@ export default function ActivityChart({ data, today, dark: _dark, prePeriod }: P
             <Bar
               key={s.key}
               dataKey={s.key}
-              name={s.label}
+              name={t(s.labelKey)}
               stackId="a"
               fill={s.fill}
               radius={i === SERIES.length - 1 ? [2, 2, 0, 0] : [0, 0, 0, 0]}
@@ -113,18 +113,18 @@ export default function ActivityChart({ data, today, dark: _dark, prePeriod }: P
           <div key={s.key} className="flex items-center gap-2">
             <div className="w-3 h-3" style={{ backgroundColor: s.fill }} />
             <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
-              {s.label}
+              {t(s.labelKey)}
             </span>
           </div>
         ))}
         <div className="flex items-center gap-2">
           <div style={{ width: 2, height: 12, backgroundColor: "var(--color-alert-red)" }} />
-          <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Bugün</span>
+          <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>{t("overview.today")}</span>
         </div>
         {hasPrePeriod && (
           <div className="flex items-center gap-2">
             <div style={{ width: 12, height: 2, backgroundColor: "var(--color-alert-red)", borderTop: "1px dashed" }} />
-            <span className="text-xs" style={{ color: "var(--color-alert-red)" }}>Chart öncesi overdue</span>
+            <span className="text-xs" style={{ color: "var(--color-alert-red)" }}>{t("chart.prelegend")}</span>
           </div>
         )}
       </div>

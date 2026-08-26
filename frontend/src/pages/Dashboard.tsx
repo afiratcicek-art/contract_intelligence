@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import LanguageToggle from "../components/LanguageToggle";
 import { useProjects } from "../hooks/useProjects";
 import ProjectCard from "../components/ProjectCard";
 import { getAuth, clearAuth } from "../store/auth";
@@ -10,7 +11,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { projects, loading, error } = useProjects();
   const auth = getAuth();
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
 
   function handleLogout() {
     clearAuth();
@@ -20,7 +21,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--color-bg-primary)" }}>
       <nav
-        className="flex items-center justify-between px-8 py-4 border-b"
+        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-8 py-4 border-b"
         style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-bg-primary)" }}
       >
         <div className="flex items-center gap-4">
@@ -31,9 +32,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-6">
           <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
           <ThemeToggle />
           <button onClick={handleLogout} className="text-sm transition-opacity hover:opacity-70" style={{ color: "var(--color-text-secondary)" }}>
             {t("nav.signout")}
@@ -41,7 +40,7 @@ export default function Dashboard() {
         </div>
       </nav>
       <main className="max-w-4xl mx-auto px-8 py-10">
-        <div className="flex items-end justify-between mb-8">
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <div>
             <h1
               className="font-semibold"

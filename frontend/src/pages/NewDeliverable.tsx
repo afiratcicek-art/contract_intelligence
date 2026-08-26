@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import LanguageToggle from "../components/LanguageToggle";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { getAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
+import { useUnsavedGuard } from "../hooks/useUnsavedGuard";
+import Button from "../components/Button";
 
 const CATEGORIES = [
   { value: "hse", label: "HSE" },
@@ -17,10 +20,10 @@ const CATEGORIES = [
 ];
 
 const SOURCES = [
-  { value: "contract_clause", label: { tr: "Kontrat maddesi", en: "Contract clause" } },
-  { value: "handover", label: { tr: "Handover", en: "Handover" } },
-  { value: "employer_imposition", label: { tr: "İşveren gereklilikleri", en: "Employer requirements" } },
-  { value: "statutory", label: { tr: "Mevzuat", en: "Statutory" } },
+  { value: "contract_clause", label: { tr: "Kontrat maddesi", en: "Contract clause", ar: "بند تعاقدي" } },
+  { value: "handover", label: { tr: "Handover", en: "Handover", ar: "تسليم" } },
+  { value: "employer_imposition", label: { tr: "İşveren gereklilikleri", en: "Employer requirements", ar: "متطلبات صاحب العمل" } },
+  { value: "statutory", label: { tr: "Mevzuat", en: "Statutory", ar: "نظامي" } },
 ];
 
 const FILE_ACCEPT =
@@ -37,14 +40,14 @@ function dateFieldsForCadence(cadence: string): {
 }
 
 const KINDS = [
-  { value: "artifact", label: { tr: "Belge / çıktı", en: "Artifact" } },
-  { value: "compliance", label: { tr: "Uyum yükümlülüğü", en: "Compliance" } },
+  { value: "artifact", label: { tr: "Belge / çıktı", en: "Artifact", ar: "مستند / مخرج" } },
+  { value: "compliance", label: { tr: "Uyum yükümlülüğü", en: "Compliance", ar: "التزام امتثال" } },
 ];
 
 const CADENCES = [
-  { value: "one_time", label: { tr: "Tek sefer", en: "One-time" } },
-  { value: "recurring", label: { tr: "Tekrarlayan", en: "Recurring" } },
-  { value: "standing_renewal", label: { tr: "Yenilemeli", en: "Standing renewal" } },
+  { value: "one_time", label: { tr: "Tek sefer", en: "One-time", ar: "مرة واحدة" } },
+  { value: "recurring", label: { tr: "Tekrarlayan", en: "Recurring", ar: "متكرر" } },
+  { value: "standing_renewal", label: { tr: "Yenilemeli", en: "Standing renewal", ar: "قابل للتجديد" } },
 ];
 
 type ContractRoot = { id: string; title: string };
@@ -52,11 +55,13 @@ type ContractRoot = { id: string; title: string };
 export default function NewDeliverable() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
   const auth = getAuth();
 
+  const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useUnsavedGuard(dirty);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [contract, setContract] = useState<ContractRoot | null>(null);
@@ -210,17 +215,8 @@ export default function NewDeliverable() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: bg }}>
-      <nav
-        style={{
-          backgroundColor: bg,
-          borderBottom: `0.5px solid ${border}`,
-          padding: "10px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+    <div style={{ minHeight: "100vh", backgroundColor: bg }} onChangeCapture={() => setDirty(true)}>
+      <nav className="app-chrome-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
           <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>
@@ -244,22 +240,7 @@ export default function NewDeliverable() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecond }}>{auth?.full_name}</span>
-          <button
-            onClick={toggleLang}
-            style={{
-              background: "none",
-              border: `1px solid ${border}`,
-              cursor: "pointer",
-              fontSize: 11,
-              color: textSecond,
-              padding: "2px 8px",
-              fontFamily: "var(--font-meta)",
-              fontWeight: 500,
-              letterSpacing: "0.5px",
-            }}
-          >
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
         </div>
       </nav>
 
@@ -613,44 +594,24 @@ export default function NewDeliverable() {
           )}
 
           <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-            <button
+            <Button
+              type="button"
               onClick={handleSubmit}
               disabled={loading || !contract}
-              style={{
-                backgroundColor: "var(--color-accent)",
-                color: "#F5F2ED",
-                border: "none",
-                padding: "10px 20px",
-                fontSize: 13,
-                fontFamily: "var(--font-ui)",
-                cursor: loading || !contract ? "not-allowed" : "pointer",
-                opacity: loading || !contract ? 0.6 : 1,
-              }}
+              loading={loading}
+              loadingText={lang === "tr" ? "Kaydediliyor…" : "Saving…"}
             >
-              {loading
-                ? lang === "tr"
-                  ? "Kaydediliyor…"
-                  : "Saving…"
-                : lang === "tr"
-                  ? "Oluştur"
-                  : "Create"}
-            </button>
-            <button
+              {lang === "tr" ? "Oluştur" : "Create"}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
               onClick={() =>
                 navigate(`/projects/${projectId}/workspace?module=deliverables`)
               }
-              style={{
-                background: "none",
-                border: `1px solid ${border}`,
-                color: textSecond,
-                padding: "10px 20px",
-                fontSize: 13,
-                fontFamily: "var(--font-ui)",
-                cursor: "pointer",
-              }}
             >
               {lang === "tr" ? "İptal" : "Cancel"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

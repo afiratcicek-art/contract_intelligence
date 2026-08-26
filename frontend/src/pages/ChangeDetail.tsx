@@ -1,11 +1,13 @@
 ﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import LanguageToggle from "../components/LanguageToggle";
 import { api } from "../services/api";
 import { getAuth, clearAuth } from "../store/auth";
 import ThemeToggle from "../components/ThemeToggle";
 import Button from "../components/Button";
 import StatusChip from "../components/StatusChip";
 import { useLanguage } from "../context/LanguageContext";
+import { formatMoney } from "../utils/format";
 
 interface ChangeDetail {
   id: string;
@@ -102,7 +104,7 @@ export default function ChangeDetail() {
   const { projectId, changeId } = useParams<{ projectId: string; changeId: string }>();
   const navigate = useNavigate();
   const auth = getAuth();
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
 
   const [change, setChange] = useState<ChangeDetail | null>(null);
   const [chronology, setChronology] = useState<Chronology | null>(null);
@@ -145,7 +147,7 @@ export default function ChangeDetail() {
   if (loading) return (
     <div style={{ minHeight: "100vh", backgroundColor: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <p style={{ fontSize: 13, color: textSecond, fontFamily: "var(--font-ui)" }}>
-        {lang === "tr" ? "Yükleniyor..." : "Loading..."}
+        {t("state.loading")}
       </p>
     </div>
   );
@@ -160,7 +162,7 @@ export default function ChangeDetail() {
     <div style={{ minHeight: "100vh", backgroundColor: bg }}>
 
       {/* Nav */}
-      <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+      <nav className="app-chrome-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecond }}>
           <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
@@ -169,13 +171,11 @@ export default function ChangeDetail() {
           <span style={{ color: textSecond }}>/</span>
           <span style={{ cursor: "pointer" }} onClick={() => navigate(`/projects/${projectId}/workspace?module=changes`)}>{t("module.changes")}</span>
           <span style={{ color: textSecond }}>/</span>
-          <span style={{ color: textPrimary, fontWeight: 500, fontFamily: "var(--font-meta)", fontSize: 11 }}>{change.change_number}</span>
+          <span className="ref-number" style={{ color: textPrimary, fontWeight: 500 }}>{change.change_number}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: textSecond }}>
           <span>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecond, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
           <ThemeToggle />
           <button onClick={handleLogout} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: textSecond }}>{t("nav.signout")}</button>
         </div>
@@ -186,7 +186,7 @@ export default function ChangeDetail() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
-            <div style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: textSecond, marginBottom: 8, letterSpacing: "0.05em" }}>{change.change_number}</div>
+            <div className="ref-number" style={{ marginBottom: 8 }}>{change.change_number}</div>
             <h1 style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-h1)", fontWeight: 500, color: textPrimary, margin: 0, lineHeight: 1.3 }}>{change.title}</h1>
           </div>
           <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 8, flexShrink: 0, marginLeft: 24 }}>
@@ -200,7 +200,7 @@ export default function ChangeDetail() {
         </div>
 
         {/* Künye kartı */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24 }}>
+        <div className="meta-grid-3" style={{ marginBottom: 24 }}>
           <div style={{ background: cardBg, padding: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: textSecond, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${border}` }}>
               {lang === "tr" ? "Genel" : "General"}
@@ -220,8 +220,8 @@ export default function ChangeDetail() {
               {lang === "tr" ? "Durum" : "Status"}
             </div>
             <div style={{ fontSize: 12, color: textPrimary, marginBottom: 10 }}>{change.cost_impact_status.replace("_", " ")}</div>
-            {field(lang === "tr" ? "Talep Edilen" : "Claimed", change.cost_claimed_amount != null ? `${change.cost_currency} ${change.cost_claimed_amount.toLocaleString()}` : null)}
-            {field(lang === "tr" ? "Anlaşılan" : "Agreed", change.cost_agreed_amount != null ? `${change.cost_currency} ${change.cost_agreed_amount.toLocaleString()}` : null)}
+            {field(lang === "tr" ? "Talep Edilen" : "Claimed", change.cost_claimed_amount != null ? formatMoney(change.cost_claimed_amount, change.cost_currency, lang) : null)}
+            {field(lang === "tr" ? "Anlaşılan" : "Agreed", change.cost_agreed_amount != null ? formatMoney(change.cost_agreed_amount, change.cost_currency, lang) : null)}
           </div>
 
           <div style={{ background: cardBg, padding: 16 }}>
@@ -306,24 +306,24 @@ export default function ChangeDetail() {
                           if (doc.link_type === "correspondence" && doc.correspondences) {
                             return (
                               <div key={doc.id}
+                                className="chain-node-single"
                                 onClick={() => navigate(`/projects/${projectId}/workspace/correspondence/${doc.correspondence_id}`)}
-                                style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
-                                <span style={{ fontSize: 11, color: textSecond, fontFamily: "var(--font-ui)" }}>└─</span>
-                                <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: "var(--color-accent-text)", textDecoration: "underline" }}>
+                                style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0 3px 26px" }}>
+                                <span className="ref-number" style={{ color: "var(--color-accent-text)" }}>
                                   {doc.correspondences.corr_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.correspondences.subject}</span>
-                                <span style={{ fontSize: 11, color: textSecond, textTransform: "uppercase" as const }}>{doc.correspondences.type}</span>
+                                <span style={{ fontSize: 11, color: textSecond, textTransform: "capitalize" as const }}>{doc.correspondences.type?.replace(/_/g, " ")}</span>
                               </div>
                             );
                           }
                           if (doc.link_type === "rfi" && doc.rfis) {
                             return (
                               <div key={doc.id}
+                                className="chain-node-single"
                                 onClick={() => navigate(`/projects/${projectId}/workspace/rfis/${doc.rfi_id}`)}
-                                style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0" }}>
-                                <span style={{ fontSize: 11, color: textSecond, fontFamily: "var(--font-ui)" }}>└─</span>
-                                <span style={{ fontFamily: "var(--font-meta)", fontSize: 11, color: "var(--color-accent-text)", textDecoration: "underline" }}>
+                                style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "3px 0 3px 26px" }}>
+                                <span className="ref-number" style={{ color: "var(--color-accent-text)" }}>
                                   {doc.rfis.rfi_number}
                                 </span>
                                 <span style={{ fontSize: 11, color: textPrimary }}>{doc.rfis.subject}</span>

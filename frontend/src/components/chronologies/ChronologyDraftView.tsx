@@ -8,8 +8,11 @@
  * mode="edit"   → "Edit Chronology" header, title optional
  */
 import type { RefObject, MutableRefObject } from "react";
-import { MANUAL_EVENT_TYPE_LABELS } from "../../types/chronology";
+import { MANUAL_EVENT_TYPES } from "../../types/chronology";
+import { useLanguage } from "../../context/LanguageContext";
+import { formatDate } from "../../utils/format";
 import AiActionButton from "../AiActionButton";
+import Button from "../Button";
 import HorizontalStrip from "./HorizontalStrip";
 import { toPendingStripEvents } from "./mappers";
 import type { PendingEvent, usePendingEvents } from "./usePendingEvents";
@@ -25,12 +28,6 @@ const SECTION_LABEL = {
   marginBottom: 10,
   fontFamily: "var(--font-ui)",
 };
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-}
 
 interface Props {
   mode: "create" | "edit";
@@ -53,6 +50,21 @@ export default function ChronologyDraftView({
   scrollToEvent, timelineScrollRef, eventRefs,
   onRemoveEvent,
 }: Props) {
+  const { t, lang } = useLanguage();
+
+  const eventCountLabel = (n: number) =>
+    n === 1
+      ? t("chrono.eventcount_one")
+      : t("chrono.eventcount_other").replace("{n}", String(n));
+
+  // Backend may send a type outside MANUAL_EVENT_TYPES — show it raw
+  // rather than the unresolved key.
+  const eventTypeLabel = (type: string) => {
+    const key = `chrono.evt.${type}`;
+    const label = t(key);
+    return label === key ? type : label;
+  };
+
   const {
     pendingEvents, addDocToTimeline, addManualEvent,
     removeFromTimeline, updatePending, requestLlmNarrative,
@@ -89,56 +101,42 @@ export default function ChronologyDraftView({
             fontSize: "var(--type-h1)", fontWeight: 500,
             color: "var(--color-text-primary)", margin: 0,
           }}>
-            {isCreate ? "New Chronology" : "Edit Chronology"}
+            {isCreate ? t("chrono.newchronology") : t("chrono.editchronology")}
           </h2>
           <div style={{ display: "flex", gap: 10 }}>
-            <button
+            <Button
+              type="button"
+              size="sm"
               onClick={onSave}
               disabled={saving || (isCreate && !title.trim())}
-              style={{
-                background: (isCreate && !title.trim())
-                  ? "var(--color-border-medium)"
-                  : ACCENT,
-                color: "var(--color-bg-primary)",
-                border: "none", padding: "8px 20px",
-                fontSize: 12, fontWeight: 500, borderRadius: 0,
-                cursor: saving ? "not-allowed" : "pointer",
-                opacity: saving ? 0.6 : 1,
-                fontFamily: "var(--font-ui)",
-              }}
+              loading={saving}
+              loadingText={t("state.saving")}
             >
-              {saving
-                ? "Saving..."
-                : isCreate ? "Save Chronology" : "Save Changes"}
-            </button>
-            <button
+              {isCreate ? t("chrono.savechronology") : t("chrono.savechanges")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
               onClick={onCancel}
               disabled={saving}
-              style={{
-                background: "none",
-                border: "1px solid var(--color-border-light)",
-                color: "var(--color-text-secondary)",
-                padding: "8px 16px", fontSize: 12,
-                cursor: "pointer", borderRadius: 0,
-                fontFamily: "var(--font-ui)",
-              }}
             >
-              Cancel
-            </button>
+              {t("action.cancel")}
+            </Button>
           </div>
         </div>
 
         {/* Title input */}
         <div style={{ marginBottom: 20 }}>
           <p style={SECTION_LABEL}>
-            CHRONOLOGY TITLE{isCreate && (
+            {t("col.title")}{isCreate && (
               <span style={{ color: ACCENT_TEXT }}> *</span>
             )}
           </p>
           <input
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
-            placeholder="e.g. Cephe İşleri Claim Chronology"
+            placeholder={t("chrono.ph.title")}
             style={{
               width: "100%", padding: "10px 14px",
               border: "1px solid var(--color-border-light)",
@@ -153,7 +151,7 @@ export default function ChronologyDraftView({
 
         {/* Doc picker */}
         <div style={{ marginBottom: 16 }}>
-          <p style={SECTION_LABEL}>ADD DOCUMENTS TO TIMELINE</p>
+          <p style={SECTION_LABEL}>{t("chrono.adddocuments")}</p>
           <div ref={docPickerRef} style={{ position: "relative" }}>
             <input
               value={docSearch}
@@ -164,8 +162,8 @@ export default function ChronologyDraftView({
               }}
               onFocus={() => setShowDocDropdown(true)}
               placeholder={loadingDocs
-                ? "Loading documents..."
-                : "Search RFI or Correspondence..."}
+                ? t("state.loading")
+                : t("chrono.ph.search")}
               style={{
                 width: "100%", padding: "8px 14px",
                 border: "1px solid var(--color-border-light)",
@@ -210,7 +208,7 @@ export default function ChronologyDraftView({
                       {" "}{doc.subject}
                       {already && (
                         <span style={{ marginLeft: 8, color: "var(--color-success)" }}>
-                          Added
+                          {t("chrono.added")}
                         </span>
                       )}
                     </button>
@@ -229,7 +227,7 @@ export default function ChronologyDraftView({
               fontFamily: "var(--font-ui)",
             }}
           >
-            {showManualEntry ? "Cancel manual entry" : "+ Add entry not in system"}
+            {showManualEntry ? t("chrono.cancelmanual") : t("chrono.addmanual")}
           </button>
         </div>
 
@@ -240,13 +238,13 @@ export default function ChronologyDraftView({
             border: "1px solid var(--color-border-light)",
             background: "var(--color-bg-secondary)",
           }}>
-            <p style={SECTION_LABEL}>MANUAL ENTRY</p>
+            <p style={SECTION_LABEL}>{t("chrono.manualentry")}</p>
             <div style={{
               display: "grid", gridTemplateColumns: "1fr 1fr",
               gap: 12, marginBottom: 12,
             }}>
               <div>
-                <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>DATE</p>
+                <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>{t("col.date")}</p>
                 <input
                   type="date" value={manualDate}
                   onChange={(e) => setManualDate(e.target.value)}
@@ -262,7 +260,7 @@ export default function ChronologyDraftView({
                 />
               </div>
               <div>
-                <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>TYPE</p>
+                <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>{t("col.type")}</p>
                 <select
                   value={manualType}
                   onChange={(e) => setManualType(e.target.value)}
@@ -276,17 +274,17 @@ export default function ChronologyDraftView({
                     fontFamily: "var(--font-ui)",
                   }}
                 >
-                  {Object.entries(MANUAL_EVENT_TYPE_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
+                  {MANUAL_EVENT_TYPES.map((k) => (
+                    <option key={k} value={k}>{eventTypeLabel(k)}</option>
                   ))}
                 </select>
               </div>
             </div>
-            <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>SUBJECT</p>
+            <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>{t("col.subject")}</p>
             <input
               value={manualSubject}
               onChange={(e) => setManualSubject(e.target.value)}
-              placeholder="Event subject..."
+              placeholder={t("chrono.ph.eventsubject")}
               style={{
                 width: "100%", padding: "8px 10px", marginBottom: 8,
                 border: "1px solid var(--color-border-light)",
@@ -298,12 +296,12 @@ export default function ChronologyDraftView({
               }}
             />
             <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>
-              NARRATIVE (optional)
+              {t("chrono.narrative")} {t("common.optional")}
             </p>
             <textarea
               value={manualNarrative}
               onChange={(e) => setManualNarrative(e.target.value)}
-              rows={3} placeholder="Optional narrative..."
+              rows={3} placeholder={t("chrono.ph.optionalnarrative")}
               style={{
                 width: "100%", padding: "8px 10px", marginBottom: 8,
                 border: "1px solid var(--color-border-light)",
@@ -314,25 +312,15 @@ export default function ChronologyDraftView({
                 fontFamily: "var(--font-ui)",
               }}
             />
-            <button
-              onClick={addManualEvent}
-              style={{
-                fontSize: 11, padding: "6px 14px",
-                background: ACCENT, color: "var(--color-bg-primary)",
-                border: "none", borderRadius: 0,
-                cursor: "pointer", fontWeight: 500,
-                fontFamily: "var(--font-ui)",
-              }}
-            >
-              Add to Timeline
-            </button>
+            <Button type="button" size="sm" onClick={addManualEvent}>
+              {t("chrono.addtotimeline")}
+            </Button>
           </div>
         )}
 
         {/* Timeline */}
         <p style={SECTION_LABEL}>
-          TIMELINE — {pendingEvents.length} EVENT
-          {pendingEvents.length !== 1 ? "S" : ""}
+          {`${t("chrono.timeline")} — ${eventCountLabel(pendingEvents.length)}`}
         </p>
 
         {pendingEvents.length === 0 && (
@@ -340,7 +328,7 @@ export default function ChronologyDraftView({
             fontSize: 12, color: "var(--color-text-secondary)",
             fontStyle: "italic", fontFamily: "var(--font-ui)",
           }}>
-            No events yet. Search and add documents above.
+            {t("chrono.noevents")} {t("chrono.searchadddocs")}
           </p>
         )}
 
@@ -396,7 +384,7 @@ export default function ChronologyDraftView({
                     color: "var(--color-text-secondary)",
                     fontFamily: "var(--font-ui)",
                   }}>
-                    {pe.doc.type ?? (MANUAL_EVENT_TYPE_LABELS[pe.manualEventType ?? "other"] ?? "manual")}
+                    {pe.doc.type ?? eventTypeLabel(pe.manualEventType ?? "other")}
                   </span>
                   {pe._isExisting && (
                     <span style={{
@@ -404,7 +392,7 @@ export default function ChronologyDraftView({
                       color: "var(--color-text-secondary)", fontStyle: "italic",
                       fontFamily: "var(--font-ui)",
                     }}>
-                      existing
+                      {t("chrono.existing")}
                     </span>
                   )}
                   <p style={{
@@ -418,7 +406,7 @@ export default function ChronologyDraftView({
                     fontSize: 11, color: "var(--color-text-secondary)",
                     margin: "2px 0 0", fontFamily: "var(--font-ui)",
                   }}>
-                    {pe.doc.date ? formatDate(pe.doc.date) : ""}
+                    {pe.doc.date ? formatDate(pe.doc.date, lang) : ""}
                   </p>
                 </div>
 
@@ -443,8 +431,8 @@ export default function ChronologyDraftView({
                           fontFamily: "var(--font-ui)",
                         }}
                       >
-                        {Object.entries(MANUAL_EVENT_TYPE_LABELS).map(([k, v]) => (
-                          <option key={k} value={k}>{v}</option>
+                        {MANUAL_EVENT_TYPES.map((k) => (
+                          <option key={k} value={k}>{eventTypeLabel(k)}</option>
                         ))}
                       </select>
                       <label style={{
@@ -460,7 +448,7 @@ export default function ChronologyDraftView({
                             editIsKey: e.target.checked,
                           })}
                         />
-                        Key event
+                        {t("chrono.keyevent")}
                       </label>
                     </div>
                     {pe.doc.type === null && (
@@ -486,7 +474,7 @@ export default function ChronologyDraftView({
                           onChange={(e) => updatePending(pe.doc.id, {
                             editSubject: e.target.value,
                           })}
-                          placeholder="Description..."
+                          placeholder={t("chrono.ph.description")}
                           style={{
                             fontSize: 11, padding: "3px 6px",
                             border: "1px solid var(--color-border-medium)",
@@ -518,7 +506,7 @@ export default function ChronologyDraftView({
               {!pe.narrativeMode && !pe.approved && (
                 <div style={{ display: "flex", gap: 8 }}>
                   <AiActionButton onClick={() => requestLlmNarrative(pe)}>
-                    LLM Narrative
+                    {t("chrono.generate")}
                   </AiActionButton>
                   <button
                     onClick={() =>
@@ -533,7 +521,7 @@ export default function ChronologyDraftView({
                       fontFamily: "var(--font-ui)",
                     }}
                   >
-                    Write Manually
+                    {t("chrono.writemanually")}
                   </button>
                 </div>
               )}
@@ -545,7 +533,7 @@ export default function ChronologyDraftView({
                     onChange={(e) =>
                       updatePending(pe.doc.id, { manualText: e.target.value })
                     }
-                    rows={4} placeholder="Write narrative..."
+                    rows={4} placeholder={t("chrono.ph.narrative")}
                     style={{
                       width: "100%", fontSize: 12, padding: "8px 10px",
                       border: "1px solid var(--color-border-medium)",
@@ -578,7 +566,7 @@ export default function ChronologyDraftView({
                       fontWeight: 500, fontFamily: "var(--font-ui)",
                     }}
                   >
-                    Approve Narrative
+                    {t("action.approve")}
                   </button>
                 </div>
               )}
@@ -604,7 +592,7 @@ export default function ChronologyDraftView({
                       color: "var(--color-text-secondary)",
                     }}
                   >
-                    Edit
+                    {t("action.edit")}
                   </button>
                 </div>
               )}

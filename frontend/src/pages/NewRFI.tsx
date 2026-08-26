@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import LanguageToggle from "../components/LanguageToggle";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api, fetchLinkableDocuments, type LinkableDoc } from "../services/api";
 import { DOCUMENT_TYPE_LABELS } from "../constants/documentTypes";
 import { getAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
+import { useUnsavedGuard } from "../hooks/useUnsavedGuard";
+import Button from "../components/Button";
 
 const DISCIPLINES = [
   { value: "", label: "—" },
@@ -30,7 +33,7 @@ const DAY_TYPES = [
 export default function NewRFI() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
   const auth = getAuth();
   const location = useLocation();
   const qp = new URLSearchParams(location.search);
@@ -39,8 +42,10 @@ export default function NewRFI() {
   const parentNumber = qp.get("parent_number") ?? null;
   const rfiType = mode === "response" ? "response" : mode === "revision" ? "revision" : "original";
 
+  const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useUnsavedGuard(dirty);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const [docKeywords, setDocKeywords] = useState("");
@@ -264,9 +269,9 @@ export default function NewRFI() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: bg }}>
+    <div style={{ minHeight: "100vh", backgroundColor: bg }} onChangeCapture={() => setDirty(true)}>
       {/* Nav */}
-      <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <nav className="app-chrome-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
           <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
@@ -285,9 +290,7 @@ export default function NewRFI() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
         </div>
       </nav>
 
@@ -461,7 +464,7 @@ export default function NewRFI() {
                 <p style={{ fontSize: 11, color: textSecondary, fontStyle: "italic", marginBottom: 12 }}>
                   {lang === "tr" ? "Boş bırakılırsa proje konfigürasyonuna göre otomatik hesaplanır." : "If left empty, calculated automatically from project configuration."}
                 </p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <div className="meta-grid-3" style={{ gap: 12 }}>
                   <div>
                     <label style={labelStyle}>{lang === "tr" ? "Yanıt Tarihi" : "Response Due"}</label>
                     <input
@@ -805,23 +808,24 @@ export default function NewRFI() {
 
               {/* Actions */}
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button
+                <Button
+                  type="button"
                   onClick={handleSubmit}
                   disabled={loading}
-                  style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "var(--font-ui)", opacity: loading ? 0.7 : 1 }}
+                  loading={loading}
+                  loadingText={lang === "tr" ? "Kaydediliyor..." : "Saving..."}
                 >
-                  {loading
-                    ? (lang === "tr" ? "Kaydediliyor..." : "Saving...")
-                    : entryMode === "authored"
+                  {entryMode === "authored"
                     ? (lang === "tr" ? "Taslak Oluştur" : "Create Draft")
                     : (lang === "tr" ? "Kaydet" : "Save")}
-                </button>
-                <button
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
                   onClick={() => navigate(`/projects/${projectId}/workspace?module=rfis`)}
-                  style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "var(--font-ui)" }}
                 >
                   {lang === "tr" ? "İptal" : "Cancel"}
-                </button>
+                </Button>
               </div>
             </div>
           </>

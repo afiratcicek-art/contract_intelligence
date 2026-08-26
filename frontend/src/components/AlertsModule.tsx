@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties } from "react";
+﻿import { useState, useEffect, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AlertItem, AlertAction, AlertDocument } from "../types/alerts";
 import {
@@ -11,6 +11,9 @@ import {
   fetchReadAlertIds,
 } from "../services/api";
 import { useToastContext } from "../context/ToastContext";
+import { useLanguage } from "../context/LanguageContext";
+import { formatDate } from "../utils/format";
+import Button from "./Button";
 
 interface AlertsModuleProps {
   projectId: string;
@@ -40,12 +43,6 @@ const PRIORITY_BADGE: Record<string, { bg: string; color: string }> = {
   },
 };
 
-const ALERT_TYPE_LABELS: Record<string, string> = {
-  potential_impact: "Potential Impact",
-  wp_message: "WP Message",
-  ew_deadline: "EW Deadline",
-};
-
 const STATUS_TABS = ["pending", "actioned", "snoozed", "dismissed"] as const;
 type StatusFilter = (typeof STATUS_TABS)[number];
 
@@ -59,10 +56,7 @@ const SECTION_LABEL: CSSProperties = {
   fontFamily: "var(--font-ui)",
 };
 
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
+type Translate = (key: string) => string;
 
 function isWithin7Days(dateStr: string): boolean {
   const deadline = new Date(dateStr);
@@ -71,8 +65,34 @@ function isWithin7Days(dateStr: string): boolean {
   return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
 }
 
-function formatAlertType(type: string): string {
-  return ALERT_TYPE_LABELS[type] ?? type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+// Unmapped backend values degrade to readable text rather than a raw key, so a
+// new alert type, status or role stays legible until its key is added.
+function formatAlertType(type: string, t: Translate): string {
+  const translated = t(`alerts.type.${type}`);
+  if (translated !== `alerts.type.${type}`) return translated;
+  return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function statusLabel(status: string, t: Translate): string {
+  const key = status.toLowerCase().replace(/\s+/g, "_");
+  const translated = t(`status.${key}`);
+  return translated === `status.${key}` ? status : translated;
+}
+
+function roleLabel(role: string | null | undefined, t: Translate): string {
+  if (!role) return t("alerts.role.user");
+  const translated = t(`alerts.role.${role}`);
+  return translated === `alerts.role.${role}` ? role : translated;
+}
+
+function priorityLabel(priority: string, t: Translate): string {
+  const translated = t(`priority.${priority}`);
+  return translated === `priority.${priority}` ? priority : translated;
+}
+
+function entityLabel(type: string, t: Translate): string {
+  const translated = t(`entity.${type}`);
+  return translated === `entity.${type}` ? type : translated;
 }
 
 function InfoRow({ label, value, status }: { label: string; value: string; status?: boolean }) {
@@ -98,6 +118,7 @@ function InfoRow({ label, value, status }: { label: string; value: string; statu
 export default function AlertsModule({ projectId }: AlertsModuleProps) {
   const navigate = useNavigate();
   const { showToast } = useToastContext();
+  const { t, lang } = useLanguage();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -240,7 +261,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
     if (!entityType) {
       return (
         <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
-          No source document.
+          {t("alerts.nosourcedocument")}
         </p>
       );
     }
@@ -248,7 +269,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
     if (!entity) {
       return (
         <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
-          Loading...
+          {t("state.loading")}
         </p>
       );
     }
@@ -257,29 +278,29 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
       <>
         {entityType === "rfi" && (
           <>
-            <InfoRow label="Type" value="RFI" />
-            <InfoRow label="Reference" value={entity.rfi_number ?? "—"} />
-            <InfoRow label="Subject" value={entity.subject ?? "—"} />
-            <InfoRow label="Status" value={entity.status ?? "—"} status />
-            <InfoRow label="Date" value={entity.submitted_date ? formatDate(entity.submitted_date) : "—"} />
+            <InfoRow label={t("alerts.field.type")} value={t("entity.rfi")} />
+            <InfoRow label={t("alerts.field.reference")} value={entity.rfi_number ?? "—"} />
+            <InfoRow label={t("alerts.field.subject")} value={entity.subject ?? "—"} />
+            <InfoRow label={t("alerts.field.status")} value={entity.status ? statusLabel(entity.status, t) : "—"} status />
+            <InfoRow label={t("alerts.field.date")} value={formatDate(entity.submitted_date, lang)} />
           </>
         )}
         {entityType === "correspondence" && (
           <>
-            <InfoRow label="Type" value="Correspondence" />
-            <InfoRow label="Reference" value={entity.corr_number ?? "—"} />
-            <InfoRow label="Subject" value={entity.subject ?? "—"} />
-            <InfoRow label="Status" value={entity.status ?? "—"} status />
-            <InfoRow label="Date" value={entity.correspondence_date ? formatDate(entity.correspondence_date) : "—"} />
+            <InfoRow label={t("alerts.field.type")} value={t("entity.correspondence")} />
+            <InfoRow label={t("alerts.field.reference")} value={entity.corr_number ?? "—"} />
+            <InfoRow label={t("alerts.field.subject")} value={entity.subject ?? "—"} />
+            <InfoRow label={t("alerts.field.status")} value={entity.status ? statusLabel(entity.status, t) : "—"} status />
+            <InfoRow label={t("alerts.field.date")} value={formatDate(entity.correspondence_date, lang)} />
           </>
         )}
         {entityType === "change" && (
           <>
-            <InfoRow label="Type" value="Change" />
-            <InfoRow label="Reference" value={entity.change_number ?? "—"} />
-            <InfoRow label="Subject" value={entity.title ?? "—"} />
-            <InfoRow label="Status" value={entity.status ?? "—"} status />
-            <InfoRow label="Date" value={entity.created_at ? formatDate(entity.created_at) : "—"} />
+            <InfoRow label={t("alerts.field.type")} value={t("entity.change")} />
+            <InfoRow label={t("alerts.field.reference")} value={entity.change_number ?? "—"} />
+            <InfoRow label={t("alerts.field.subject")} value={entity.title ?? "—"} />
+            <InfoRow label={t("alerts.field.status")} value={entity.status ? statusLabel(entity.status, t) : "—"} status />
+            <InfoRow label={t("alerts.field.date")} value={formatDate(entity.created_at, lang)} />
           </>
         )}
 
@@ -303,7 +324,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
             }}
           >
             <i className="ti ti-external-link" style={{ fontSize: 11 }} />
-            Open full document
+            {t("alerts.openfulldocument")}
           </button>
         )}
 
@@ -334,7 +355,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               }}
             >
               <i className="ti ti-file" style={{ fontSize: 13 }} />
-              {documentsCache[alertItem.id].length} attached file(s)
+              {t("alerts.attachedfiles").replace("{n}", String(documentsCache[alertItem.id].length))}
             </button>
             {documentsExpanded[alertItem.id] && (
               <div style={{ marginTop: 8 }}>
@@ -349,7 +370,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                     }}
                   >
                     {doc.document_id}
-                    {doc.uploaded_at ? ` · ${formatDate(doc.uploaded_at)}` : ""}
+                    {doc.uploaded_at ? ` · ${formatDate(doc.uploaded_at, lang)}` : ""}
                   </div>
                 ))}
               </div>
@@ -372,7 +393,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               background: "none",
               border: "none",
               borderRadius: 0,
-              borderBottom: statusFilter === tab ? `2px solid ${ACCENT}` : "2px solid transparent",
+              borderBottom: statusFilter === tab ? `3px solid ${ACCENT}` : "3px solid transparent",
               padding: "8px 16px",
               fontSize: 12,
               fontFamily: "var(--font-ui)",
@@ -382,24 +403,24 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
               textTransform: "capitalize",
             }}
           >
-            {tab}
+            {statusLabel(tab, t)}
           </button>
         ))}
       </div>
 
       {loading && (
         <p style={{ textAlign: "center", fontFamily: "var(--font-ui)", color: "var(--color-text-secondary)", fontSize: 13 }}>
-          Loading alerts...
+          {t("state.loading")}
         </p>
       )}
 
       {!loading && alerts.length === 0 && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>
           <p style={{ fontFamily: "var(--font-brand)", fontSize: "var(--type-title-card)", color: "var(--color-text-primary)", marginBottom: 8 }}>
-            No {statusFilter} alerts.
+            {t("alerts.none")}
           </p>
           <p style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--color-text-secondary)" }}>
-            All clear for now.
+            {t("alerts.allclear")}
           </p>
         </div>
       )}
@@ -451,7 +472,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 />
               )}
               <span style={{ fontFamily: "var(--font-ui)", fontSize: 13, color: "var(--color-text-primary)", fontWeight: 500 }}>
-                {formatAlertType(alertItem.alert_type)}
+                {formatAlertType(alertItem.alert_type, t)}
               </span>
               <span
                 style={{
@@ -469,7 +490,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   position: "relative",
                 }}
               >
-                {alertItem.priority}
+                {priorityLabel(alertItem.priority, t)}
               </span>
             </div>
 
@@ -485,7 +506,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                   fontFamily: "var(--font-ui)",
                 }}
               >
-                From: {alertItem.source_entity_type.toUpperCase()}
+                {t("alerts.from")}: {entityLabel(alertItem.source_entity_type, t)}
               </p>
             )}
 
@@ -510,7 +531,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
             {/* Row D */}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
               <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
-                Flagged: {formatDate(alertItem.flagged_at)}
+                {t("alerts.flagged")}: {formatDate(alertItem.flagged_at, lang)}
               </span>
               {alertItem.notice_deadline && (
                 <span
@@ -520,7 +541,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                     color: isWithin7Days(alertItem.notice_deadline) ? "var(--color-danger)" : "var(--color-text-secondary)",
                   }}
                 >
-                  Deadline: {formatDate(alertItem.notice_deadline)}
+                  {t("col.deadline")}: {formatDate(alertItem.notice_deadline, lang)}
                 </span>
               )}
             </div>
@@ -548,7 +569,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                 textAlign: "left",
               }}
             >
-              {isExpanded ? "▴ Actions & Details" : "▾ Actions & Details"}
+              {isExpanded ? "▴" : "▾"} {t("alerts.actionsdetails")}
             </button>
 
             {/* Actions & Details panel */}
@@ -576,16 +597,16 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                     minHeight: 120,
                   }}
                 >
-                  <div style={SECTION_LABEL}>SOURCE DOCUMENT</div>
+                  <div style={SECTION_LABEL}>{t("alerts.sourcedocument")}</div>
                   {renderEntitySummary(alertItem)}
                 </div>
 
                 {/* Right column — actions */}
                 <div style={{ padding: "14px 16px", minHeight: 120, overflowY: "visible" }}>
-                  <div style={SECTION_LABEL}>ACTIONS</div>
+                  <div style={SECTION_LABEL}>{t("alerts.actions")}</div>
 
                   {actions.length === 0 && (
-                    <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>No actions yet.</p>
+                    <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>{t("alerts.noactions")}</p>
                   )}
                   {actions.map((action) => (
                     <div
@@ -610,7 +631,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                             aria-hidden="true"
                             style={{ fontSize: 13, marginRight: 4, color: ACCENT_TEXT, flexShrink: 0 }}
                           />
-                          <span>{action.note} — {formatDate(action.created_at)}</span>
+                          <span>{action.note} — {formatDate(action.created_at, lang)}</span>
                         </>
                       )}
                       {action.action_type === "assignment" && (
@@ -621,19 +642,21 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                             style={{ fontSize: 13, marginRight: 4, color: ACCENT_TEXT, flexShrink: 0 }}
                           />
                           <span>
-                            {action.assigned_to_role ?? "User"}
-                            {action.due_date ? ` · due ${formatDate(action.due_date)}` : ""}
-                            {" — "}{formatDate(action.created_at)}
+                            {roleLabel(action.assigned_to_role, t)}
+                            {action.due_date ? ` · ${t("col.due")} ${formatDate(action.due_date, lang)}` : ""}
+                            {" — "}{formatDate(action.created_at, lang)}
                           </span>
                         </>
                       )}
                       {action.action_type !== "note" && action.action_type !== "assignment" && (
-                        <span>{action.action_type} — {formatDate(action.created_at)}</span>
+                        <span>{action.action_type} — {formatDate(action.created_at, lang)}</span>
                       )}
                     </div>
                   ))}
 
-                  <button
+                  <Button
+                    type="button"
+                    size="sm"
                     onClick={() => {
                       setShowAddAction(alertItem.id);
                       setActionType("note");
@@ -641,20 +664,10 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                       setActionRole("");
                       setActionDueDate("");
                     }}
-                    style={{
-                      marginTop: 8,
-                      background: ACCENT,
-                      color: "var(--color-bg-primary)",
-                      padding: "6px 12px",
-                      border: "none",
-                      borderRadius: 0,
-                      fontSize: 12,
-                      cursor: "pointer",
-                      fontFamily: "var(--font-ui)",
-                    }}
+                    style={{ marginTop: 8 }}
                   >
-                    Add Action
-                  </button>
+                    {t("alerts.addaction")}
+                  </Button>
 
                   {/* Add Action form */}
                   {showAddAction === alertItem.id && (
@@ -683,7 +696,7 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                               marginRight: 4,
                             }}
                           >
-                            {type}
+                            {t(`alerts.tab.${type}`)}
                           </button>
                         ))}
                       </div>
@@ -724,11 +737,11 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                               color: "var(--color-text-primary)",
                             }}
                           >
-                            <option value="">Select role...</option>
-                            <option value="cm">CM</option>
-                            <option value="engineer">Engineer</option>
-                            <option value="dcc">DCC</option>
-                            <option value="any">Any</option>
+                            <option value="">{t("alerts.selectrole")}</option>
+                            <option value="cm">{t("alerts.role.cm")}</option>
+                            <option value="engineer">{t("alerts.role.engineer")}</option>
+                            <option value="dcc">{t("alerts.role.dcc")}</option>
+                            <option value="any">{t("alerts.role.any")}</option>
                           </select>
                           <input
                             type="date"
@@ -750,38 +763,25 @@ export default function AlertsModule({ projectId }: AlertsModuleProps) {
                         </div>
                       )}
 
-                      <div style={{ marginTop: 12 }}>
-                        <button
+                      <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+                        <Button
+                          type="button"
+                          size="sm"
                           onClick={() => handleSubmitAction(alertItem.id)}
                           disabled={submitting}
-                          style={{
-                            background: ACCENT,
-                            color: "var(--color-bg-primary)",
-                            padding: "6px 14px",
-                            border: "none",
-                            borderRadius: 0,
-                            fontSize: 12,
-                            cursor: submitting ? "not-allowed" : "pointer",
-                            fontFamily: "var(--font-ui)",
-                            opacity: submitting ? 0.6 : 1,
-                          }}
+                          loading={submitting}
+                          loadingText={t("state.saving")}
                         >
-                          Save Action
-                        </button>
-                        <button
+                          {t("alerts.saveaction")}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
                           onClick={() => setShowAddAction(null)}
-                          style={{
-                            background: "none",
-                            color: "var(--color-text-secondary)",
-                            border: "none",
-                            fontSize: 12,
-                            cursor: "pointer",
-                            marginLeft: 8,
-                            fontFamily: "var(--font-ui)",
-                          }}
                         >
-                          Cancel
-                        </button>
+                          {t("action.cancel")}
+                        </Button>
                       </div>
                     </div>
                   )}

@@ -1,9 +1,12 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import LanguageToggle from "../components/LanguageToggle";
 import { api, fetchLinkableDocuments, type LinkableDoc } from "../services/api";
 import { getAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
+import { useUnsavedGuard } from "../hooks/useUnsavedGuard";
 import { DOCUMENT_TYPE_LABELS } from "../constants/documentTypes";
+import Button from "../components/Button";
 
 interface Party {
   id: string;
@@ -25,7 +28,7 @@ const CORR_TYPES = [
 export default function NewCorrespondence() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { lang, toggle: toggleLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
   const auth = getAuth();
   const location = useLocation();
   const qp = new URLSearchParams(location.search);
@@ -37,6 +40,7 @@ export default function NewCorrespondence() {
     mode === "response" || mode === "followup" ? "outgoing" : null
   );
   const [parties, setParties] = useState<Party[]>([]);
+  const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -114,6 +118,8 @@ export default function NewCorrespondence() {
       navigate(`/projects/${projectId}/workspace?module=correspondence`);
     }
   }, [mode, parentId]);
+
+  useUnsavedGuard(dirty);
 
   useEffect(() => {
     if (!projectId) return;
@@ -267,9 +273,9 @@ export default function NewCorrespondence() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: bg }}>
+    <div style={{ minHeight: "100vh", backgroundColor: bg }} onChangeCapture={() => setDirty(true)}>
       {/* Nav */}
-      <nav style={{ backgroundColor: bg, borderBottom: `0.5px solid ${border}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <nav className="app-chrome-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: textSecondary }}>
           <div className="gold-line gold-line-compact" />
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>{t("nav.projects")}</span>
@@ -288,9 +294,7 @@ export default function NewCorrespondence() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: textSecondary }}>{auth?.full_name}</span>
-          <button onClick={toggleLang} style={{ background: "none", border: "1px solid var(--color-border-light)", cursor: "pointer", fontSize: 11, color: textSecondary, padding: "2px 8px", fontFamily: "var(--font-meta)", fontWeight: 500, letterSpacing: "0.5px" }}>
-            {lang === "en" ? "TR" : "EN"}
-          </button>
+          <LanguageToggle />
         </div>
       </nav>
 
@@ -756,19 +760,22 @@ export default function NewCorrespondence() {
 
               {/* Actions */}
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button
+                <Button
+                  type="button"
                   onClick={handleSubmit}
                   disabled={loading}
-                  style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg-primary)", border: "none", padding: "10px 24px", fontSize: 13, fontWeight: 500, letterSpacing: "0.5px", cursor: loading ? "not-allowed" : "pointer", borderRadius: 0, fontFamily: "var(--font-ui)", opacity: loading ? 0.7 : 1 }}
+                  loading={loading}
+                  loadingText={lang === "tr" ? "Kaydediliyor..." : "Saving..."}
                 >
-                  {loading ? (lang === "tr" ? "Kaydediliyor..." : "Saving...") : (lang === "tr" ? "Kaydet" : "Save")}
-                </button>
-                <button
+                  {lang === "tr" ? "Kaydet" : "Save"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
                   onClick={() => navigate(`/projects/${projectId}/workspace`)}
-                  style={{ backgroundColor: "transparent", color: textSecondary, border: `1px solid ${border}`, padding: "10px 24px", fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "var(--font-ui)" }}
                 >
                   {lang === "tr" ? "İptal" : "Cancel"}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

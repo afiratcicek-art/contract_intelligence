@@ -38,18 +38,21 @@ export interface Chronology {
 // Chronology is a sequence of documents, not a notebook.
 // 'other' = a document type not listed above
 // (permit, method statement, test report...).
-export const MANUAL_EVENT_TYPE_LABELS:
-  Record<string, string> = {
-  rfi: "RFI",
-  correspondence: "Correspondence",
-  notice: "Notice",
-  submission: "Submission",
-  response: "Response",
-  meeting: "Meeting / MOM",
-  inspection: "Inspection (WIR/MIR)",
-  work_permit: "Work Permit",
-  other: "Other Document",
-};
+// Display order for the manual event-type pickers. Labels are not stored here:
+// resolve each with t(`chrono.evt.${type}`) so the list stays translatable.
+export const MANUAL_EVENT_TYPES = [
+  "rfi",
+  "correspondence",
+  "notice",
+  "submission",
+  "response",
+  "meeting",
+  "inspection",
+  "work_permit",
+  "other",
+] as const;
+
+export type ManualEventType = (typeof MANUAL_EVENT_TYPES)[number];
 
 export const ENTITY_TYPE_LABELS:
   Record<string, string> = {

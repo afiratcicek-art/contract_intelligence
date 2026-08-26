@@ -22,7 +22,10 @@ import {
   type ContractRoot,
 } from "../services/api";
 import { getAuth } from "../store/auth";
+import { useLanguage } from "../context/LanguageContext";
 import DocumentLink from "./DocumentLink";
+import Button from "./Button";
+import ConfirmModal from "./ConfirmModal";
 
 interface Props {
   projectId: string;
@@ -37,7 +40,7 @@ const MONO: CSSProperties = {
 };
 
 const LABEL: CSSProperties = {
-  fontSize: 10, fontWeight: 500,
+  fontSize: 11, fontWeight: 500,
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   color: "var(--color-text-secondary)",
@@ -111,10 +114,12 @@ export default function ContractDocumentsSection({
   contract,
   onChanged,
 }: Props) {
+  const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([newDraft()]);
   const [isCm, setIsCm] = useState(false);
+  const [pendingUnlink, setPendingUnlink] = useState<ContractDocumentRef | null>(null);
 
   useEffect(() => {
     const me = getAuth()?.user_id;
@@ -155,7 +160,7 @@ export default function ContractDocumentsSection({
       onChanged();
       setBusy(false);
     } catch {
-      fail("Sıra kaydedilemedi. CM yetkinizi kontrol edin.");
+      fail(t("inforce.docs.err.order"));
     }
   };
 
@@ -186,7 +191,7 @@ export default function ContractDocumentsSection({
       onChanged();
       setBusy(false);
     } catch {
-      fail("Belge yüklenemedi. CM yetkinizi ve dosya formatını kontrol edin.");
+      fail(t("inforce.docs.err.upload"));
     }
   };
 
@@ -212,7 +217,7 @@ export default function ContractDocumentsSection({
       onChanged();
       setBusy(false);
     } catch {
-      fail("Ek kaydedilemedi. CM yetkinizi ve alanları kontrol edin.");
+      fail(t("inforce.docs.err.appendix"));
     }
   };
 
@@ -230,16 +235,12 @@ export default function ContractDocumentsSection({
       onChanged();
       setBusy(false);
     } catch {
-      fail("Dosya eklenemedi.");
+      fail(t("inforce.docs.err.attach"));
     }
   };
 
   const handleUnlink = async (link: ContractDocumentRef) => {
     if (busy || !isCm) return;
-    const name = link.label ?? link.original_filename ?? "bu belge";
-    if (!window.confirm(`"${name}" sözleşmeden kaldırılsın mı?\n(Dosya Documents'ta kalır — yalnızca bağ kopar.)`)) {
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -247,12 +248,14 @@ export default function ContractDocumentsSection({
       onChanged();
       setBusy(false);
     } catch {
-      fail("Belge kaldırılamadı. CM yetkinizi kontrol edin.");
+      fail(t("inforce.docs.err.unlink"));
+    } finally {
+      setPendingUnlink(null);
     }
   };
 
   const docLine = (d: ContractDocumentRef, index: number) => {
-    const name = d.label ?? d.original_filename ?? "Belge";
+    const name = d.label ?? d.original_filename ?? t("inforce.docs.fallback");
     return (
       <div
         key={d.id}
@@ -268,7 +271,7 @@ export default function ContractDocumentsSection({
               type="button"
               disabled={busy || index === 0}
               onClick={() => move(index, -1)}
-              title="Yukarı (öncelik artar)"
+              title={t("inforce.docs.rankup")}
               style={{
                 ...ARROW_BTN,
                 opacity: busy || index === 0 ? 0.4 : 1,
@@ -281,7 +284,7 @@ export default function ContractDocumentsSection({
               type="button"
               disabled={busy || index === ordered.length - 1}
               onClick={() => move(index, 1)}
-              title="Aşağı (öncelik azalır)"
+              title={t("inforce.docs.rankdown")}
               style={{
                 ...ARROW_BTN,
                 opacity: busy || index === ordered.length - 1 ? 0.4 : 1,
@@ -302,7 +305,7 @@ export default function ContractDocumentsSection({
               textDecoration: "underline",
               textUnderlineOffset: 2,
             }}
-            title="Belgeyi aç"
+            title={t("inforce.opendoc")}
           >
             {name}
           </DocumentLink>
@@ -311,10 +314,10 @@ export default function ContractDocumentsSection({
             <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontFamily: "var(--font-ui)" }}>
               {name}
             </span>
-            <span style={{ ...MONO, fontStyle: "italic" }}>dosya bekleniyor</span>
+            <span style={{ ...MONO, fontStyle: "italic" }}>{t("inforce.docs.waiting")}</span>
             {isCm && (
               <label style={{ ...FILE_BTN, padding: "4px 10px", fontSize: 11, opacity: busy ? 0.6 : 1 }}>
-                Dosya Seç
+                {t("inforce.docs.choosefile")}
                 <input
                   type="file"
                   accept={ACCEPT}
@@ -333,8 +336,8 @@ export default function ContractDocumentsSection({
           <button
             type="button"
             disabled={busy}
-            onClick={() => handleUnlink(d)}
-            title="Sözleşmeden kaldır"
+            onClick={() => setPendingUnlink(d)}
+            title={t("inforce.docs.remove")}
             style={{
               background: "none", border: "none",
               color: "var(--color-text-secondary)",
@@ -352,12 +355,12 @@ export default function ContractDocumentsSection({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ ...MONO, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          Sözleşme belgeleri (öncelik sırası)
+        <span style={{ ...MONO, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          {t("inforce.docs.title")}
         </span>
         {ordered.length === 0 ? (
           <p style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)", margin: 0 }}>
-            Henüz bağlı belge yok
+            {t("inforce.docs.empty")}
           </p>
         ) : (
           ordered.map((d, i) => docLine(d, i))
@@ -368,7 +371,7 @@ export default function ContractDocumentsSection({
         <>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <label style={{ ...FILE_BTN, opacity: busy ? 0.6 : 1, cursor: busy ? "default" : "pointer" }}>
-              Dosya Seç
+              {t("inforce.docs.choosefile")}
               <input
                 type="file"
                 accept={ACCEPT}
@@ -378,13 +381,13 @@ export default function ContractDocumentsSection({
               />
             </label>
             <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "var(--font-ui)" }}>
-              PDF, Word, Excel, PowerPoint, Görsel, DWG, DXF, TXT, CSV
+              {t("inforce.docs.formats")}
             </span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <span style={{ ...MONO, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Ekler
+            <span style={{ ...MONO, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              {t("inforce.docs.appendices")}
             </span>
             {drafts.map((row) => (
               <div
@@ -397,11 +400,11 @@ export default function ContractDocumentsSection({
                 }}
               >
                 <div style={{ flex: "2 1 180px", minWidth: 140 }}>
-                  <label style={LABEL}>Ek adı</label>
+                  <label style={LABEL}>{t("inforce.docs.appendname")}</label>
                   <input
                     style={INPUT}
                     value={row.label}
-                    placeholder="ör. EK-1 Özel Şartname"
+                    placeholder={t("inforce.docs.appendph")}
                     disabled={busy}
                     onChange={(e) =>
                       setDrafts((prev) =>
@@ -411,9 +414,9 @@ export default function ContractDocumentsSection({
                   />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <span style={LABEL}>Dosya</span>
+                  <span style={LABEL}>{t("inforce.docs.file")}</span>
                   <label style={{ ...FILE_BTN, opacity: busy ? 0.6 : 1 }}>
-                    {row.file ? row.file.name : "Dosya Seç"}
+                    {row.file ? row.file.name : t("inforce.docs.choosefile")}
                     <input
                       type="file"
                       accept={ACCEPT}
@@ -429,22 +432,14 @@ export default function ContractDocumentsSection({
                     />
                   </label>
                 </div>
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   disabled={busy || (!row.label.trim() && !row.file)}
                   onClick={() => submitDraft(row)}
-                  style={{
-                    fontSize: 12, fontWeight: 500, padding: "7px 14px",
-                    fontFamily: "var(--font-ui)",
-                    background: "var(--color-accent)",
-                    color: "var(--color-bg-primary)",
-                    border: "none", borderRadius: 0,
-                    cursor: busy || (!row.label.trim() && !row.file) ? "default" : "pointer",
-                    opacity: busy || (!row.label.trim() && !row.file) ? 0.6 : 1,
-                  }}
                 >
-                  Ekle
-                </button>
+                  {t("inforce.docs.add")}
+                </Button>
                 {drafts.length > 1 && (
                   <button
                     type="button"
@@ -455,7 +450,7 @@ export default function ContractDocumentsSection({
                       color: "var(--color-text-secondary)",
                       cursor: "pointer", fontSize: 16, padding: "4px 6px",
                     }}
-                    title="Satırı kaldır"
+                    title={t("inforce.docs.removerow")}
                   >
                     ×
                   </button>
@@ -476,7 +471,7 @@ export default function ContractDocumentsSection({
                 borderRadius: 0, cursor: busy ? "default" : "pointer",
               }}
             >
-              + Satır ekle
+              {t("inforce.docs.addrow")}
             </button>
           </div>
         </>
@@ -489,9 +484,27 @@ export default function ContractDocumentsSection({
       )}
       {busy && (
         <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)", margin: 0 }}>
-          Kaydediliyor...
+          {t("state.saving")}
         </p>
       )}
+      <ConfirmModal
+        open={pendingUnlink != null}
+        variant="destructive"
+        message={
+          pendingUnlink
+            ? t("inforce.docs.unlinkconfirm").replace(
+                "{n}",
+                pendingUnlink.label ?? pendingUnlink.original_filename ?? t("inforce.docs.fallback"),
+              )
+            : ""
+        }
+        confirmLabel={t("action.remove")}
+        cancelLabel={t("action.cancel")}
+        onConfirm={() => {
+          if (pendingUnlink) void handleUnlink(pendingUnlink);
+        }}
+        onCancel={() => setPendingUnlink(null)}
+      />
     </div>
   );
 }

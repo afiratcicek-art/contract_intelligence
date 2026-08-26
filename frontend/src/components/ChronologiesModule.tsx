@@ -1,7 +1,6 @@
 ﻿import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import type { Chronology, ChronologyEvent } from "../types/chronology";
-import { MANUAL_EVENT_TYPE_LABELS } from "../types/chronology";
 import {
   fetchChronologies,
   fetchChronology,
@@ -13,7 +12,10 @@ import {
   inactivateChronologyEvent,
 } from "../services/api";
 import { useToastContext } from "../context/ToastContext";
+import { useLanguage } from "../context/LanguageContext";
+import { formatDate } from "../utils/format";
 import ConfirmModal from "./ConfirmModal";
+import Button from "./Button";
 import HorizontalStrip from "./chronologies/HorizontalStrip";
 import ChronologyDraftView from "./chronologies/ChronologyDraftView";
 import {
@@ -40,17 +42,24 @@ const SECTION_LABEL: CSSProperties = {
   fontFamily: "var(--font-ui)",
 };
 
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-}
-
 export default function ChronologiesModule({ projectId }: ChronologiesModuleProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToastContext();
+  const { t, lang } = useLanguage();
+
+  const eventCountLabel = (n: number) =>
+    n === 1
+      ? t("chrono.eventcount_one")
+      : t("chrono.eventcount_other").replace("{n}", String(n));
+
+  // Backend may send a type outside MANUAL_EVENT_TYPES — show it raw
+  // rather than the unresolved key.
+  const eventTypeLabel = (type: string) => {
+    const key = `chrono.evt.${type}`;
+    const label = t(key);
+    return label === key ? type : label;
+  };
   const pendingHook = usePendingEvents(projectId, showToast);
   const {
     pendingEvents,
@@ -187,7 +196,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
   };
 
   const handleSaveChronology = async () => {
-    if (!createTitle.trim()) { showToast("Please enter a title.", "warning"); return; }
+    if (!createTitle.trim()) { showToast(t("chrono.entertitle"), "warning"); return; }
     setSavingChronology(true);
     try {
       const created = await createChronology(projectId, {
@@ -208,7 +217,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         ? err.message
         : typeof err === "object" && err !== null && "detail" in err
         ? String((err as Record<string, unknown>).detail)
-        : "Save failed. Please try again.";
+        : t("common.savefailed");
       showToast(msg, "error");
     } finally {
       setSavingChronology(false);
@@ -316,7 +325,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
       exitEditMode();
     } catch (err: unknown) {
       const msg =
-        err instanceof Error ? err.message : "Save failed.";
+        err instanceof Error ? err.message : t("common.savefailed");
       showToast(msg, "error");
     } finally {
       setSavingEdit(false);
@@ -326,7 +335,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
   const handleRemovePendingEvent = (pe: PendingEvent) => {
     if (pe._isExisting && selectedId) {
       openConfirm(
-        "Remove this event? This action is logged.",
+        t("chrono.removeevent"),
         () => {
           inactivateChronologyEvent(
             projectId,
@@ -337,7 +346,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
             .then(() => removeFromTimeline(pe.doc.id))
             .catch((err: unknown) => {
               showToast(
-                err instanceof Error ? err.message : "Failed.",
+                err instanceof Error ? err.message : t("common.failed"),
                 "error"
               );
             });
@@ -381,7 +390,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
   // Inactivate event (soft delete with audit)
   const handleInactivate = (eventId: string) => {
     if (!selectedId) return;
-    openConfirm("Remove this event from the chronology? This action is logged.", async () => {
+    openConfirm(t("chrono.removeeventfromchronology"), async () => {
       setInactivatingId(eventId);
       try {
         await inactivateChronologyEvent(
@@ -390,7 +399,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         );
         await fetchChronology(projectId, selectedId).then(setSelected);
       } catch (err: unknown) {
-        showToast(err instanceof Error ? err.message : "Failed to remove event.", "error");
+        showToast(err instanceof Error ? err.message : t("chrono.removefailed"), "error");
       } finally {
         setInactivatingId(null);
       }
@@ -411,7 +420,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
         const n = { ...prev }; delete n[ev.id]; return n;
       });
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : "Failed to update narrative.", "error");
+      showToast(err instanceof Error ? err.message : t("chrono.narrativeupdatefailed"), "error");
     } finally {
       setApprovingId(null);
     }
@@ -453,7 +462,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
               color: "var(--color-text-secondary)",
               fontFamily: "var(--font-ui)",
             }}>
-              Chronologies
+              {t("chrono.title")}
             </span>
             <button
               onClick={() => setCreateMode(true)}
@@ -468,7 +477,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                 fontFamily: "var(--font-ui)",
               }}
             >
-              + New
+              {t("action.new")}
             </button>
           </div>
 
@@ -476,12 +485,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
           <div style={{ overflowY: "auto", flex: 1 }}>
             {loading && (
               <p style={{ padding: "12px 16px", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
-                Loading...
+                {t("state.loading")}
               </p>
             )}
             {!loading && chronologies.length === 0 && (
               <p style={{ padding: "12px 16px", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
-                No chronologies yet.
+                {t("chrono.none")}
               </p>
             )}
             {chronologies.map((c) => {
@@ -513,7 +522,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                     <span>
                       {(() => {
                         const count = c.event_count ?? (c.events ?? []).length;
-                        return count === 1 ? "1 event" : `${count} events`;
+                        return eventCountLabel(count);
                       })()}
                     </span>
                   </div>
@@ -572,14 +581,14 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
             {!selectedId && (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>
-                  Select a chronology from the list.
+                  {t("chrono.selectchronology")}
                 </p>
               </div>
             )}
 
             {selectedId && loadingDetail && (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>Loading...</p>
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}>{t("state.loading")}</p>
               </div>
             )}
 
@@ -611,27 +620,12 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       margin: "2px 0 0",
                       fontFamily: "var(--font-ui)",
                     }}>
-                      {selected.events.length === 1
-                        ? "1 event"
-                        : `${selected.events.length} events`}
+                      {eventCountLabel(selected.events.length)}
                     </p>
                   </div>
-                  <button
-                    onClick={enterEditMode}
-                    style={{
-                      fontSize: 12,
-                      background: ACCENT,
-                      color: "var(--color-bg-primary)",
-                      border: "none",
-                      borderRadius: 0,
-                      padding: "8px 16px",
-                      cursor: "pointer",
-                      fontFamily: "var(--font-ui)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    Edit Chronology
-                  </button>
+                  <Button type="button" size="sm" onClick={enterEditMode} style={{ flexShrink: 0 }}>
+                    {t("chrono.editchronology")}
+                  </Button>
                 </div>
 
                 {/* Horizontal strip — normal mode */}
@@ -644,7 +638,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                 <div ref={timelineScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
                   {selected.events.length === 0 && (
                     <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontStyle: "italic", fontFamily: "var(--font-ui)" }}>
-                      No events yet.
+                      {t("chrono.noevents")}
                     </p>
                   )}
                   {selected.events.filter((ev) => ev.is_active).map((ev) => (
@@ -664,7 +658,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       {/* Date column */}
                       <div style={{ minWidth: 90, textAlign: "right", paddingTop: 2 }}>
                         <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "var(--font-meta)", margin: 0 }}>
-                          {formatDate(ev.event_date)}
+                          {formatDate(ev.event_date, lang)}
                         </p>
                       </div>
                       {/* Connector */}
@@ -687,24 +681,24 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                             color: "var(--color-text-secondary)",
                             fontFamily: "var(--font-ui)",
                           }}>
-                            {MANUAL_EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type}
+                            {eventTypeLabel(ev.event_type)}
                           </span>
                           {ev.is_key_event && (
-                            <span style={{ fontSize: 11, color: ACCENT_TEXT, fontFamily: "var(--font-ui)" }}>● KEY</span>
+                            <span style={{ fontSize: 11, color: ACCENT_TEXT, fontFamily: "var(--font-ui)" }}>● {t("chrono.key")}</span>
                           )}
                           {ev.document_ref_id && ev.document_ref_type && (
                             <button
                               onClick={() => navigateToDoc(ev.document_ref_type!, ev.document_ref_id!)}
                               style={{ fontSize: 11, color: ACCENT_TEXT, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", padding: 0 }}
                             >
-                              → View
+                              → {t("action.view")}
                             </button>
                           )}
                           <button
                             onClick={() => setExpandedNarrativeId(
                               expandedNarrativeId === ev.id ? null : ev.id
                             )}
-                            title={expandedNarrativeId === ev.id ? "Hide narrative" : "Show narrative"}
+                            title={t("chrono.narrative")}
                             style={{
                               fontSize: 11,
                               color: "var(--color-accent-text)",
@@ -716,12 +710,14 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                               marginLeft: "auto",
                             }}
                           >
-                            {expandedNarrativeId === ev.id ? "▼ Narrative" : "▶ Narrative"}
+                            {expandedNarrativeId === ev.id
+                              ? `▼ ${t("chrono.narrative")}`
+                              : `▶ ${t("chrono.narrative")}`}
                           </button>
                           <button
                             onClick={() => handleInactivate(ev.id)}
                             disabled={inactivatingId === ev.id}
-                            title="Remove event"
+                            title={t("action.remove")}
                             style={{
                               fontSize: 12, color: "var(--color-text-secondary)",
                               background: "none", border: "none",
@@ -766,7 +762,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   alignItems: "center",
                                   marginBottom: 8,
                                 }}>
-                                  <p style={SECTION_LABEL}>Approved Narrative</p>
+                                  <p style={SECTION_LABEL}>{t("chrono.approvednarrative")}</p>
                                   <button
                                     onClick={() => {
                                       setEditingApprovedId(ev.id);
@@ -784,7 +780,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                       textDecoration: "underline",
                                     }}
                                   >
-                                    Edit
+                                    {t("action.edit")}
                                   </button>
                                 </div>
                                 <p style={{
@@ -801,7 +797,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
 
                             {ev.approved_narrative && editingApprovedId === ev.id && (
                               <div>
-                                <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>Edit Narrative</p>
+                                <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>{t("chrono.editnarrative")}</p>
                                 <textarea
                                   value={editingApprovedText[ev.id] ?? ev.approved_narrative}
                                   onChange={(e) => setEditingApprovedText((prev) => ({
@@ -818,20 +814,20 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   }}
                                 />
                                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                                  <button
+                                  <Button
+                                    type="button"
+                                    size="sm"
                                     onClick={() => handleApproveModified(ev)}
                                     disabled={approvingId === ev.id}
-                                    style={{
-                                      fontSize: 11, padding: "8px 14px",
-                                      background: ACCENT, color: "var(--color-bg-primary)",
-                                      border: "none", borderRadius: 0,
-                                      cursor: approvingId === ev.id ? "wait" : "pointer",
-                                      fontFamily: "var(--font-ui)",
-                                    }}
+                                    loading={approvingId === ev.id}
+                                    loadingText={t("state.saving")}
                                   >
-                                    {approvingId === ev.id ? "Saving..." : "✓ Save Changes"}
-                                  </button>
-                                  <button
+                                    {t("chrono.savechanges")}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
                                     onClick={() => {
                                       setEditingApprovedId(null);
                                       setEditingApprovedText((prev) => {
@@ -840,17 +836,9 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                         return n;
                                       });
                                     }}
-                                    style={{
-                                      fontSize: 11, padding: "8px 12px",
-                                      background: "none",
-                                      color: "var(--color-text-secondary)",
-                                      border: "1px solid var(--color-border-light)",
-                                      borderRadius: 0, cursor: "pointer",
-                                      fontFamily: "var(--font-ui)",
-                                    }}
                                   >
-                                    Cancel
-                                  </button>
+                                    {t("action.cancel")}
+                                  </Button>
                                 </div>
                               </div>
                             )}
@@ -858,7 +846,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                             {!ev.approved_narrative && ev.auto_narrative && (
                               <div>
                                 <p style={{ ...SECTION_LABEL, marginBottom: 4 }}>
-                                  LLM Draft — Pending Approval
+                                  {t("chrono.systemdraft")}
                                 </p>
                                 <textarea
                                   value={editingNarrative[ev.id] ?? ev.auto_narrative}
@@ -875,19 +863,17 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                     boxSizing: "border-box",
                                   }}
                                 />
-                                <button
+                                <Button
+                                  type="button"
+                                  size="sm"
                                   onClick={() => handleApprove(ev)}
                                   disabled={approvingId === ev.id}
-                                  style={{
-                                    marginTop: 8, fontSize: 11, padding: "8px 14px",
-                                    background: ACCENT, color: "var(--color-bg-primary)",
-                                    border: "none", borderRadius: 0,
-                                    cursor: approvingId === ev.id ? "wait" : "pointer",
-                                    fontFamily: "var(--font-ui)",
-                                  }}
+                                  loading={approvingId === ev.id}
+                                  loadingText={t("state.saving")}
+                                  style={{ marginTop: 8 }}
                                 >
-                                  {approvingId === ev.id ? "Approving..." : "✓ Approve"}
-                                </button>
+                                  {t("action.approve")}
+                                </Button>
                               </div>
                             )}
 
@@ -900,7 +886,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                   fontFamily: "var(--font-ui)",
                                   margin: 0,
                                 }}>
-                                  No narrative yet.
+                                  {t("chrono.nonarrative")}
                                 </p>
                                 <button
                                   onClick={() => enterEditModeForEvent(ev.id)}
@@ -915,7 +901,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                                     padding: 0,
                                   }}
                                 >
-                                  Write narrative →
+                                  {t("chrono.editnarrative")} →
                                 </button>
                               </div>
                             )}

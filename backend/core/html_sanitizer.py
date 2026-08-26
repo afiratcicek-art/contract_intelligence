@@ -4,6 +4,7 @@ Client-side TipTap/DOMPurify is NOT trusted — every body_html write
 must pass through sanitize_body_html on the server.
 """
 import re
+from html import unescape
 from typing import Optional
 
 import bleach
@@ -34,7 +35,7 @@ ALLOWED_ATTRIBUTES = {
 
 ALLOWED_PROTOCOLS = ["http", "https", "mailto"]
 
-# Mirrors RichTextEditor ALLOWED_CLASSES (font-size, align, indent)
+# Mirrors RichTextEditor ALLOWED_CLASSES (font-size, align, indent, space-after)
 _ALLOWED_CLASSES = frozenset({
     "text-fs-11",
     "text-fs-12",
@@ -49,6 +50,9 @@ _ALLOWED_CLASSES = frozenset({
     "indent-2",
     "indent-3",
     "indent-4",
+    "space-after-sm",
+    "space-after-md",
+    "space-after-lg",
     "clauseiq-references",
 })
 
@@ -75,7 +79,8 @@ def _filter_allowed_classes(html: str) -> str:
         prefix, quote, classes = match.group(1), match.group(2), match.group(3)
         kept = [c for c in classes.split() if c in _ALLOWED_CLASSES]
         if not kept:
-            return ""
+            # Drop the class attribute, not the tag name that sits in `prefix`.
+            return re.sub(r"\s*class\s*=\s*$", "", prefix, flags=re.I)
         return f"{prefix}{quote}{' '.join(kept)}{quote}"
 
     return _CLASS_ATTR.sub(repl, html)
@@ -106,3 +111,29 @@ def sanitize_body_html(value: Optional[str]) -> str:
             cut = cut[: last_gt + 1]
         cleaned = cut
     return cleaned
+
+
+_BLOCK_CLOSE = re.compile(r"(?i)</(p|h[1-4]|li|tr|td|th|blockquote)>")
+_BR = re.compile(r"(?i)<br\s*/?>")
+_TAG = re.compile(r"<[^>]+>")
+_TRAILING_SPACES = re.compile(r"[ \t]+\n")
+_MANY_NEWLINES = re.compile(r"\n{3,}")
+
+
+def html_to_plain(html: Optional[str]) -> str:
+    """Letter body as plaintext for the model.
+
+    The LLM must not see raw HTML (injection surface + wasted tokens).
+    Sanitizes first, then strips tags with block boundaries kept as newlines.
+    Tag strip is regex (not bleach) so remaining opening tags do not become
+    extra blank lines via html5lib block serialization.
+    """
+    safe = sanitize_body_html(html)
+    if not safe:
+        return ""
+    with_breaks = _BLOCK_CLOSE.sub("\n", safe)
+    with_breaks = _BR.sub("\n", with_breaks)
+    text = unescape(_TAG.sub("", with_breaks))
+    text = _TRAILING_SPACES.sub("\n", text)
+    text = _MANY_NEWLINES.sub("\n\n", text)
+    return text.strip()

@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from backend.core.dependencies import require_cm_role, verify_project_access
 from backend.core.exceptions import ConflictError, NotFoundError, RaceConditionError, ValidationError
 from backend.core.guards import assert_target_in_project, assert_document_not_already_linked
-from backend.core.html_sanitizer import sanitize_body_html
+from backend.core.html_sanitizer import html_to_plain, sanitize_body_html
 from backend.core.limiter import limiter
 from backend.models.document_authoring import (
     AiChatRequest,
@@ -856,7 +856,7 @@ def generate_ai_chat(
     body: AiChatRequest,
     access: dict = Depends(require_cm_role),
 ):
-    """C2-B: multi-turn chat revise. Server does not write body_html — FE applies reply."""
+    """C2-B: multi-turn chat. Server does not write body_html — FE applies reply on revise."""
     db = access["db"]
     user_id = access["user"]["id"]
     repo = DocumentDraftRepository(db)
@@ -866,7 +866,12 @@ def generate_ai_chat(
         raise ConflictError("Onaylanmış veya iptal edilmiş taslak güncellenemez.")
 
     field_values = draft.get("field_values") or {}
-    current_body = draft.get("body_html") or ""
+    live_html = (
+        body.current_body
+        if body.current_body is not None
+        else (draft.get("body_html") or "")
+    )
+    current_plain = html_to_plain(live_html)
 
     # DATA MINIMIZATION: only fields the model needs — never the whole project row.
     project = (
@@ -891,7 +896,7 @@ def generate_ai_chat(
     ai = get_ai_service(db)
     result = ai.generate_chat_turn(
         messages=messages,
-        current_body=current_body,
+        current_body=current_plain,
         correspondence_type=draft["doc_type"],
         project_context=project_context,
         language=body.language,
@@ -899,6 +904,7 @@ def generate_ai_chat(
         project_id=str(project_id),
         user_id=user_id,
         entity_id=str(draft_id),
+        intent=body.intent,
     )
 
     if isinstance(result, GateBlockedResult):
@@ -907,22 +913,30 @@ def generate_ai_chat(
             detail=result.warning_message,
         )
 
-    # Undo anchor only — body is not replaced here; FE applies reply_text via autosave.
-    repo.create_version_snapshot(
-        str(draft_id),
-        current_body,
-        field_values,
-        "pre_ai_draft",
-        user_id,
-    )
+    # Undo anchor only when the client will apply a replacement to the letter.
+    if body.intent == "revise":
+        repo.create_version_snapshot(
+            str(draft_id),
+            live_html,
+            field_values,
+            "pre_ai_draft",
+            user_id,
+        )
+    if body.intent == "comment":
+        target = "comment"
+    elif selection:
+        target = "selection"
+    else:
+        target = "body"
     repo.add_provenance(
         str(draft_id),
         "llm_generation",
-        target="selection" if selection else "body",
+        target=target,
         actor_user_id=user_id,
         llm_role="qualified",
         metadata={
             "version": body.version,
+            "intent": body.intent,
             "review_required": result.review_required,
             "objectivity_flag": result.objectivity_flag,
             "resolved_by_gate": result.resolved_by_gate,

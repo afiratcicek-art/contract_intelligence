@@ -115,6 +115,7 @@ class AIServiceProtocol(Protocol):
         project_id: Optional[str] = None,
         user_id: Optional[str] = None,
         entity_id: Optional[str] = None,
+        intent: str = "revise",
     ) -> DraftResult | GateBlockedResult: ...
 
     def generate_chronology_narrative(
@@ -806,8 +807,9 @@ class ClaudeService:
         project_id: Optional[str] = None,
         user_id: Optional[str] = None,
         entity_id: Optional[str] = None,
+        intent: str = "revise",
     ) -> DraftResult | GateBlockedResult:
-        """C2-B: multi-turn revise. Mask chokepoint identical to draft path."""
+        """C2-B: multi-turn. current_body is plaintext (HTML stripped upstream)."""
         start = time.time()
         session_or_block = self._mask_session_or_block(project_id, user_id)
         if isinstance(session_or_block, GateBlockedResult):
@@ -860,20 +862,31 @@ class ClaudeService:
             )
         masked_transcript = "\n".join(transcript_lines) if transcript_lines else "(empty)"
 
+        comment = intent == "comment"
         if masked_selection is not None:
             target_block = (
-                "Selected passage (revise ONLY this; preserve the rest):\n"
+                "Selected passage:\n"
                 f"{masked_selection}"
             )
             instruction = (
-                "Revise ONLY the selected passage below, preserving the rest. "
-                "Return only the revised selected passage text."
+                "Comment on ONLY the selected passage. Return review notes. "
+                "Do not rewrite the passage."
+                if comment
+                else (
+                    "Revise ONLY the selected passage below, preserving the rest. "
+                    "Return only the revised selected passage as plain text, no HTML."
+                )
             )
         else:
             target_block = f"Current letter body:\n{masked_body}"
             instruction = (
-                "Rewrite the full letter body. "
-                "Return only the revised full letter body text."
+                "Review the letter. Return comments and suggested changes as notes only. "
+                "Do not rewrite the letter. Do not return a replacement draft."
+                if comment
+                else (
+                    "Rewrite the full letter body. "
+                    "Return only the revised full letter body as plain text, no HTML."
+                )
             )
 
         user_content = (

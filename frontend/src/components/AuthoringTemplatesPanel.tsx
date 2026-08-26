@@ -17,6 +17,8 @@ import {
   type DocumentTemplate,
 } from "../services/authoringApi";
 import { ApiError } from "../services/api";
+import Button from "./Button";
+import ConfirmModal from "./ConfirmModal";
 
 interface Props {
   projectId: string;
@@ -167,6 +169,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
   const [pending, setPending] = useState<PendingChrome>({});
   const [preview, setPreview] = useState<ChromeUrls>({});
   const [selected, setSelected] = useState<Selection>(null);
+  const [pendingDelete, setPendingDelete] = useState<DocumentTemplate | null>(null);
 
   const previewRef = useRef(preview);
   previewRef.current = preview;
@@ -313,12 +316,6 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
   }
 
   async function handleDelete(tpl: DocumentTemplate) {
-    const ok = window.confirm(
-      tr
-        ? `"${tpl.name}" şablonunu silmek istediğinize emin misiniz?`
-        : `Delete template “${tpl.name}”?`
-    );
-    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -329,6 +326,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
       setError(e instanceof ApiError ? e.message : "Delete failed");
     } finally {
       setBusy(false);
+      setPendingDelete(null);
     }
   }
 
@@ -367,7 +365,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
       <h3
         style={{
           fontFamily: "var(--font-brand)",
-          fontSize: 16,
+          fontSize: "var(--type-title-card)",
           color: "var(--color-text-primary)",
           fontWeight: 500,
           marginBottom: 8,
@@ -428,28 +426,22 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
             {tr ? "İptal" : "Cancel"}
           </button>
         )}
-        <button
+        <Button
           type="button"
+          size="sm"
           disabled={busy || !name.trim()}
+          loading={busy}
+          loadingText={tr ? "Kaydediliyor…" : "Saving…"}
           onClick={() => void handleSave()}
-          style={{
-            ...accentBtn,
-            opacity: busy || !name.trim() ? 0.55 : 1,
-            cursor: busy || !name.trim() ? "not-allowed" : "pointer",
-          }}
         >
-          {busy
+          {editingId
             ? tr
-              ? "Kaydediliyor…"
-              : "Saving…"
-            : editingId
-              ? tr
-                ? "Güncelle"
-                : "Update"
-              : tr
-                ? "Şablonu kaydet"
-                : "Save template"}
-        </button>
+              ? "Güncelle"
+              : "Update"
+            : tr
+              ? "Şablonu kaydet"
+              : "Save template"}
+        </Button>
       </div>
 
       <FormatRibbon
@@ -549,7 +541,7 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void handleDelete(tpl)}
+                  onClick={() => setPendingDelete(tpl)}
                   style={{ ...ghostBtn, color: "var(--color-alert-red)" }}
                 >
                   {tr ? "Sil" : "Delete"}
@@ -559,18 +551,27 @@ export default function AuthoringTemplatesPanel({ projectId }: Props) {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        open={pendingDelete != null}
+        variant="destructive"
+        message={
+          pendingDelete
+            ? tr
+              ? `"${pendingDelete.name}" şablonunu silmek istediğinize emin misiniz?`
+              : `Delete template “${pendingDelete.name}”?`
+            : ""
+        }
+        confirmLabel={tr ? "Sil" : "Delete"}
+        cancelLabel={tr ? "İptal" : "Cancel"}
+        onConfirm={() => {
+          if (pendingDelete) void handleDelete(pendingDelete);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
-
-const accentBtn: CSSProperties = {
-  background: "var(--color-accent)",
-  color: "var(--color-bg-primary)",
-  border: "none",
-  padding: "8px 14px",
-  fontSize: 12,
-  fontFamily: "var(--font-ui)",
-};
 
 const ghostBtn: CSSProperties = {
   fontSize: 11,
@@ -868,8 +869,8 @@ function BandBlock({
   const selImg = selected?.kind === "image" && selected.slot === slot;
   const selTxt = selected?.kind === "text" && selected.slot === slot;
 
-  // Label + padding + text reserve → image auto-fits remaining band height
-  const imgMaxH = Math.max(32, cfg.band_height_px - 18 - 16 - 52);
+  // Padding + gap + text reserve — editor chrome is not in the band flow
+  const imgMaxH = Math.max(32, cfg.band_height_px - 8 - 8 - 4 - 52);
 
   const imageBlock = (
     <div
@@ -909,9 +910,9 @@ function BandBlock({
             onPickZone(slot);
           }}
           style={{
-            border: "1px dashed #D4CFC8",
+            border: "1px dashed var(--color-print-edge)",
             background: "transparent",
-            color: "#9a9488",
+            color: "var(--color-print-muted)",
             fontSize: 11,
             padding: "10px 12px",
             cursor: "pointer",
@@ -946,11 +947,11 @@ function BandBlock({
         minHeight: 40,
         maxHeight: 52,
         border: selTxt ? "1px solid var(--color-accent)" : "1px solid transparent",
-        background: selTxt ? "rgba(255,255,255,0.85)" : "transparent",
+        background: selTxt ? "var(--color-print-text-wash)" : "transparent",
         padding: "6px 4px",
         fontSize: 12,
         lineHeight: 1.35,
-        color: "#3d3a34",
+        color: "var(--color-print-body)",
         outline: "none",
         fontFamily: "var(--font-ui)",
         textAlign: cfg.text_align,
@@ -972,11 +973,10 @@ function BandBlock({
         minHeight: cfg.band_height_px,
         maxHeight: cfg.band_height_px,
         overflow: "hidden",
-        borderBottom: slot === "header" ? "1px solid #E8E4DE" : undefined,
-        borderTop: slot === "footer" ? "1px solid #E8E4DE" : undefined,
+        borderBottom: slot === "header" ? "1px solid var(--color-print-rule)" : undefined,
+        borderTop: slot === "footer" ? "1px solid var(--color-print-rule)" : undefined,
         padding: "8px 4px",
-        marginBottom: slot === "header" ? 16 : 0,
-        marginTop: slot === "footer" ? 16 : 0,
+        flexShrink: 0,
         outline: selBand ? "2px solid var(--color-accent)" : "none",
         outlineOffset: 2,
         boxSizing: "border-box",
@@ -989,20 +989,6 @@ function BandBlock({
         onSelect({ kind: "band", slot });
       }}
     >
-      <div
-        style={{
-          fontSize: 9,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "#A39E94",
-          fontFamily: "var(--font-ui)",
-          flex: "0 0 auto",
-        }}
-      >
-        {slot === "header" ? (tr ? "Üst bilgi" : "Header") : tr ? "Alt bilgi" : "Footer"}
-        {" · "}
-        {cfg.band_height_px}px
-      </div>
       {kids}
     </div>
   );
@@ -1087,8 +1073,8 @@ function InteractivePaper({
       onPointerUp={onPointerUp}
       style={{
         position: "relative",
-        background: "#FBF9F5",
-        color: "#1a1a1a",
+        background: "var(--color-print-paper)",
+        color: "var(--color-print-ink)",
         // A4 portrait aspect (210×297) — matches docx_builder page size
         width: "100%",
         maxWidth: 640,
@@ -1097,7 +1083,7 @@ function InteractivePaper({
         minHeight: 0,
         height: "auto",
         padding: "5% 7% 4%",
-        boxShadow: "0 1px 0 var(--color-border-medium), 0 12px 32px rgba(0,0,0,0.07)",
+        boxShadow: "0 1px 0 var(--color-border-medium), 0 12px 32px var(--color-shadow)",
         border: "1px solid var(--color-border-medium)",
         overflow: "hidden",
         fontFamily: "var(--font-ui)",
@@ -1142,7 +1128,7 @@ function InteractivePaper({
             inset: 12,
             margin: 0,
             fontSize: 12,
-            color: "#B0A99C",
+            color: "var(--color-print-hint)",
             lineHeight: 1.65,
             fontStyle: "italic",
             pointerEvents: "none",
@@ -1195,9 +1181,9 @@ function InteractivePaper({
               }}
               style={{
                 display: "block",
-                border: "1px dashed #D4CFC8",
-                background: "rgba(251,249,245,0.9)",
-                color: "#9a9488",
+                border: "1px dashed var(--color-print-edge)",
+                background: "var(--color-print-paper-wash)",
+                color: "var(--color-print-muted)",
                 fontSize: 11,
                 padding: "12px 18px",
                 cursor: "pointer",

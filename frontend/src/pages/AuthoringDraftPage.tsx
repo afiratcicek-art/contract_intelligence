@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AiActionButton from "../components/AiActionButton";
+import Button from "../components/Button";
 import RichTextEditor, {
   type RichTextEditorHandle,
 } from "../components/editor/RichTextEditor";
 import { DOCUMENT_TYPE_LABELS } from "../constants/documentTypes";
 import { useLanguage } from "../context/LanguageContext";
+import { useUnsavedGuard } from "../hooks/useUnsavedGuard";
 import { api, ApiError, type LinkableDoc } from "../services/api";
 import {
   aiChat,
@@ -81,6 +83,7 @@ type AiChatTurn = {
   userText: string;
   outcome: "ok" | "blocked" | "conflict" | "error";
   assistantText: string;
+  applied: boolean;
 };
 
 /** Mirror backend `_plaintext_to_body_html` for full-body chat apply. */
@@ -351,7 +354,7 @@ export default function AuthoringDraftPage() {
   }>();
   const [search] = useSearchParams();
   const navigate = useNavigate();
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
 
   const [draft, setDraft] = useState<DocumentDraft | null>(null);
   const [subject, setSubject] = useState("");
@@ -389,6 +392,7 @@ export default function AuthoringDraftPage() {
     related: LinkableDoc[];
   } | null>(null);
   const [aiInstructions, setAiInstructions] = useState("");
+  const [aiIntent, setAiIntent] = useState<"comment" | "revise">("comment");
   const [aiTurns, setAiTurns] = useState<AiChatTurn[]>([]);
   const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
   const editorRef = useRef<RichTextEditorHandle | null>(null);
@@ -893,20 +897,18 @@ export default function AuthoringDraftPage() {
 
   function appendAiTurn(
     outcome: AiChatTurn["outcome"],
-    assistantText: string
+    assistantText: string,
+    applied = false
   ) {
     const raw = aiInstructions.trim();
-    const userText = raw
-      ? raw
-      : lang === "tr"
-        ? "(talimat yok)"
-        : "(no instructions)";
+    const userText = raw ? raw : t("ai.noinstruction");
     const turn: AiChatTurn = {
       id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       at: Date.now(),
       userText,
       outcome,
       assistantText,
+      applied,
     };
     setAiTurns((prev) => [...prev, turn].slice(-24));
     setActiveTurnId(turn.id);
@@ -1005,42 +1007,45 @@ export default function AuthoringDraftPage() {
     ];
 
     try {
-      const language = lang === "tr" ? "tr" : "en";
       const res = await aiChat(projectId, draftIdRef.current, {
         messages,
         selection_text: selectionText,
-        language,
+        language: lang,
         version: versionRef.current,
+        current_body: bodyHtml,
+        intent: aiIntent,
       });
 
-      if (selectionText && handle) {
-        handle.applyToSelection(res.reply_text);
-      } else {
-        // Server did not write body_html — leave lastSavedPayloadRef stale so autosave persists.
-        const syncedBody = syncReferencesBlock(
-          plaintextToBodyHtml(res.reply_text),
-          references.map((r) => formatRefLine(r, linkable))
-        );
-        handle?.replaceBody(syncedBody);
-        setDraft((prev) =>
-          prev ? { ...prev, body_html: syncedBody } : prev
-        );
+      const applied = aiIntent === "revise";
+      if (applied) {
+        if (selectionText && handle) {
+          handle.applyToSelection(res.reply_text);
+        } else {
+          // Server did not write body_html — leave lastSavedPayloadRef stale so autosave persists.
+          const syncedBody = syncReferencesBlock(
+            plaintextToBodyHtml(res.reply_text),
+            references.map((r) => formatRefLine(r, linkable))
+          );
+          handle?.replaceBody(syncedBody);
+          setDraft((prev) =>
+            prev ? { ...prev, body_html: syncedBody } : prev
+          );
+        }
       }
 
       setAiInstructions("");
       setError(null);
       const hints: string[] = [];
       if (res.review_required) {
-        hints.push(lang === "tr" ? "İnceleme gerekli" : "Review required");
+        hints.push(t("ai.reviewrequired"));
       }
       if (res.objectivity_flag) {
-        hints.push(lang === "tr" ? "Nesnellik uyarısı" : "Objectivity flag");
+        hints.push(t("ai.objectivity"));
       }
       if (res.warnings?.length) {
         hints.push(...res.warnings);
       }
-      // Transcript = model reply for multi-turn; hints stay out of message history.
-      appendAiTurn("ok", res.reply_text);
+      appendAiTurn("ok", res.reply_text, applied);
       if (hints.length) {
         setError(hints.join(" · "));
       }
@@ -1140,19 +1145,21 @@ export default function AuthoringDraftPage() {
 
   const pageRangesInvalid = hasInvalidPageRanges(references, linkable);
 
+  // Autosave in flight, blocked by a conflict, or skipped over an invalid page
+  // range — in all three the last edits exist only in this tab.
+  useUnsavedGuard(
+    saveState === "saving" || saveState === "conflict" || pageRangesInvalid
+  );
+
   const saveLabel =
     pageRangesInvalid
-      ? lang === "tr"
-        ? "aralık geçersiz"
-        : "invalid range"
+      ? t("authoring.invalidrange")
       : saveState === "saving"
         ? "…"
         : saveState === "saved"
-          ? lang === "tr"
-            ? "kaydedildi"
-            : "saved"
+          ? t("authoring.saved")
           : saveState === "conflict"
-            ? "409"
+            ? t("authoring.conflict")
             : "";
 
   if (!draft && !error) {
@@ -1222,9 +1229,8 @@ export default function AuthoringDraftPage() {
           </span>
           <span
             style={{
-              fontSize: 10,
-              color: "var(--color-text-secondary)",
-              opacity: 0.7,
+              fontSize: 11,
+              color: "var(--color-text-tertiary)",
             }}
             title={
               lang === "tr"
@@ -1432,7 +1438,7 @@ export default function AuthoringDraftPage() {
                     {DOCUMENT_TYPE_LABELS[r.ref_type] && (
                       <span
                         style={{
-                          fontSize: 10,
+                          fontSize: 11,
                           textTransform: "uppercase",
                           letterSpacing: "0.05em",
                           color: "var(--color-text-secondary)",
@@ -1501,7 +1507,7 @@ export default function AuthoringDraftPage() {
                             >
                               <span
                                 style={{
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   textTransform: "uppercase",
                                   letterSpacing: "0.04em",
                                   color: "var(--color-text-secondary)",
@@ -1884,7 +1890,7 @@ export default function AuthoringDraftPage() {
                         left: 0,
                         right: 0,
                         top: "100%",
-                        zIndex: 5,
+                        zIndex: "var(--z-dropdown)" as unknown as number,
                         background: "var(--color-bg-primary)",
                         border: "1px solid var(--color-border-medium)",
                         maxHeight: 220,
@@ -2138,6 +2144,7 @@ export default function AuthoringDraftPage() {
             gap: 12,
             position: "sticky",
             top: 16,
+            zIndex: "var(--z-sticky)" as unknown as number,
             alignSelf: "start",
             height: "calc(100vh - 32px)",
             maxHeight: "calc(100vh - 32px)",
@@ -2153,10 +2160,9 @@ export default function AuthoringDraftPage() {
               margin: 0,
             }}
           >
-            {lang === "tr" ? "Zeka katmanı" : "Intelligence"}
+            {t("module.intelligence")}
           </h2>
 
-          {/* B: first-prompt tip only — disappears after first turn */}
           {aiTurns.length === 0 && (
             <p
               style={{
@@ -2167,9 +2173,7 @@ export default function AuthoringDraftPage() {
                 lineHeight: 1.4,
               }}
             >
-              {lang === "tr"
-                ? "Ne istediğinizi yazın; seçim varsa yalnız seçimi, yoksa tüm gövdeyi günceller."
-                : "Write what you need; updates the selection if any, otherwise the full body."}
+              {aiIntent === "comment" ? t("ai.tip.comment") : t("ai.tip.revise")}
             </p>
           )}
 
@@ -2241,6 +2245,20 @@ export default function AuthoringDraftPage() {
                     }}
                   >
                     {turn.assistantText}
+                    {turn.outcome === "ok" && (
+                      <span
+                        style={{
+                          display: "block",
+                          marginTop: 6,
+                          fontSize: 11,
+                          color: "var(--color-text-secondary)",
+                          fontFamily: "var(--font-meta)",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {turn.applied ? t("ai.applied") : t("ai.commented")}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -2304,15 +2322,34 @@ export default function AuthoringDraftPage() {
                 flexShrink: 0,
               }}
             >
+              <div
+                className="letterframe-seg"
+                role="group"
+                aria-label={t("ai.intent.label")}
+              >
+                {(["comment", "revise"] as const).map((mode) => {
+                  const active = aiIntent === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      className="letterframe-seg__opt"
+                      onClick={() => setAiIntent(mode)}
+                      aria-pressed={active}
+                      disabled={busy}
+                    >
+                      {mode === "comment" ? t("ai.intent.comment") : t("ai.intent.revise")}
+                    </button>
+                  );
+                })}
+              </div>
               <textarea
                 value={aiInstructions}
                 onChange={(e) => setAiInstructions(e.target.value)}
                 disabled={busy}
                 rows={6}
                 placeholder={
-                  lang === "tr"
-                    ? "Örn. gecikme bildirimi, nazik ton, 2 paragraf…"
-                    : "e.g. delay notice, polite tone, 2 paragraphs…"
+                  aiIntent === "comment" ? t("ai.ph.comment") : t("ai.ph.revise")
                 }
                 style={{
                   ...fieldInput,
@@ -2328,7 +2365,7 @@ export default function AuthoringDraftPage() {
                 onClick={() => void handleAiChat()}
                 style={{ alignSelf: "flex-start" }}
               >
-                {lang === "tr" ? "Gönder" : "Send"}
+                {t("ai.send")}
               </AiActionButton>
             </div>
           )}
@@ -2369,14 +2406,15 @@ export default function AuthoringDraftPage() {
               ? "Referansların kopyasını mektuba ekle"
               : "Attach copies of references to the letter"}
           </label>
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant="secondary"
             disabled={busy}
             onClick={() => void handleGenerate()}
-            style={btnSecondary}
           >
             {lang === "tr" ? "DOCX Üret" : "Generate DOCX"}
-          </button>
+          </Button>
           <div>
             <label style={fieldLabel}>
               {draft.doc_type === "rfi"
@@ -2393,8 +2431,9 @@ export default function AuthoringDraftPage() {
               style={{ ...fieldInput, width: 160, marginBottom: 0 }}
             />
           </div>
-          <button
+          <Button
             type="button"
+            size="sm"
             disabled={
               busy ||
               !docNumber.trim() ||
@@ -2402,7 +2441,6 @@ export default function AuthoringDraftPage() {
               pageRangesInvalid
             }
             onClick={() => void handleApprove()}
-            style={btnPrimary}
             title={
               pageRangesInvalid
                 ? lang === "tr"
@@ -2412,7 +2450,7 @@ export default function AuthoringDraftPage() {
             }
           >
             {lang === "tr" ? "Onayla & Materyalize" : "Approve & Materialize"}
-          </button>
+          </Button>
           {pageRangesInvalid && (
             <span
               style={{
@@ -2427,8 +2465,10 @@ export default function AuthoringDraftPage() {
                 : "Invalid page range — save and approve paused."}
             </span>
           )}
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant="secondary"
             onClick={() =>
               navigate(
                 draft.doc_type === "rfi"
@@ -2436,10 +2476,9 @@ export default function AuthoringDraftPage() {
                   : `/projects/${projectId}/workspace?module=correspondence`
               )
             }
-            style={btnSecondary}
           >
             {lang === "tr" ? "Geri" : "Back"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -2479,26 +2518,4 @@ const fieldInput: CSSProperties = {
   fontFamily: "var(--font-ui)",
   boxSizing: "border-box",
   marginBottom: 12,
-};
-
-const btnPrimary: CSSProperties = {
-  background: "var(--color-accent)",
-  color: "var(--color-bg-primary)",
-  border: "none",
-  borderRadius: 0,
-  padding: "8px 16px",
-  fontSize: 12,
-  cursor: "pointer",
-  fontFamily: "var(--font-ui)",
-};
-
-const btnSecondary: CSSProperties = {
-  background: "var(--color-bg-secondary)",
-  color: "var(--color-text-primary)",
-  border: "1px solid var(--color-border-medium)",
-  borderRadius: 0,
-  padding: "8px 16px",
-  fontSize: 12,
-  cursor: "pointer",
-  fontFamily: "var(--font-ui)",
 };

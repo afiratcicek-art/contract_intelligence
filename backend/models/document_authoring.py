@@ -97,6 +97,10 @@ class AiChatRequest(BaseModel):
     selection_text: Optional[str] = None
     language: Literal["en", "ar", "tr"] = "en"
     version: int
+    # Live editor HTML (sanitized). Falls back to the stored draft body when omitted.
+    current_body: Optional[str] = None
+    # comment = notes only; revise = replacement text for selection or full body.
+    intent: Literal["revise", "comment"] = "revise"
 
     @field_validator("selection_text", mode="before")
     @classmethod
@@ -104,6 +108,13 @@ class AiChatRequest(BaseModel):
         if v is None:
             return None
         return sanitize_content(v)
+
+    @field_validator("current_body", mode="before")
+    @classmethod
+    def clean_live_body(cls, v):
+        if v is None:
+            return None
+        return sanitize_body_html(v)
 
 
 class GenerateDocxRequest(BaseModel):

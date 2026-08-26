@@ -154,34 +154,6 @@ export async function patchAuthoringDraft(
   return api.patch(`/projects/${projectId}/authoring/drafts/${draftId}`, body);
 }
 
-export type AiDraftResult = {
-  body_html: string;
-  version: number;
-  confidence_score: number;
-  warnings: string[];
-  review_required: boolean;
-  objectivity_flag: boolean;
-};
-
-export async function aiDraft(
-  projectId: string,
-  draftId: string,
-  body: {
-    user_instructions?: string;
-    language?: "en" | "ar" | "tr";
-    version: number;
-  }
-): Promise<AiDraftResult> {
-  const params = new URLSearchParams();
-  params.set("version", String(body.version));
-  if (body.language) params.set("language", body.language);
-  if (body.user_instructions) params.set("user_instructions", body.user_instructions);
-  return api.post(
-    `/projects/${projectId}/authoring/drafts/${draftId}/ai-draft?${params}`,
-    {}
-  );
-}
-
 export type AiChatResult = {
   reply_text: string;
   confidence_score: number;
@@ -198,6 +170,8 @@ export async function aiChat(
     selection_text?: string;
     language?: "en" | "ar" | "tr";
     version: number;
+    current_body?: string;
+    intent?: "revise" | "comment";
   }
 ): Promise<AiChatResult> {
   return api.post(`/projects/${projectId}/authoring/drafts/${draftId}/ai-chat`, {
@@ -205,6 +179,8 @@ export async function aiChat(
     selection_text: body.selection_text,
     language: body.language,
     version: body.version,
+    current_body: body.current_body,
+    intent: body.intent,
   });
 }
 

@@ -38,6 +38,46 @@ def _clamp(n: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, n))
 
 
+_SPACE_AFTER_PT = {
+    "space-after-sm": 4,
+    "space-after-md": 12,
+    "space-after-lg": 18,
+}
+_INDENT_IN = {
+    "indent-1": 0.25,
+    "indent-2": 0.50,
+    "indent-3": 0.75,
+    "indent-4": 1.00,
+}
+
+
+def _class_list(attrs) -> list[str]:
+    for key, val in attrs:
+        if key.lower() == "class" and val:
+            return str(val).split()
+    return []
+
+
+def _apply_block_layout(paragraph, classes: list[str]) -> None:
+    """Mirror editor class tokens onto the DOCX paragraph (export-faithful)."""
+    if "text-align-left" in classes:
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    elif "text-align-center" in classes:
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    elif "text-align-right" in classes:
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    elif "text-align-justify" in classes:
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    for token, pt in _SPACE_AFTER_PT.items():
+        if token in classes:
+            paragraph.paragraph_format.space_after = Pt(pt)
+            break
+    for token, inches in _INDENT_IN.items():
+        if token in classes:
+            paragraph.paragraph_format.left_indent = Inches(inches)
+            break
+
+
 def _para_align(slot_cfg: dict, *, text: bool = False):
     key = "text_align" if text else "align"
     align = str(slot_cfg.get(key) or slot_cfg.get("align") or "center").lower()
@@ -315,6 +355,7 @@ class _HtmlToDocx(HTMLParser):
             return
         if tag in ("p", "h1", "h2", "h3", "h4"):
             self._p = self.doc.add_paragraph()
+            _apply_block_layout(self._p, _class_list(attrs))
             if tag.startswith("h"):
                 run = self._p.add_run("")
                 size = {"h1": 16, "h2": 14, "h3": 12, "h4": 11}.get(tag, 11)

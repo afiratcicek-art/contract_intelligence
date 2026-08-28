@@ -291,6 +291,15 @@ export default function CorrespondenceDetail() {
               registerPath={`/projects/${projectId}/workspace/correspondence/new?mode=followup&parent_id=${corr.id}&parent_number=${encodeURIComponent(corr.corr_number)}`}
               createPath={`/projects/${projectId}/workspace/authoring/new?doc_type=letter&relation=followup&parent_id=${corr.id}&parent_number=${encodeURIComponent(corr.corr_number)}`}
             />
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => navigate(`/projects/${projectId}/workspace/disputes/new?correspondenceId=${corr.id}`)}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {t("action.opendispute")}
+            </Button>
           </div>
         </div>
 

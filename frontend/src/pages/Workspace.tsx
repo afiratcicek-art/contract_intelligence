@@ -16,8 +16,9 @@ import ContractInForceView from "../components/ContractInForceView";
 import AuthoringTemplatesPanel from "../components/AuthoringTemplatesPanel";
 import DeliverablesModule from "../components/DeliverablesModule";
 import IntelligenceModule from "../components/IntelligenceModule";
+import DisputesModule from "../components/DisputesModule";
 
-type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "documents" | "intelligence" | "config";
+type Module = "general" | "alerts" | "correspondence" | "rfis" | "changes" | "deliverables" | "chronologies" | "disputes" | "documents" | "intelligence" | "config";
 
 // Server-side cap on the list fetches. A capped list is a false negative in a
 // claim, so every list that hits it says so.
@@ -38,6 +39,7 @@ function moduleLabel(mod: Module, t: (key: string) => string): string {
     case "changes": return t("module.contracts");
     case "deliverables": return t("module.deliverables");
     case "chronologies": return t("module.chronologies");
+    case "disputes": return t("module.disputes");
     case "documents": return t("module.documents");
     case "intelligence": return t("module.intelligence");
     case "config": return t("module.config");
@@ -62,14 +64,14 @@ export default function Workspace() {
   const [activeModule, setActiveModule] = useState<Module>(() => {
     const params = new URLSearchParams(location.search);
     const m = params.get("module") as Module | null;
-    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "documents", "intelligence", "config"];
+    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "disputes", "documents", "intelligence", "config"];
     return m && valid.includes(m) ? m : "general";
   });
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const m = params.get("module") as Module | null;
-    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "documents", "intelligence", "config"];
+    const valid: Module[] = ["general", "alerts", "correspondence", "rfis", "changes", "deliverables", "chronologies", "disputes", "documents", "intelligence", "config"];
     if (m && valid.includes(m)) {
       setActiveModule(m);
     }
@@ -314,7 +316,7 @@ export default function Workspace() {
     dateInRange(genDateField === "date" ? r.date : r.date, genDateFrom, genDateTo)
   );
 
-  const SIDEBAR_MAIN: Module[] = ["changes", "general", "alerts", "correspondence", "rfis", "deliverables", "chronologies"];
+  const SIDEBAR_MAIN: Module[] = ["changes", "general", "alerts", "correspondence", "rfis", "deliverables", "chronologies", "disputes"];
   const SIDEBAR_SYS: Module[] = ["documents", "intelligence", "config"];
 
   const generalNavTarget = (mod: string, id: string) => {
@@ -849,6 +851,9 @@ export default function Workspace() {
               projectId={String(projectId)}
             />
           )}
+          {activeModule === "disputes" && (
+            <DisputesModule projectId={String(projectId)} />
+          )}
           {activeModule === "documents" && (
             <DocumentsModule
               projectId={String(projectId)}
@@ -867,7 +872,7 @@ export default function Workspace() {
           )}
           {!["general", "alerts", "correspondence",
             "rfis", "changes", "deliverables",
-            "chronologies", "documents", "intelligence", "config"].includes(activeModule) && (
+            "chronologies", "disputes", "documents", "intelligence", "config"].includes(activeModule) && (
             <div style={{
               display: "flex",
               alignItems: "center",

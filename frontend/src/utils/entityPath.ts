@@ -9,5 +9,7 @@ export function entityPath(
     return `/projects/${projectId}/workspace/rfis/${id}`;
   if (entityType === "change")
     return `/projects/${projectId}/workspace/changes/${id}`;
+  if (entityType === "dispute")
+    return `/projects/${projectId}/workspace/disputes/${id}`;
   return `/projects/${projectId}/workspace`;
 }

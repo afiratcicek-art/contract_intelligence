@@ -24,6 +24,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   overdue:      { bg: "var(--color-alert-red-bg)", text: "var(--color-alert-red)" },
   rejected:     { bg: "var(--color-alert-red-bg)", text: "var(--color-alert-red)" },
   disputed:     { bg: "var(--color-alert-red-bg)", text: "var(--color-alert-red)" },
+  prepared:     { bg: "var(--color-warning-bg)",   text: "var(--color-warning)" },
   completed:    { bg: "var(--color-success-bg)",   text: "var(--color-success)" },
   not_applicable: { bg: "var(--color-bg-secondary)", text: "var(--color-text-secondary)" },
   expiring_soon: { bg: "var(--color-warning-bg)", text: "var(--color-warning)" },

@@ -453,6 +453,97 @@ html.dark {
     min-width: 0;
   }
 
+  /* Dispute Ready — three-column issue board (claim | issue | response).
+     direction:ltr keeps claimant-left / employer-right as a legal diagram,
+     independent of UI language. */
+  .dispute-issue-board {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+  }
+  .dispute-issue-row {
+    display: grid;
+    grid-template-columns: 1fr minmax(140px, 0.7fr) 1fr;
+    gap: 8px;
+    align-items: start;
+    direction: ltr;
+  }
+  .dispute-issue-col {
+    min-width: 0;
+    border: 0.5px solid var(--color-border-light);
+    background-color: var(--color-bg-secondary);
+    padding: 10px;
+  }
+  .dispute-issue-center {
+    border-color: var(--color-accent);
+    position: relative;
+  }
+  .dispute-issue-board::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: var(--color-accent);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .dispute-issue-arrow {
+    position: absolute;
+    top: 50%;
+    width: 0;
+    height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+  }
+  .dispute-issue-arrow-west {
+    left: -8px;
+    border-right: 8px solid var(--color-accent);
+  }
+  .dispute-issue-arrow-east {
+    right: -8px;
+    border-left: 8px solid var(--color-accent);
+  }
+  .dispute-position {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 0.5px solid var(--color-border-light);
+  }
+  .dispute-position-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: start;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font-ui);
+    color: var(--color-text-primary);
+    min-width: 0;
+  }
+  .dispute-position-draft {
+    margin-top: 8px;
+  }
+  .dispute-chrono-note {
+    font-size: 11px;
+    font-family: var(--font-ui);
+    color: var(--color-text-secondary);
+    letter-spacing: 0.04em;
+    margin: 0 0 10px;
+  }
+  .dispute-chrono-embed {
+    border: 0.5px solid var(--color-border-light);
+    background-color: var(--color-bg-secondary);
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+  }
+  .dispute-chrono-embed > div {
+    min-height: 420px;
+  }
+
   /* ── Chain thread ──────────────────────────────────────
      A reply is not a separate record that happens to sit below another one;
      it hangs off its parent. The thread draws that, so a chain reads as one

@@ -13,7 +13,8 @@
  *   - bridge useEffects (depend on createMode, stays in module)
  */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fetchLinkableDocuments, type LinkableDoc } from "../../services/api";
+import { fetchLinkableDocuments, previewChronologyNarrative, type LinkableDoc } from "../../services/api";
+import { useLanguage } from "../../context/LanguageContext";
 import type { ToastType } from "../../hooks/useToast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -59,7 +60,14 @@ type ShowToastFn = (message: string, type?: ToastType) => void;
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function usePendingEvents(projectId: string, showToast: ShowToastFn) {
+export function usePendingEvents(
+  projectId: string,
+  showToast: ShowToastFn,
+  opts?: { disputeId?: string; chronologyId?: string | null },
+) {
+  const { t } = useLanguage();
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
   // ── pendingEvents ──────────────────────────────────────────────────────────
   const [pendingEvents, setPendingEvents] = useState<PendingEvent[]>([]);
 
@@ -161,13 +169,35 @@ export function usePendingEvents(projectId: string, showToast: ShowToastFn) {
     );
   };
 
-  const requestLlmNarrative = (_pe: PendingEvent) => {
-    // TB-22: implement narrative-preview endpoint
-    updatePending(_pe.doc.id, { narrativeMode: "manual" });
-    showToast(
-      "LLM narrative preview is coming soon. Please write the narrative manually for now.",
-      "info"
-    );
+  const requestLlmNarrative = async (pe: PendingEvent) => {
+    updatePending(pe.doc.id, { loadingLlm: true });
+    try {
+      const ctx = optsRef.current;
+      const eventType = pe.doc.type === null
+        ? (pe.manualEventType ?? "other")
+        : pe.doc.type;
+      const result = await previewChronologyNarrative(projectId, {
+        event_type: eventType,
+        event_date: pe.doc.date,
+        subject: pe.doc.subject || undefined,
+        document_ref_id: pe.doc.type ? pe.doc.id : undefined,
+        document_ref_type: pe.doc.type || undefined,
+        dispute_id: ctx?.disputeId,
+        chronology_id: ctx?.chronologyId || undefined,
+      });
+      updatePending(pe.doc.id, {
+        loadingLlm: false,
+        narrativeMode: "manual",
+        autoNarrative: result.narrative_text,
+        manualText: result.narrative_text,
+      });
+    } catch (err: unknown) {
+      updatePending(pe.doc.id, { loadingLlm: false, narrativeMode: "manual" });
+      showToast(
+        err instanceof Error ? err.message : t("chrono.llmfailed"),
+        "error",
+      );
+    }
   };
 
   // ── Lifecycle helpers (called by module on mode transitions) ──────────────

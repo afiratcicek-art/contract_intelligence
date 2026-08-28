@@ -525,6 +525,9 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                         return eventCountLabel(count);
                       })()}
                     </span>
+                    {c.entity_type === "dispute" && (
+                      <span>{t("chrono.notedispute")}</span>
+                    )}
                   </div>
                 </div>
               );
@@ -621,6 +624,7 @@ export default function ChronologiesModule({ projectId }: ChronologiesModuleProp
                       fontFamily: "var(--font-ui)",
                     }}>
                       {eventCountLabel(selected.events.length)}
+                      {selected.entity_type === "dispute" ? ` · ${t("chrono.notedispute")}` : ""}
                     </p>
                   </div>
                   <Button type="button" size="sm" onClick={enterEditMode} style={{ flexShrink: 0 }}>

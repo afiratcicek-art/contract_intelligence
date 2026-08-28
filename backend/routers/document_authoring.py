@@ -69,6 +69,28 @@ def _assert_template_in_project(tpl: dict, project_id: str) -> None:
         raise NotFoundError()
 
 
+def _delete_chrome_best_effort(
+    paths: list[str],
+    project_id: str,
+    *,
+    template_id: str,
+) -> None:
+    """Drop Storage chrome after the DB row is gone (TB-35 class).
+
+    Each path is isolated so one already-gone object cannot skip the rest
+    or the subsequent AuditService.log (TB-55).
+    """
+    for path in paths:
+        try:
+            delete_document(path, project_id)
+        except Exception:
+            logger.exception(
+                "Template chrome orphan cleanup failed | path=%s template=%s",
+                path,
+                template_id,
+            )
+
+
 def _resolve_chain_link(
     *,
     doc_type: str,
@@ -491,9 +513,9 @@ def delete_template(
         if p
     ]
     repo.hard_delete(str(template_id))
-    # Same orphan class as TB-35: drop Storage objects after DB row is gone.
-    for path in chrome_paths:
-        delete_document(path, str(project_id))
+    _delete_chrome_best_effort(
+        chrome_paths, str(project_id), template_id=str(template_id)
+    )
     AuditService().log(
         action="delete",
         entity_type="document_template",

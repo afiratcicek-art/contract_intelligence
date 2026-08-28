@@ -191,6 +191,13 @@ export default function ChangeDetail() {
           </div>
           <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 8, flexShrink: 0, marginLeft: 24 }}>
             <StatusChip status={change.status} />
+            <Button
+              size="sm"
+              type="button"
+              onClick={() => navigate(`/projects/${projectId}/workspace/disputes/new?changeId=${change.id}`)}
+            >
+              {t("action.opendispute")}
+            </Button>
             {change.notice_due_date && (
               <div style={{ fontSize: 11, color: new Date(change.notice_due_date) < new Date() ? alertRed : textSecond, fontFamily: "var(--font-meta)" }}>
                 Notice: {change.notice_due_date}

@@ -60,4 +60,5 @@ export const ENTITY_TYPE_LABELS:
   rfi: "RFI",
   correspondence: "Correspondence",
   general: "General",
+  dispute: "Dispute",
 };

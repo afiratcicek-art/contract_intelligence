@@ -505,8 +505,11 @@ export default function ChronologyDraftView({
               {/* Narrative */}
               {!pe.narrativeMode && !pe.approved && (
                 <div style={{ display: "flex", gap: 8 }}>
-                  <AiActionButton onClick={() => requestLlmNarrative(pe)}>
-                    {t("chrono.generate")}
+                  <AiActionButton
+                    disabled={pe.loadingLlm}
+                    onClick={() => requestLlmNarrative(pe)}
+                  >
+                    {pe.loadingLlm ? t("state.generating") : t("chrono.generate")}
                   </AiActionButton>
                   <button
                     onClick={() =>

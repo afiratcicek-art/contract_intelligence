@@ -47,6 +47,9 @@ const DYNAMIC_PREFIXES = [
   "origin.",
   "discipline.",
   "inforce.path.",
+  "dispute.origin.",
+  "dispute.impact.",
+  "dispute.attach.",
 ];
 
 const used = new Map();

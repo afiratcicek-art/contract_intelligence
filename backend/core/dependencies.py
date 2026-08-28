@@ -14,14 +14,21 @@ _PERM_CACHE_TTL = 300  # 5 minutes
 def _perm_cache_key(project_id: str, role: str, entity: str, permission: str) -> str:
     return f"perm:{project_id}:{role}:{entity}:{permission}"
 
-_ACCESS_CACHE_TTL = 30  # seconds — conservative; membership revocation takes effect within this window
+# TB-20: membership result only. JWT-scoped db client is never stored.
+# TTL <=60s (privilege-escalation window). In-memory = per-worker (see workers/README).
+_ACCESS_CACHE_TTL = 30
+
+
+def _access_cache_key(user_id: str, project_id: str) -> str:
+    """Must include both ids — project_id alone is a cross-tenant leak."""
+    return f"access:{user_id}:{project_id}"
 
 
 def invalidate_access_cache(user_id: str, project_id: str) -> None:
-    """Call on ANY membership mutation (add, update, remove).
-    Wired to: projects.py add_member() + update_member().
+    """Call on ANY membership mutation (add, update, deactivate).
+    Wired to: projects.py add_member() + update_member() (is_active=False = remove).
     """
-    cache_delete(f"access:{user_id}:{project_id}")
+    cache_delete(_access_cache_key(user_id, project_id))
 
 
 def verify_project_access(
@@ -30,22 +37,26 @@ def verify_project_access(
 ) -> dict:
     """Proje erişim kontrolü: tenant izolasyonu + üyelik.
     projects ve project_members sorguları paralel çalışır.
-    Sonuç 30s cache'lenir (TB-20). JWT-scoped db client ASLA cache'lenmez.
+    Üyelik sonucu 30s cache'lenir (TB-20). JWT-scoped db client ASLA cache'lenmez.
     """
     project_id_str = str(project_id)
     user_id = current_user["id"]
 
-    # Cache check (TB-20) — only member data, NEVER the db client
-    _cache_key = f"access:{user_id}:{project_id_str}"
+    _cache_key = _access_cache_key(user_id, project_id_str)
     _cached = cache_get(_cache_key)
     if _cached is not None:
-        db = get_authed_db(current_user["_meta"]["token"])
-        return {
-            "user": current_user,
-            "member": _cached["member"],
-            "project_id": project_id_str,
-            "db": db,
-        }
+        member = dict(_cached.get("member") or {})
+        if member.get("is_active") is False:
+            cache_delete(_cache_key)
+        else:
+            # Fresh JWT-scoped client every request — never reuse a cached db.
+            db = get_authed_db(current_user["_meta"]["token"])
+            return {
+                "user": current_user,
+                "member": member,
+                "project_id": project_id_str,
+                "db": db,
+            }
 
     # Cache miss — run 2 parallel Supabase queries
     db = get_authed_db(current_user["_meta"]["token"])
@@ -88,11 +99,12 @@ def verify_project_access(
     if not member_resp or not member_resp.data:
         raise NotFoundError()
 
-    cache_set(_cache_key, {"member": member_resp.data}, _ACCESS_CACHE_TTL)
+    member = dict(member_resp.data)
+    cache_set(_cache_key, {"member": dict(member)}, _ACCESS_CACHE_TTL)
 
     return {
         "user": current_user,
-        "member": member_resp.data,
+        "member": member,
         "project_id": project_id_str,
         "db": db,
     }

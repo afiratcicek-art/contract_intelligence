@@ -193,31 +193,15 @@ Geri dönülecek konu: 4 belge tipi renginin dar barlarda okunabilirliği.
 
 ## Performance
 
-- **TB-20**: verify_project_access runs 2 Supabase queries
-  on EVERY request with no caching, while its sub-function
-  require_permission already caches (5-min TTL). On a page
-  that calls several endpoints, this auth cost (~130ms warm,
-  ~600ms cold, per endpoint) stacks. Opportunity: cache the
-  access RESULT (not the JWT-scoped db client) keyed by
-  (user_id, project_id) with a short TTL (30-60s).
-  SECURITY CONSTRAINTS (mandatory, do not skip):
-    1. Cache key MUST be (user_id + project_id) — never
-       project_id alone (cross-tenant leak risk).
-    2. NEVER cache the JWT-scoped db client (access["db"]) —
-       only the permission result (bool + role). The db
-       client must be rebuilt fresh each request with the
-       caller's own token.
-    3. Short TTL only (<=60s) so revoked access / role
-       downgrades take effect quickly (privilege-escalation
-       window otherwise).
-    4. Membership-delete and role-change paths should
-       invalidate the cache (or TTL must be short enough to
-       tolerate staleness).
-    5. In-memory cache is per-worker; note that multi-worker
-       production deployments need a shared store (Redis) for
-       consistency. Current dev is single-worker.
-  Must be implemented in an isolated, well-tested change —
-  auth-layer edits must never be mixed into unrelated commits.
+- **TB-20**: ~~verify_project_access uncached 2-query~~ **CLOSED 2026-08-27** —
+  Membership result cached 30s (`access:{user_id}:{project_id}`). JWT-scoped
+  `db` never stored; rebuilt via `get_authed_db(token)` on every request.
+  `invalidate_access_cache` on `add_member` / `update_member` (deactivate =
+  `is_active=False`). Stale `is_active=False` payload is dropped, not served.
+  Returned `member` is a copy (handler mutation cannot poison the cache).
+  Tests: `tests/test_project_access_cache.py` (5 constraints). In-memory /
+  per-worker remains; Redis only if multi-worker (see `backend/workers/README.md`).
+  Auth-layer change: keep this commit isolated from unrelated work.
 
 ---
 
@@ -351,13 +335,15 @@ When Faz-3 lands, wire the local NER in front of `MaskingProvider` without touch
 Related: TB-40 (supplementary mask-source loads currently fail-open).
 
 ## ADR-0001 (local embedding) — build backlog  [EK-20 loop ile izleniyor]
-Ertelendi: embedding kanalı dormant (OPENAI_API_KEY yok + sorgu-embed yok). Build, RAG/embedding aktive olunca. Ref: docs/adr/0001-local-embedding.md.
+Ertelendi: embedding kanalı Slice X ile enforced-off (OpenAI path removed, S-H4; TB-44 closed). Slice Y = local backend (TB-42/45). Ref: docs/adr/0001-local-embedding.md.
 
 - **TB-42**: 018 dim-migration — `document_embeddings.embedding` vector(1536)→vector(1024) (multilingual-e5-large); IVFFlat index DROP/CREATE (vector_cosine_ops, lists=100); re-embed (greenfield → veri maliyeti sıfır). Build anında yeni migration dosyası. ADR-0001.
 - **TB-43**: ~~`get_embedding_service()` her çağrıda yeni instance~~ **FIXED
-  2026-08** — process-lifetime lazy singleton. (TB-42/44/45 hâlâ ADR
+  2026-08** — process-lifetime lazy singleton. (TB-42/45 hâlâ ADR
   activate bekliyor.)
-- **TB-44**: `openai==1.59.9` (requirements.txt:19) düşür — `_embed_chunks` fastembed'e geçince; OpenAI yalnız embedding'de kullanılıyordu. ADR-0001.
+- **TB-44**: ~~`openai==1.59.9` düşür~~ **CLOSED (ef72e02, Slice X)** —
+  OpenAI embedding egress path removed; `requirements.txt` no longer pins
+  openai. Local backend (fastembed / e5-large) is Slice Y / TB-45, not this pin.
 - **TB-45**: e5-large model dosyasını vendor'la + fastembed sürümünü pin'le (laptop→prod birebir vektör uzayı + in-region/residency). ADR-0001 invariant-3.
 
 - **TB-46**: tenant-default `ai_policy` satırını yönetecek user-facing yüzey yok (tenant-admin rolü yok); pilotta service_role/seed ile set; ileride tenant-admin gelince açılır. `045_ai_policy`.
@@ -378,15 +364,21 @@ konsolide et (ör. gate'i effective_provider rpc'sine çevir, ya da rank'ı tek 
 
 - **TB-51** [FIXED — 44c9f3d]: RichTextEditor HUD magic-number'ları (hide-delay 600ms, marker gutter 6/36/4, shell-reserve 168, anchor nudge/gap) adlandırılmış + yorumlu const'lara çıkarıldı. Davranış değişmedi.
 
-- **TB-52**: `dark:` Tailwind utility'leri kaldırıldı (design-sweep) ama dark CSS token değerleri (index.css) + ThemeContext hâlâ duruyor, artık tüketilmiyor. Status: open. Silmek davranış-etkili olabilir (ThemeContext tüketicileri ölçülmeli, EK-10) → ya dark'ı CSS-değişkenle dirilt ya context'i temizle. Ölç, sonra karar.
+- **TB-52**: `dark:` Tailwind utility'leri kaldırıldı (design-sweep) ama dark CSS token değerleri (`index.css` `html.dark`) + ThemeContext duruyor. **Ölçüm 2026-08-27:** ölü değil — `ThemeToggle` 7 sayfada canlı (`Dashboard`, `Login`, `Workspace`, `ProjectDetail`, correspondence/RFI/change detail); `ProjectDetail` chart `useTheme().dark` okuyor. Kullanılmayan sarmalayıcı `hooks/useDarkMode.ts` silindi (hiç import edilmiyordu). Status: open. Ürün kararı: paleti CSS-değişkenle sürdürmek (mevcut) vs dark'ı kaldırmak — silmek kullanıcıya görünen bir switch'i yok eder.
 
 ## TB-53 — linkable DRY yarım + paylaşılan LinkableDoc tip-genişlemesi
 Status: open. #2 (kontrat/amendment referansı) ile yüzeye çıktı.
 Chronologies (`list_linkable_documents`) ve authoring (`linkable_service`) RFI/Corr linkable mantığını AYRI tutuyor (Yol Y: authoring-özel servis yazıldı, chronologies servise bağlanmadı → mantık iki yerde). Ayrıca paylaşılan `LinkableDoc.type` #2'de genişledi (+contract_document +amendment) → chronologies'in `PendingDoc.type` (dar) ile çakıştı, build kırıldı (Bulgu 18). Geçici çözüm: `PendingDoc.type = LinkableDoc["type"] | null` hizalaması (44c9f3d öncesi feat commit'inde). Hedef: chronologies'i ortak servise bağla VEYA authoring-özel LinkableDoc alt-tipi — tip-genişlemesi tüketicileri kırmasın. Çok-katmanlı refactor, ayrı tur.
 
 - **TB-54**: Frontend build chunk >500kB + `auth.ts` ineffective dynamic-import uyarısı (vite build). Perf, pilot'u etkilemez. Status: open. Code-splitting/lazy-load = mimari, ayrı değerlendirme.
-- **TB-55** (LOW, open): `backend/routers/document_authoring.py` `delete_template` orphan-storage cleanup döngüsü storage-delete'i try/except'siz çağırıyor. Bir chrome path silme patlarsa (already-gone vb.) döngü kırılır ve `AuditService.log` çağrısına ulaşılmayabilir → DB satırı silinmiş ama audit-kaydı düşmemiş + kalan chrome orphan kalır. Forensic değil (satır zaten gitti). Fix: her `delete_document` çağrısını izole try/except'e al, best-effort sil, audit her hâlde düşsün. TB-35 orphan-sınıfının kardeşi.
-- **TB-56** (LOW, open): `chronologies.py:159-160` ve `linkable_service.py:48/74` `list_by_project(limit=500)` ile satırları çekip `status != draft` filtresini Python-comprehension'da yapıyor → draft satırlar boşuna transfer ediliyor. N+1 DEĞİL (tek round-trip, bounded 500-cap). Micro-opt: filtreyi `.neq("status", "draft")` ile SQL'e it. Perf, pilot'u etkilemez.
+- **TB-55** (LOW): ~~`delete_template` chrome cleanup try/except'siz~~ **CLOSED 2026-08-27** —
+  `_delete_chrome_best_effort` her Storage path'ini izole eder; bir already-gone
+  hata döngüyü ve `AuditService.log`'u atlamaz. `file_handler.delete_document`
+  zaten fail-soft'tu; call-site savunma + test (`test_authoring_guards.py`).
+- **TB-56** (LOW): ~~draft filtresi Python comprehension~~ **CLOSED 2026-08-27** —
+  `RFIRepository` / `CorrespondenceRepository.list_by_project(exclude_status=)`
+  `.neq("status", …)` ile SQL'e itiyor. Callers: `chronologies.py`,
+  `linkable_service.py`. Limit artık draft'sız 500. Test: `test_exclude_draft_sql.py`.
 - **TB-57** (LOW, open): Sistem-prompt at-rest şifrelemesi ertelendi (ADR-0003, P-S2). Bugün düz-metin + gitignore + private-repo; gerçek şifreleme KSA-server/KMS deploy-turunda kurulacak (KMS'ten anahtar + boot-decrypt + fallback 5b fail-loud). P-B4'e bağlı.
 
 ## TB-58 — Google Fonts CDN: her sayfa yüklemesinde kullanıcı IP'si üçüncü tarafa gidiyor (residency)
@@ -425,3 +417,14 @@ gecikiyor. Şantiye/zayıf bağlantı senaryosunda ölçülebilir.
 
 **Ne zaman:** KSA server / production deployment turunda, TB-41 ve P-B4 ile aynı
 pakette. Pilotu bloklamaz.
+
+---
+
+## TB-59 — Dispute pack zip-of-PDFs / DCC exhibit bundle
+
+**Konum:** `backend/services/dispute_pack.py`
+**Durum:** Ertelendi (v1)
+**Sorun:** Dispute Ready v1 DOCX raporu + sergi dizinini (exhibit index) Storage'a yazar; ilgili dosyalar dosyede referans olarak kalır. Hakem/EDOS teslimatı için PDF'lerin tek zip'te toplanması ve DCC sergi yüklemesi bu dilimde yok.
+**Çözüm:** Pack üretiminde exhibit PDF'lerini mevcut Storage path'lerinden toplayıp `{project}/{dispute}/pack-exhibits.zip` yaz; raporla birlikte indir.
+**Ne zaman:** İlk gerçek tahkim/EDOS teslimatından önce; ADR-015 §4.
+

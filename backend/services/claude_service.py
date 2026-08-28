@@ -123,6 +123,17 @@ class AIServiceProtocol(Protocol):
         event: dict,
         change_context: dict,
         preceding_events: list,
+        project_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> NarrativeResult | GateBlockedResult: ...
+
+    def generate_dispute_position(
+        self,
+        side: str,
+        issue_title: str,
+        change_context: dict,
+        project_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> NarrativeResult | GateBlockedResult: ...
 
     def analyze_clause(
@@ -955,7 +966,10 @@ class ClaudeService:
             return session_or_block
         session = session_or_block
 
-        user_text = f"Event: {event}\nChange Context: {change_context}"
+        ctx_for_gate = {
+            k: v for k, v in (change_context or {}).items() if k != "corpus"
+        }
+        user_text = f"Event: {event}\nChange Context: {ctx_for_gate}"
 
         gate = self._run_gate_layer(
             user_text=user_text,
@@ -993,12 +1007,24 @@ class ClaudeService:
             session.mask_context(e) if isinstance(e, dict) else session.mask(str(e))
             for e in (preceding_events or [])[:5]
         ]
+        corpus = ""
+        if isinstance(change_context, dict):
+            corpus = change_context.get("corpus") or ""
+        masked_corpus = session.mask(corpus) if corpus else ""
         user_content = (
             f"Change Context: {masked_change}\n"
             f"Event: {masked_event}\n"
-            f"Preceding Events (most recent first): {masked_preceding}\n\n"
+            f"Preceding Events (most recent first): {masked_preceding}\n"
+        )
+        if masked_corpus:
+            user_content += (
+                "Contract, amendments, and related document excerpts "
+                f"(hierarchical / in-force first):\n{masked_corpus}\n\n"
+            )
+        user_content += (
             "Generate a concise, factual chronology narrative for this event. "
-            "Write in third person, past tense. Cite document references."
+            "Write in third person, past tense. Cite document references. "
+            "Ground the narrative in the excerpts; do not invent facts."
         )
 
         message = self._run_analysis_layer(
@@ -1035,6 +1061,94 @@ class ClaudeService:
             layer="analysis",
         )
 
+        return NarrativeResult(
+            narrative_text=session.demask(clean_text),
+            confidence_score=confidence,
+            review_required=confidence < self.REVIEW_THRESHOLD,
+            warnings=gate.warnings,
+            objectivity_flag=gate.objectivity_flag,
+        )
+
+    def generate_dispute_position(
+        self,
+        side: str,
+        issue_title: str,
+        change_context: dict,
+        project_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> NarrativeResult | GateBlockedResult:
+        """Draft a claim or employer-response position. HITL — caller persists."""
+        start = time.time()
+        session_or_block = self._mask_session_or_block(project_id, user_id)
+        if isinstance(session_or_block, GateBlockedResult):
+            return session_or_block
+        session = session_or_block
+
+        corpus = ""
+        if isinstance(change_context, dict):
+            corpus = change_context.get("corpus") or ""
+        user_text = f"Side: {side}\nIssue: {issue_title}"
+
+        gate = self._run_gate_layer(
+            user_text=user_text,
+            request_kind="narrative",
+            project_context={"id": project_id},
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
+        )
+        if isinstance(gate, GateBlockedResult):
+            return gate
+        if gate.blocked:
+            return self._resolve_gate_block(gate, user_id, project_id)
+
+        masked_corpus = session.mask(corpus) if corpus else ""
+        role = (
+            "the contractor's claim / entitlement position"
+            if side == "claim"
+            else "the employer's response / defence position"
+        )
+        user_content = (
+            f"Disputed issue: {session.mask(issue_title)}\n"
+            f"Draft {role} as JSON only: "
+            '{{"title": "short heading", "summary": "1-3 factual paragraphs"}}\n'
+            "Ground every sentence in the excerpts. Do not invent facts, "
+            "amounts, or clause numbers that are not present. "
+            "Write in a professional contract-administration register.\n\n"
+            f"Excerpts (contract / amendments / dossier documents first):\n{masked_corpus}"
+        )
+        message = self._run_analysis_layer(
+            call_type="claim_narrative",
+            user_content=user_content,
+            max_tokens=700,
+            gate=gate,
+            session=session,
+            user_id=user_id,
+            project_id=project_id,
+        )
+        if isinstance(message, GateBlockedResult):
+            return message
+
+        clean_text = self._run_post_processor(
+            message.content[0].text,
+            project_id=project_id or "",
+            user_id=user_id or "",
+            session=session,
+        )
+        if isinstance(clean_text, GateBlockedResult):
+            return clean_text
+
+        duration_ms = int((time.time() - start) * 1000)
+        confidence = self._calculate_confidence()
+        self._log_call(
+            "claim_narrative", "dispute", str(change_context.get("dispute_number") or ""),
+            project_id, user_id,
+            message.usage.input_tokens,
+            message.usage.output_tokens,
+            confidence, duration_ms,
+            model_used=settings.ANALYSIS_MODEL,
+            layer="analysis",
+        )
         return NarrativeResult(
             narrative_text=session.demask(clean_text),
             confidence_score=confidence,

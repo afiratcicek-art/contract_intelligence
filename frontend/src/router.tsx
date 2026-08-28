@@ -16,6 +16,8 @@ import NewDeliverable from "./pages/NewDeliverable";
 import DeliverableDetail from "./pages/DeliverableDetail";
 import DocumentView from "./pages/DocumentView";
 import AuthoringDraftPage from "./pages/AuthoringDraftPage";
+import NewDispute from "./pages/NewDispute";
+import DisputeDetail from "./pages/DisputeDetail";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<"checking" | "ok" | "denied">(
@@ -150,6 +152,26 @@ export default function Router() {
             <ErrorBoundary>
               <PrivateRoute>
                 <DeliverableDetail />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/disputes/new"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <NewDispute />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/:projectId/workspace/disputes/:disputeId"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <DisputeDetail />
               </PrivateRoute>
             </ErrorBoundary>
           }

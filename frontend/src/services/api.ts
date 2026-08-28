@@ -543,6 +543,22 @@ export async function addChronologyEvent(
   );
 }
 
+export async function previewChronologyNarrative(
+  projectId: string,
+  body: {
+    event_type: string;
+    event_date: string;
+    subject?: string;
+    document_ref_id?: string;
+    document_ref_type?: string;
+    dispute_id?: string;
+    chronology_id?: string;
+    note?: string;
+  },
+): Promise<{ narrative_text: string; review_required: boolean; warnings: string[] }> {
+  return api.post(`/projects/${projectId}/chronologies/preview-narrative`, body);
+}
+
 export async function approveNarrative(
   projectId: string,
   chronologyId: string,
@@ -616,4 +632,247 @@ export async function askProjectIntelligence(
   },
 ): Promise<IntelligenceAskResponse> {
   return api.post(`/projects/${projectId}/intelligence/ask`, body);
+}
+
+// ── Dispute Ready dossier ─────────────────────────────────────────────────
+export type DisputeStatus = "draft" | "open" | "prepared" | "closed";
+export type DisputeOrigin = "change" | "correspondence" | "mixed" | "manual";
+
+export type DisputeListRow = {
+  id: string;
+  project_id: string;
+  dispute_number: string;
+  title: string;
+  status: DisputeStatus;
+  origin: DisputeOrigin;
+  source_change_id: string | null;
+  source_correspondence_id: string | null;
+  chronology_id: string | null;
+  chronology_entity_type?: string | null;
+  chronology_title?: string | null;
+  pack_storage_path: string | null;
+  pack_generated_at: string | null;
+  created_at: string;
+};
+
+export type DisputeImpact = {
+  id: string;
+  dispute_id: string;
+  type: "cost" | "time" | "other";
+  label: string;
+  amount: number | null;
+  unit: string | null;
+  notes: string | null;
+  sort_order: number;
+};
+
+export type DisputePositionRef = {
+  id: string;
+  position_id: string;
+  ref_type: "change" | "correspondence" | "rfi" | "document" | "manual";
+  entity_id: string | null;
+  document_id: string | null;
+  manual_title: string | null;
+  manual_date: string | null;
+  manual_note: string | null;
+};
+
+export type DisputePosition = {
+  id: string;
+  issue_id: string;
+  side: "claim" | "response";
+  title: string;
+  summary: string | null;
+  sort_order: number;
+  dispute_position_refs?: DisputePositionRef[];
+};
+
+export type DisputeIssue = {
+  id: string;
+  dispute_id: string;
+  title: string;
+  sort_order: number;
+  dispute_positions?: DisputePosition[];
+};
+
+export type DisputeDossier = DisputeListRow & {
+  summary: string | null;
+  venue: string | null;
+  dispute_impacts?: DisputeImpact[];
+  dispute_issues?: DisputeIssue[];
+};
+
+export async function fetchDisputes(projectId: string, status?: string): Promise<DisputeListRow[]> {
+  const qs = status ? `?status=${status}` : "";
+  return api.get(`/projects/${projectId}/disputes${qs}`);
+}
+
+export async function fetchDispute(projectId: string, disputeId: string): Promise<DisputeDossier> {
+  return api.get(`/projects/${projectId}/disputes/${disputeId}`);
+}
+
+export async function fetchDisputeChronologySeed(
+  projectId: string,
+  disputeId: string,
+): Promise<{ ids: string[] }> {
+  return api.get(`/projects/${projectId}/disputes/${disputeId}/chronology/seed-docs`);
+}
+
+export async function createDisputeChronology(
+  projectId: string,
+  disputeId: string,
+): Promise<DisputeDossier> {
+  return api.post(`/projects/${projectId}/disputes/${disputeId}/chronology`, {});
+}
+
+export async function forkDisputeChronology(
+  projectId: string,
+  disputeId: string,
+): Promise<DisputeDossier> {
+  return api.post(`/projects/${projectId}/disputes/${disputeId}/chronology/fork`, {});
+}
+
+export async function generateDisputePosition(
+  projectId: string,
+  disputeId: string,
+  issueId: string,
+  side: "claim" | "response",
+): Promise<{ title: string; summary: string; review_required: boolean; warnings: string[] }> {
+  return api.post(
+    `/projects/${projectId}/disputes/${disputeId}/issues/${issueId}/generate-position`,
+    { side, issue_id: issueId },
+  );
+}
+
+export async function createDispute(
+  projectId: string,
+  body: {
+    title: string;
+    origin: DisputeOrigin;
+    summary?: string;
+    venue?: string;
+    source_change_id?: string;
+    source_correspondence_id?: string;
+  },
+): Promise<DisputeDossier> {
+  return api.post(`/projects/${projectId}/disputes`, body);
+}
+
+export async function updateDispute(
+  projectId: string,
+  disputeId: string,
+  body: Partial<{ title: string; status: string; summary: string; venue: string; chronology_id: string | null }>,
+): Promise<DisputeDossier> {
+  return api.patch(`/projects/${projectId}/disputes/${disputeId}`, body);
+}
+
+export async function addDisputeImpact(
+  projectId: string,
+  disputeId: string,
+  body: { type: "cost" | "time" | "other"; label: string; amount?: number; unit?: string; notes?: string },
+): Promise<DisputeImpact> {
+  return api.post(`/projects/${projectId}/disputes/${disputeId}/impacts`, body);
+}
+
+export async function deleteDisputeImpact(projectId: string, disputeId: string, impactId: string): Promise<void> {
+  await api.delete(`/projects/${projectId}/disputes/${disputeId}/impacts/${impactId}`);
+}
+
+export async function addDisputeIssue(
+  projectId: string,
+  disputeId: string,
+  body: { title: string },
+): Promise<DisputeIssue> {
+  return api.post(`/projects/${projectId}/disputes/${disputeId}/issues`, body);
+}
+
+export async function deleteDisputeIssue(projectId: string, disputeId: string, issueId: string): Promise<void> {
+  await api.delete(`/projects/${projectId}/disputes/${disputeId}/issues/${issueId}`);
+}
+
+export async function addDisputePosition(
+  projectId: string,
+  disputeId: string,
+  issueId: string,
+  body: { side: "claim" | "response"; title: string; summary?: string },
+): Promise<DisputePosition> {
+  return api.post(`/projects/${projectId}/disputes/${disputeId}/issues/${issueId}/positions`, body);
+}
+
+export async function deleteDisputePosition(
+  projectId: string, disputeId: string, issueId: string, positionId: string,
+): Promise<void> {
+  await api.delete(`/projects/${projectId}/disputes/${disputeId}/issues/${issueId}/positions/${positionId}`);
+}
+
+export async function addDisputePositionRef(
+  projectId: string,
+  disputeId: string,
+  issueId: string,
+  positionId: string,
+  body: {
+    ref_type: string;
+    entity_id?: string;
+    document_id?: string;
+    manual_title?: string;
+    manual_date?: string;
+    manual_note?: string;
+  },
+): Promise<DisputePositionRef> {
+  return api.post(
+    `/projects/${projectId}/disputes/${disputeId}/issues/${issueId}/positions/${positionId}/refs`,
+    body,
+  );
+}
+
+export async function deleteDisputePositionRef(
+  projectId: string, disputeId: string, issueId: string, positionId: string, refId: string,
+): Promise<void> {
+  await api.delete(
+    `/projects/${projectId}/disputes/${disputeId}/issues/${issueId}/positions/${positionId}/refs/${refId}`,
+  );
+}
+
+export async function prepareDisputePack(projectId: string, disputeId: string): Promise<DisputeDossier> {
+  return api.post(`/projects/${projectId}/disputes/${disputeId}/pack`, {});
+}
+
+export async function uploadDisputeDocument(
+  projectId: string,
+  disputeId: string,
+  file: File,
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await api.postForm<{ doc_id: string }>(
+    `/projects/${projectId}/documents/upload?entity_type=dispute&entity_id=${disputeId}`,
+    formData,
+  );
+  return res.doc_id;
+}
+
+export async function downloadDisputePack(
+  projectId: string,
+  disputeId: string,
+  disputeNumber: string,
+): Promise<void> {
+  const res = await fetch(
+    `${BASE_URL}/projects/${projectId}/disputes/${disputeId}/pack`,
+    { credentials: "include" },
+  );
+  if (!res.ok) {
+    if (res.status === 401) {
+      const { clearAuth, loginRedirectUrl } = await import("../store/auth");
+      clearAuth();
+      window.location.href = loginRedirectUrl();
+    }
+    throw new ApiError(res.status, "Sunucu hatası");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${disputeNumber}-pack.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

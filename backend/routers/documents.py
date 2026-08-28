@@ -113,6 +113,7 @@ VALID_ENTITY_TYPES = {
     "chronology",
     "contract_document",
     "internal_alert",
+    "dispute",
 }
 
 # e-Bundle: yuklenen belge, sahibinin referans listesine 'attachment' olarak yazilir.
@@ -133,7 +134,7 @@ def upload_pdf(
     request: Request,
     background_tasks: BackgroundTasks,
     project_id: str,
-    entity_type: str = Query(..., description="correspondence | rfi | change | deliverable | chronology | contract_document"),
+    entity_type: str = Query(..., description="correspondence | rfi | change | deliverable | chronology | contract_document | dispute"),
     entity_id: str = Query(..., description="Belgenin bağlı olduğu kaydın UUID'si."),
     file: UploadFile = File(...),
     keywords: Optional[str] = Query(None, description="Comma-separated keywords (optional)."),
@@ -172,11 +173,12 @@ def upload_pdf(
         )
 
     # entity_id proje dogrulama (IDOR) — ClamAV/storage'dan once.
-    if entity_type in ("rfi", "correspondence", "deliverable"):
+    if entity_type in ("rfi", "correspondence", "deliverable", "dispute"):
         table = {
             "rfi": "rfis",
             "correspondence": "correspondences",
             "deliverable": "deliverables",
+            "dispute": "disputes",
         }[entity_type]
         assert_target_in_project(
             get_admin_client(),
@@ -185,6 +187,11 @@ def upload_pdf(
             project_id,
         )
 
+    # Dispute upload is legal-effect (CM-only), not the permission matrix.
+    if entity_type == "dispute" and access["member"]["project_role"] != "cm":
+        from backend.core.exceptions import ForbiddenError
+        raise ForbiddenError()
+
     # contract_document özel guard
     if entity_type == "contract_document" and entity_id != project_id:
         raise HTTPException(
@@ -192,13 +199,14 @@ def upload_pdf(
             detail="contract_document için entity_id, project_id ile aynı olmalıdır.",
         )
 
-    # İzin kontrolü
-    PermissionService(db).require(
-        user_id=user_id,
-        project_id=project_id,
-        entity_type=entity_type,
-        permission="edit",
-    )
+    # İzin kontrolü — dispute uses the CM gate above, not the permission matrix.
+    if entity_type != "dispute":
+        PermissionService(db).require(
+            user_id=user_id,
+            project_id=project_id,
+            entity_type=entity_type,
+            permission="edit",
+        )
 
     # Parse optional user metadata
     # keywords query param: comma-separated string → list

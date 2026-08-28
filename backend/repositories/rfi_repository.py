@@ -10,6 +10,7 @@ class RFIRepository(BaseRepository):
         project_id: str,
         status: Optional[str] = None,
         discipline: Optional[str] = None,
+        exclude_status: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict]:
@@ -21,6 +22,8 @@ class RFIRepository(BaseRepository):
         )
         if status:
             query = query.eq("status", status)
+        if exclude_status:
+            query = query.neq("status", exclude_status)
         if discipline:
             query = query.eq("discipline", discipline)
         result = query.order("submitted_date", desc=True).limit(limit).offset(offset).execute()

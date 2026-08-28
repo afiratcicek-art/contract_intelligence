@@ -11,6 +11,7 @@ class CorrespondenceRepository(BaseRepository):
         direction: Optional[str] = None,
         corr_type: Optional[str] = None,
         status: Optional[str] = None,
+        exclude_status: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict]:
@@ -26,6 +27,8 @@ class CorrespondenceRepository(BaseRepository):
             query = query.eq("type", corr_type)
         if status:
             query = query.eq("status", status)
+        if exclude_status:
+            query = query.neq("status", exclude_status)
         result = query.order("correspondence_date", desc=True).limit(limit).offset(offset).execute()
         return result.data or []
 

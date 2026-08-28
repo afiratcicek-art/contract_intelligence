@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from uuid import UUID
 from backend.core.dependencies import verify_project_access, require_permission
 from backend.core.exceptions import NotFoundError
@@ -6,14 +6,14 @@ from backend.core.limiter import limiter
 from backend.models.chronology import (
     ChronologyCreate, ChronologyUpdate,
     ChronologyEventCreate, ChronologyEventUpdate,
-    NarrativeApprove, EventInactivate,
+    NarrativeApprove, EventInactivate, NarrativePreview,
     ChronologyListResponse, ChronologyResponse,
     ChronologyEventResponse,
 )
 from backend.repositories.chronology_repository import ChronologyRepository
 from backend.services.chronology_service import ChronologyService
 from backend.services.audit_service import AuditService
-from backend.services.claude_service import get_ai_service
+from backend.services.claude_service import get_ai_service, GateBlockedResult
 from backend.repositories.rfi_repository import RFIRepository
 from backend.repositories.correspondence_repository import CorrespondenceRepository
 
@@ -156,8 +156,12 @@ def list_linkable_documents(
     rfi_repo = RFIRepository(db)
     corr_repo = CorrespondenceRepository(db)
 
-    rfis = [r for r in rfi_repo.list_by_project(str(project_id), limit=500) if r.get("status") != "draft"]
-    corrs = [c for c in corr_repo.list_by_project(str(project_id), limit=500) if c.get("status") != "draft"]
+    rfis = rfi_repo.list_by_project(
+        str(project_id), limit=500, exclude_status="draft"
+    )
+    corrs = corr_repo.list_by_project(
+        str(project_id), limit=500, exclude_status="draft"
+    )
 
     documents: list[dict] = []
 
@@ -193,6 +197,68 @@ def list_linkable_documents(
     )
 
     return documents
+
+
+@router.post("/preview-narrative")
+@limiter.limit("10/minute")
+def preview_narrative(
+    request: Request,
+    project_id: UUID,
+    body: NarrativePreview,
+    access: dict = Depends(verify_project_access),
+):
+    """HITL LLM narrative — does not persist. Same corpus path as dispute claims."""
+    db = access["db"]
+    if body.chronology_id:
+        chrono = ChronologyRepository(db).get(str(body.chronology_id))
+        if not chrono or chrono.get("project_id") != str(project_id):
+            raise NotFoundError()
+    if body.dispute_id:
+        row = (
+            db.table("disputes")
+            .select("id, project_id")
+            .eq("id", str(body.dispute_id))
+            .limit(1)
+            .execute()
+        )
+        found = (row.data or [None])[0]
+        if not found or found.get("project_id") != str(project_id):
+            raise NotFoundError()
+
+    from backend.services.dossier_context import assemble_dossier_context
+
+    ctx = assemble_dossier_context(
+        db,
+        str(project_id),
+        dispute_id=str(body.dispute_id) if body.dispute_id else None,
+    )
+    preceding = []
+    if body.chronology_id:
+        preceding = ChronologyService(db)._get_preceding_events(
+            str(body.chronology_id), limit=5
+        )
+
+    ai = get_ai_service(db)
+    result = ai.generate_chronology_narrative(
+        event={
+            "type": body.event_type,
+            "date": str(body.event_date),
+            "ref": str(body.document_ref_id) if body.document_ref_id else None,
+            "note": body.note,
+            "subject": body.subject,
+        },
+        change_context=ctx,
+        preceding_events=preceding,
+        project_id=str(project_id),
+        user_id=str(access["user"]["id"]),
+    )
+    if isinstance(result, GateBlockedResult):
+        raise HTTPException(status_code=422, detail=result.warning_message)
+    return {
+        "narrative_text": result.narrative_text,
+        "review_required": result.review_required,
+        "warnings": result.warnings,
+    }
 
 
 @router.get("/events")

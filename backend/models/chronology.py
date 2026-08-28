@@ -8,7 +8,7 @@ from uuid import UUID
 # Valid entity types for a chronology container.
 # Each chronology belongs to one entity.
 CHRONOLOGY_ENTITY_TYPES = {
-    "change", "rfi", "correspondence", "general"
+    "change", "rfi", "correspondence", "general", "dispute"
 }
 
 
@@ -87,6 +87,25 @@ class ChronologyEventCreate(BaseModel):
         if v is None:
             return v
         return sanitize_content(str(v))
+
+
+class NarrativePreview(BaseModel):
+    """On-demand LLM narrative (HITL) — does not persist."""
+    event_type: str
+    event_date: date
+    subject: Optional[str] = None
+    document_ref_id: Optional[UUID] = None
+    document_ref_type: Optional[str] = None
+    dispute_id: Optional[UUID] = None
+    chronology_id: Optional[UUID] = None
+    note: Optional[str] = None
+
+    @field_validator("subject", "note", "document_ref_type", mode="before")
+    @classmethod
+    def clean_optional(cls, v):
+        if v is None:
+            return v
+        return sanitize_medium(str(v))
 
 
 class NarrativeApprove(BaseModel):

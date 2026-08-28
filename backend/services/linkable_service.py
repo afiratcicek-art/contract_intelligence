@@ -43,11 +43,9 @@ def list_linkable_documents(
 
 def _linkable_rfis(db, project_id: str) -> list[dict[str, Any]]:
     rfi_repo = RFIRepository(db)
-    rfis = [
-        r
-        for r in rfi_repo.list_by_project(str(project_id), limit=500)
-        if r.get("status") != "draft"
-    ]
+    rfis = rfi_repo.list_by_project(
+        str(project_id), limit=500, exclude_status="draft"
+    )
     out: list[dict[str, Any]] = []
     for r in rfis:
         raw_date = r.get("submitted_date") or r.get("created_at") or ""
@@ -69,11 +67,9 @@ def _linkable_rfis(db, project_id: str) -> list[dict[str, Any]]:
 
 def _linkable_correspondences(db, project_id: str) -> list[dict[str, Any]]:
     corr_repo = CorrespondenceRepository(db)
-    corrs = [
-        c
-        for c in corr_repo.list_by_project(str(project_id), limit=500)
-        if c.get("status") != "draft"
-    ]
+    corrs = corr_repo.list_by_project(
+        str(project_id), limit=500, exclude_status="draft"
+    )
     out: list[dict[str, Any]] = []
     for c in corrs:
         out.append(

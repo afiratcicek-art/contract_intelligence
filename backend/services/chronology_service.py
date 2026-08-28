@@ -103,15 +103,20 @@ class ChronologyService:
                     "date": str(event_date),
                     "ref": document_ref_id,
                     "note": note,
+                    "subject": subject,
                 }
+                ctx = dict(change_context or {})
+                if self.project_id and "corpus" not in ctx:
+                    from backend.services.dossier_context import assemble_dossier_context
+                    ctx.update(assemble_dossier_context(self.db, self.project_id))
                 result = self.ai.generate_chronology_narrative(
                     event=event_data,
-                    change_context=change_context or {},
+                    change_context=ctx,
                     preceding_events=preceding,
                     project_id=self.project_id,
                     user_id=self.user_id,
                 )
-                auto_narrative = result.narrative_text
+                auto_narrative = getattr(result, "narrative_text", None)
             except Exception as exc:
                 logger.warning("Narrative üretme hatası: %s", exc)
 

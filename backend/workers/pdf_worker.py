@@ -40,9 +40,10 @@ def fetch_pending(admin_client) -> list[dict]:
         admin_client.table("pdf_document")
         .select("*")
         .eq("parse_status", "pending")
-        # Draft-stage authoring references are NOT parsed pre-approval: they must
-        # not reach the external parser (LlamaParse). On approve, materialize
-        # re-parents them to rfi/correspondence, which the worker then picks up.
+        # Draft-stage authoring references are not parsed pre-approval.
+        # The worker runs local PyMuPDF/Tesseract (LlamaParse branch exists
+        # but is not active). On approve, materialize re-parents them to
+        # rfi/correspondence, which the worker then picks up.
         .neq("entity_type", "draft")
         .order("created_at")
         .limit(BATCH_SIZE)
@@ -132,7 +133,7 @@ def process_one(record: dict) -> None:
         quality = classify_pages(file_bytes)
 
         # ADIM 2 — Metin çıkarma
-        raw_text = pipeline._extract_text(file_bytes, quality.recommended_method)
+        raw_text, actual_method = pipeline._extract_text(file_bytes, quality.recommended_method)
 
         # ADIM 3 — Metin temizleme
         clean_text = clean_extracted_text(raw_text)
@@ -140,7 +141,7 @@ def process_one(record: dict) -> None:
         # ADIM 4 — Kaydı güncelle (insert değil update — kayıt zaten var)
         admin.table("pdf_document").update({
             "parse_status": ParseStatus.COMPLETED.value,
-            "parse_method": quality.recommended_method.value,
+            "parse_method": actual_method.value,
             "page_count": quality.page_count,
             "quality_score": quality.quality_score,
             "extracted_text": clean_text,

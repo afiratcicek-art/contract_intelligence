@@ -428,3 +428,19 @@ pakette. Pilotu bloklamaz.
 **Çözüm:** Pack üretiminde exhibit PDF'lerini mevcut Storage path'lerinden toplayıp `{project}/{dispute}/pack-exhibits.zip` yaz; raporla birlikte indir.
 **Ne zaman:** İlk gerçek tahkim/EDOS teslimatından önce; ADR-015 §4.
 
+---
+
+## TB-60 — Arapça OCR/parse kalitesi (OCI parse-turu)
+
+**Konum:** `backend/services/pdf_pipeline_service.py:279` (Tesseract lang="tur+eng")
+          + PyMuPDF Arapça ligatür-garbling (ölçülü: "ال" artikelli kelimeler bozuluyor)
+**Durum:** Açık — OCI deploy turuna etiketli (kod-satırı değil, sunucu-paketi + parser kararı)
+**Sorun:** (1) Taranmış Arapça sözleşme skor<0.25→Tesseract'a düşer ama `ara` dil-paketi
+  YOK (tur+eng) → çöp OCR. (2) Metin-PDF Arapça'da PyMuPDF ligatür bozuyor → hem mask-NER
+  hem Claude-analiz bozuk metin görür. GCC pazarı Arapça olduğu için ürün-kritik.
+**Çözüm:** OCI container imajına `tesseract-ocr-ara` traineddata + lang="tur+eng+ara";
+  metin-PDF için lokal Docling/RTL-reshaping parser değerlendir (residency: lokal zorunlu,
+  bulut-parser=egress). Gerçek Arapça sözleşmeyle test.
+**Ne zaman:** OCI parse/OCR turu (Gotenberg topolojisi + ClamAV paketi ile aynı pakette).
+  Pilotu bugün bloklamaz (Tesseract lokal+egress-güvenli, yalnız Arapça-kalite eksik).
+

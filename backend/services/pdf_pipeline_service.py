@@ -3,7 +3,8 @@
 Sorumluluk zinciri:
   1. validate_pdf_bytes()     — boyut, uzantı, magic bytes
   2. classify_pages()         — quality score, parse metodu kararı
-  3. _extract_text()          — PyMuPDF | LlamaParse | Tesseract
+  3. _extract_text()          — önerilen metot vs gerçek motor
+                                 (genelde PyMuPDF; LlamaParse henüz aktif değil)
   4. clean_extracted_text()   — metin temizleme
   5. _persist()               — pdf_document tablosuna yaz
   6. audit_log                — her adım kayıt altında
@@ -105,8 +106,10 @@ class PDFPipelineService:
         )
 
         # ADIM 3 — Metin çıkarma
+        # actual_method starts as the recommendation; overwritten after a real run.
+        actual_method = quality.recommended_method
         try:
-            raw_text = self._extract_text(file_bytes, quality.recommended_method)
+            raw_text, actual_method = self._extract_text(file_bytes, quality.recommended_method)
         except Exception as exc:
             self._persist_failed(
                 doc_id=doc_id,
@@ -119,6 +122,7 @@ class PDFPipelineService:
                 quality=quality,
                 error=str(exc),
                 user_id=user_id,
+                actual_method=actual_method,
             )
             self._audit.log(
                 action="pdf_parse_failed",
@@ -145,6 +149,7 @@ class PDFPipelineService:
             quality=quality,
             extracted_text=clean_text,
             user_id=user_id,
+            actual_method=actual_method,
         )
 
         self._audit.log(
@@ -211,13 +216,13 @@ class PDFPipelineService:
     # PRIVATE — Metin çıkarma
     # ----------------------------------------------------------
 
-    def _extract_text(self, pdf_bytes: bytes, method: ParseMethod) -> str:
+    def _extract_text(self, pdf_bytes: bytes, method: ParseMethod) -> tuple[str, ParseMethod]:
         if method == ParseMethod.PYMUPDF:
-            return self._extract_pymupdf(pdf_bytes)
+            return self._extract_pymupdf(pdf_bytes), ParseMethod.PYMUPDF
         elif method == ParseMethod.LLAMAPARSE:
             return self._extract_llamaparse(pdf_bytes)
         else:
-            return self._extract_tesseract(pdf_bytes)
+            return self._extract_tesseract(pdf_bytes), ParseMethod.TESSERACT
 
     def _extract_pymupdf(self, pdf_bytes: bytes) -> str:
         import fitz
@@ -226,7 +231,7 @@ class PDFPipelineService:
         doc.close()
         return "\n\n".join(pages)
 
-    def _extract_llamaparse(self, pdf_bytes: bytes) -> str:
+    def _extract_llamaparse(self, pdf_bytes: bytes) -> tuple[str, ParseMethod]:
         """
         LlamaParse stub — API key olmadan çalışmaz.
         Key geldiğinde bu metodun içi doldurulur,
@@ -248,12 +253,12 @@ class PDFPipelineService:
             logger.warning(
                 "LLAMAPARSE_API_KEY tanımlı değil — PyMuPDF fallback devreye giriyor."
             )
-            return self._extract_pymupdf(pdf_bytes)
+            return self._extract_pymupdf(pdf_bytes), ParseMethod.PYMUPDF
         # TODO: LlamaParse entegrasyonu — key ve paket hazır olduğunda implement et
         # from llama_parse import LlamaParse
         # parser = LlamaParse(api_key=api_key, result_type="text")
         # documents = parser.load_data(file_bytes)
-        # return "\n\n".join([doc.text for doc in documents])
+        # return "\n\n".join([doc.text for doc in documents]), ParseMethod.LLAMAPARSE
         raise NotImplementedError("LlamaParse entegrasyonu henüz aktif değil.")
 
     def _extract_tesseract(self, pdf_bytes: bytes) -> str:
@@ -297,7 +302,10 @@ class PDFPipelineService:
         quality: DocumentQuality,
         extracted_text: str,
         user_id: str,
+        actual_method: Optional[ParseMethod] = None,
     ) -> dict:
+        if actual_method is None:
+            actual_method = quality.recommended_method
         record = {
             "id": doc_id,
             "project_id": project_id,
@@ -306,7 +314,7 @@ class PDFPipelineService:
             "original_filename": filename,
             "storage_path": storage_path,
             "file_size_bytes": file_size,
-            "parse_method": quality.recommended_method.value,
+            "parse_method": actual_method.value,
             "parse_status": ParseStatus.COMPLETED.value,
             "page_count": quality.page_count,
             "quality_score": quality.quality_score,
@@ -335,7 +343,10 @@ class PDFPipelineService:
         quality: DocumentQuality,
         error: str,
         user_id: str,
+        actual_method: Optional[ParseMethod] = None,
     ) -> None:
+        if actual_method is None:
+            actual_method = quality.recommended_method
         record = {
             "id": doc_id,
             "project_id": project_id,
@@ -344,7 +355,7 @@ class PDFPipelineService:
             "original_filename": filename,
             "storage_path": storage_path,
             "file_size_bytes": file_size,
-            "parse_method": quality.recommended_method.value,
+            "parse_method": actual_method.value,
             "parse_status": ParseStatus.FAILED.value,
             "page_count": quality.page_count,
             "quality_score": quality.quality_score,

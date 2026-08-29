@@ -1,6 +1,6 @@
 /**
  * Intelligence-layer CTA — product-wide canonical control.
- * Tokens: --color-ai / --color-ai-bg. Shape: non-rect (borderRadius 6), not admin sharp (0).
+ * Tokens: --color-ai / --color-ai-bg. Shape: non-rect (borderRadius 8), not admin sharp (0).
  * Use for every equivalent AI generate/assist action (authoring, chronology, future).
  * Hover / active / focus live in `.ai-action-btn` (index.css) — do not restyle per call site.
  */

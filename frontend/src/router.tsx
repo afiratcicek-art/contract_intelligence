@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { isAuthenticated, verifySession, clearAuth, loginRedirectUrl } from "./store/auth";
+import { useLanguage } from "./context/LanguageContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import NewProject from "./pages/NewProject";
 import ProjectDetail from "./pages/ProjectDetail";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Workspace from "./pages/Workspace";
@@ -20,6 +22,7 @@ import NewDispute from "./pages/NewDispute";
 import DisputeDetail from "./pages/DisputeDetail";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<"checking" | "ok" | "denied">(
     () => isAuthenticated() ? "checking" : "denied"
   );
@@ -36,7 +39,24 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  if (status === "checking") return null;
+  if (status === "checking") {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: "var(--color-bg-primary)" }}
+      >
+        <p
+          style={{
+            fontSize: 13,
+            fontFamily: "var(--font-ui)",
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          {t("state.loading")}
+        </p>
+      </div>
+    );
+  }
   if (status === "denied") return <Navigate to={loginRedirectUrl()} replace />;
   return <>{children}</>;
 }
@@ -52,6 +72,16 @@ export default function Router() {
             <ErrorBoundary>
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/projects/new"
+          element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <NewProject />
               </PrivateRoute>
             </ErrorBoundary>
           }

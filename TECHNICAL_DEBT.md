@@ -444,3 +444,10 @@ pakette. Pilotu bloklamaz.
 **Ne zaman:** OCI parse/OCR turu (Gotenberg topolojisi + ClamAV paketi ile aynı pakette).
   Pilotu bugün bloklamaz (Tesseract lokal+egress-güvenli, yalnız Arapça-kalite eksik).
 
+---
+## TB-61 — torch-cpu-slim deploy imajı (footprint optimizasyonu)
+**Konum:** requirements.txt (gliner→torch) + P-B4 Dockerfile
+**Durum:** Açık — P-B4 deploy turuna etiketli
+**Sorun:** Yol-A `gliner` düz kurulumu torch'un CUDA-gömülü wheel'ini (~503M) çeker; sunucuda GPU yok → CUDA kütüphaneleri ölü ağırlık. Pilot laptop'ta zararsız (sıfır maliyet) ama deploy imajını ~500M şişirir.
+**Çözüm:** deploy imajında torch-cpu index-url pin (download.pytorch.org/whl/cpu) + multi-stage/slim base; dev≈prod maske ÇIKTISI değişmez (CPU numerik aynı, yalnız CUDA libs düşer).
+**Ne zaman:** P-B4 Docker/deploy turu (ClamAV paketi + Gotenberg topolojisi ile aynı pakette).

@@ -26,11 +26,7 @@ export default function Login() {
   }, []);
 
   const inputStyle = {
-    backgroundColor: "var(--color-bg-primary)",
-    border: "1px solid var(--color-border-medium)",
-    color: "var(--color-text-primary)",
     fontFamily: "var(--font-ui)",
-    borderRadius: 0,
   } as const;
 
   async function handleSubmit(e: FormEvent) {
@@ -143,7 +139,7 @@ export default function Login() {
           {/* Mobile brand + short motto */}
           <div className="lg:hidden mb-10">
             <div className="flex items-center gap-4">
-              <div className="gold-line gold-line-nav" style={{ height: 64 }} />
+              <div className="gold-line gold-line-nav" />
               <h1
                 className="text-4xl tracking-tight"
                 style={{
@@ -200,10 +196,8 @@ export default function Login() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-4 text-sm outline-none transition-colors"
+                className="field-input w-full px-4 py-4 text-sm outline-none transition-colors"
                 style={inputStyle}
-                onFocus={(e) => (e.target.style.borderColor = "var(--color-accent)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--color-border-medium)")}
               />
             </div>
 
@@ -223,10 +217,8 @@ export default function Login() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-4 text-sm outline-none transition-colors"
+                className="field-input w-full px-4 py-4 text-sm outline-none transition-colors"
                 style={inputStyle}
-                onFocus={(e) => (e.target.style.borderColor = "var(--color-accent)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--color-border-medium)")}
               />
             </div>
 

@@ -5,6 +5,7 @@ import { api } from "../services/api";
 import ThemeToggle from "../components/ThemeToggle";
 import LanguageToggle from "../components/LanguageToggle";
 import Button from "../components/Button";
+import FilterStamp from "../components/FilterStamp";
 import StatusChip from "../components/StatusChip";
 import { getAuth, clearAuth } from "../store/auth";
 import { useLanguage } from "../context/LanguageContext";
@@ -231,9 +232,7 @@ export default function Workspace() {
   const handleLogout = () => { clearAuth(); navigate("/login"); };
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
-    <button key={label} onClick={onClick} style={{ padding: "4px 10px", border: `0.5px solid ${active ? "var(--color-accent)" : border}`, fontSize: 11, color: active ? "var(--color-bg-primary)" : textSecondary, background: active ? "var(--color-accent)" : cardBg, cursor: "pointer", borderRadius: 0, fontFamily: "var(--font-ui)" }}>
-      {label}
-    </button>
+    <FilterStamp key={label} label={label} active={active} onClick={onClick} />
   );
 
   const dateRange = (label: string, from: string, to: string, onFrom: (v: string) => void, onTo: (v: string) => void) => (
@@ -360,6 +359,7 @@ export default function Workspace() {
                 key={mod}
                 type="button"
                 onClick={() => setActiveModule(mod)}
+                className={active ? "nav-item nav-item-active" : "nav-item"}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -374,7 +374,6 @@ export default function Workspace() {
                   borderTop: "none",
                   borderRight: "none",
                   borderBottom: "none",
-                  borderLeft: active ? "3px solid var(--color-accent)" : "3px solid transparent",
                   cursor: "pointer",
                   color: active ? textPrimary : textSecondary,
                   borderRadius: 0,
@@ -408,6 +407,7 @@ export default function Workspace() {
                 key={mod}
                 type="button"
                 onClick={() => setActiveModule(mod)}
+                className={active ? "nav-item nav-item-active" : "nav-item"}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -419,7 +419,6 @@ export default function Workspace() {
                   borderTop: "none",
                   borderRight: "none",
                   borderBottom: "none",
-                  borderLeft: active ? "3px solid var(--color-accent)" : "3px solid transparent",
                   cursor: "pointer",
                   width: "100%",
                   textAlign: "left",

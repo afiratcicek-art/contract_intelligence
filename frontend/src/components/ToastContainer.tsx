@@ -1,4 +1,5 @@
 import type { Toast, ToastType } from "../hooks/useToast";
+import { useLanguage } from "../context/LanguageContext";
 
 const TYPE_STYLES: Record<ToastType, { border: string; color: string; bg: string }> = {
   success: {
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export default function ToastContainer({ toasts, onDismiss }: Props) {
+  const { t } = useLanguage();
   if (toasts.length === 0) return null;
   return (
     <div style={{
@@ -36,11 +38,11 @@ export default function ToastContainer({ toasts, onDismiss }: Props) {
       display: "flex", flexDirection: "column", gap: 8,
       zIndex: "var(--z-toast)" as unknown as number, maxWidth: 360,
     }}>
-      {toasts.map((t) => {
-        const s = TYPE_STYLES[t.type];
+      {toasts.map((toast) => {
+        const s = TYPE_STYLES[toast.type];
         return (
           <div
-            key={t.id}
+            key={toast.id}
             style={{
               display: "flex", alignItems: "flex-start",
               justifyContent: "space-between", gap: 12,
@@ -48,16 +50,15 @@ export default function ToastContainer({ toasts, onDismiss }: Props) {
               background: s.bg,
               border: `1px solid ${s.border}`,
               borderLeft: `3px solid ${s.border}`,
-              boxShadow: "0 4px 16px var(--color-shadow)",
               fontFamily: "var(--font-ui)",
             }}
           >
             <span style={{ fontSize: 12, color: "var(--color-text-primary)", flex: 1, lineHeight: 1.5 }}>
-              {t.message}
+              {toast.message}
             </span>
             <button
-              onClick={() => onDismiss(t.id)}
-              aria-label="Kapat"
+              onClick={() => onDismiss(toast.id)}
+              aria-label={t("action.close")}
               style={{
                 background: "none", border: "none",
                 cursor: "pointer", fontSize: 14,

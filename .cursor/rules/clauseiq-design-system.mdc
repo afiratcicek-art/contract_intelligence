@@ -6,7 +6,7 @@ alwaysApply: false
 
 # ClauseIQ Design System (UI)
 
-Canonical source: `frontend/src/index.css` — **ClauseIQ Design System v1.2** (tokens 19 Jun 2026; Typography Concept C 31 Jul 2026). Do not invent new hex values; extend tokens in `index.css` only with owner approval. Components use `var(--*)` only.
+Canonical source: `frontend/src/index.css` — **ClauseIQ Design System v1.2** (tokens 19 Jun 2026; Typography Concept C 31 Jul 2026; pigment/measure retouch 29 Aug 2026). Do not invent new hex values; extend tokens in `index.css` only with owner approval. Components use `var(--*)` only.
 
 ## Tokens
 
@@ -38,7 +38,7 @@ Do **not** use `--font-brand` at ≤14px. Do not use `--font-document` outside t
 - Use `.gold-line` + size class — do not paste inline gradients:
   - `.gold-line-stage` — 96px (Login Brand Stage)
   - `.gold-line-nav` — 32px (app chrome)
-  - `.gold-line-compact` — 20px (workspace / detail breadcrumbs)
+  - `.gold-line-compact` — 24px (workspace / detail breadcrumbs)
 
 ## Reference gutter
 
@@ -81,13 +81,13 @@ The parent/child relationship is drawn, not implied by indentation. Never use a 
 ## Patterns
 
 - Inline styles + CSS variables (house style). Shared actions via `Button`; status via `StatusChip`.
-- Deterministic CTA: `Button` (`rounded-none`). Intelligence CTA: `AiActionButton` / `.ai-action-btn` (radius 6, `--color-ai`). Compact graph launcher: `.ai-icon-btn`. Do not mix geometries.
+- Deterministic CTA: `Button` (`rounded-none`). Intelligence CTA: `AiActionButton` / `.ai-action-btn` (radius 8, `--color-ai`). Compact graph launcher: `.ai-icon-btn`. Do not mix geometries.
 - Filter chips: active text `var(--color-bg-primary)` — never raw parchment hex.
 - Status chips map to `--color-alert-*` / `--color-success*` / `--color-warning*` / `--color-ai*`.
 - `Button` variants: primary / secondary / destructive / **warning** (`--color-warning`, `--color-warning-wash`). Sizes: default **13px** (page CTA), sm **12px** (inline).
 - List-row left ticks stay **2px**. Tabs / file-dividers stay **3px**. Do not unify.
 - Print / letterhead WYSIWYG uses `--color-print-*` (defined only on `:root`, not `html.dark`).
-- Destructive confirms use `ConfirmModal`, not `window.confirm`. Chrome nav: `.app-chrome-nav` (wraps on tablet). Detail künye: `.meta-grid-3` (3→2 col at 900px).
+- Destructive confirms use `ConfirmModal`, not `window.confirm`. Chrome nav: `.app-chrome-nav` (12px 24px, wraps on tablet); hol density `.app-chrome-nav-hol` (16px 32px, `gold-line-nav`). Shared chrome: `AppChrome`. Hol column: `--measure-hol`. Detail künye: `.meta-grid-3` (3→2 col at 900px). Sidebar file-dividers use `.nav-item` / `.nav-item-active` (3px `border-inline-start`). Filter series: `FilterStamp`. Login / form focus: `.field-input`.
 - Unsaved work: `useUnsavedGuard(active)` on any surface that holds server-unaccepted input.
 
 ## Language, dates, money

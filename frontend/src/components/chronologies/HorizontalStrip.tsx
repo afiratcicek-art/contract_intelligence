@@ -56,7 +56,6 @@ function HorizontalStrip({
             padding: "12px 14px",
             minWidth: 240,
             maxWidth: 380,
-            boxShadow: "0 4px 16px var(--color-shadow)",
             resize: "both",
             overflow: "auto",
             minHeight: 80,

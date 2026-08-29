@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import AppChrome, { ChromeCrumb, ChromeSep } from "../components/AppChrome";
 import AiActionButton from "../components/AiActionButton";
 import Button from "../components/Button";
 import RichTextEditor, {
@@ -1162,10 +1163,45 @@ export default function AuthoringDraftPage() {
             ? t("authoring.conflict")
             : "";
 
+  const authoringTrail = (
+    <>
+      <ChromeCrumb onClick={() => navigate("/dashboard")}>{t("nav.projects")}</ChromeCrumb>
+      <ChromeSep />
+      <ChromeCrumb onClick={() => projectId && navigate(`/projects/${projectId}`)}>
+        {projectName || t("nav.overview")}
+      </ChromeCrumb>
+      <ChromeSep />
+      <ChromeCrumb
+        onClick={() => projectId && navigate(`/projects/${projectId}/workspace`)}
+      >
+        {t("nav.workspace")}
+      </ChromeCrumb>
+      <ChromeSep />
+      <ChromeCrumb current>{t("authoring.nav")}</ChromeCrumb>
+    </>
+  );
+
   if (!draft && !error) {
     return (
-      <div style={{ padding: 24, color: "var(--color-text-secondary)", fontSize: 12 }}>
-        {lang === "tr" ? "Taslak açılıyor…" : "Opening draft…"}
+      <div
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "var(--color-bg-primary)",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <AppChrome density="compact" signOut trail={authoringTrail} />
+        <p
+          style={{
+            fontSize: 13,
+            fontFamily: "var(--font-ui)",
+            padding: 24,
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          {t("authoring.opening")}
+        </p>
       </div>
     );
   }
@@ -1173,13 +1209,23 @@ export default function AuthoringDraftPage() {
   return (
     <div
       style={{
+        minHeight: "100vh",
+        backgroundColor: "var(--color-bg-primary)",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <AppChrome density="compact" signOut trail={authoringTrail} />
+    <div
+      style={{
         maxWidth: 1120,
         margin: "0 auto",
         padding: "16px 16px 20px",
-        minHeight: "100vh",
+        flex: 1,
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
+        width: "100%",
       }}
     >
       <div
@@ -2496,6 +2542,7 @@ export default function AuthoringDraftPage() {
           }
         }
       `}</style>
+    </div>
     </div>
   );
 }

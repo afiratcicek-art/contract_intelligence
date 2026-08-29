@@ -2,11 +2,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 const ActivityChart = lazy(() => import("../components/ActivityChart"));
 import { useProjectDetail, useProjectTabs, useOverviewActivity, useUpcomingDeadlines, useOverdue } from "../hooks/useProjectDetail";
-import { getAuth, clearAuth } from "../store/auth";
 import { useState } from "react";
-import ThemeToggle from "../components/ThemeToggle";
-import LanguageToggle from "../components/LanguageToggle";
 import Button from "../components/Button";
+import AppChrome, { ChromeCrumb, ChromeSep } from "../components/AppChrome";
 import StatusChip from "../components/StatusChip";
 import { useLanguage } from "../context/LanguageContext";
 import { formatDateCompact, formatMoney } from "../utils/format";
@@ -45,7 +43,6 @@ function daysUntil(dateStr: string | null | undefined): number | null {
 export default function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const auth = getAuth();
   const [activeTab, setActiveTab] = useState<Tab>("correspondence");
 
   const { project, loading: projLoading } = useProjectDetail(projectId!);
@@ -76,11 +73,6 @@ export default function ProjectDetail() {
   const { items: deadlineItems } = useUpcomingDeadlines(String(projectId));
   const { items: overdueItems } = useOverdue(String(projectId));
 
-  function handleLogout() {
-    clearAuth();
-    navigate("/login");
-  }
-
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "correspondence", label: t("module.correspondence"), count: correspondences.length },
     { key: "rfis", label: t("module.rfis"), count: rfis.length },
@@ -107,34 +99,19 @@ export default function ProjectDetail() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--color-bg-primary)" }}>
-      {/* Nav */}
-      <nav
-        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-8 py-4 border-b"
-        style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-bg-primary)" }}
-      >
-        <div className="flex items-center gap-3">
-          <div className="gold-line gold-line-nav" />
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="text-sm transition-opacity hover:opacity-70"
-            style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-ui)" }}
-          >
-            {t("nav.projects")}
-          </button>
-          <span style={{ color: "var(--color-text-secondary)" }}>/</span>
-          <span className="text-sm" style={{ color: "var(--color-text-primary)" }}>{project.name}</span>
-        </div>
-        <div className="flex items-center gap-6">
-          <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{auth?.full_name}</span>
-          <LanguageToggle />
-          <ThemeToggle />
-          <button onClick={handleLogout} className="text-sm transition-opacity hover:opacity-70" style={{ color: "var(--color-text-secondary)" }}>
-            {t("nav.signout")}
-          </button>
-        </div>
-      </nav>
+      <AppChrome
+        density="nav"
+        signOut
+        trail={
+          <>
+            <ChromeCrumb onClick={() => navigate("/dashboard")}>{t("nav.projects")}</ChromeCrumb>
+            <ChromeSep />
+            <ChromeCrumb current>{project.name}</ChromeCrumb>
+          </>
+        }
+      />
 
-      <main className="max-w-5xl mx-auto px-8 py-10">
+      <main style={{ maxWidth: "var(--measure-hol)", margin: "0 auto", padding: "40px 32px" }}>
         {/* Project header */}
         <div className="mb-8">
           <div className="flex items-start justify-between mb-2">

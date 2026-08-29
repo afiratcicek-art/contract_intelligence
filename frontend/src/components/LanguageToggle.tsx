@@ -14,8 +14,10 @@ export default function LanguageToggle() {
       dir="ltr"
       style={{
         display: "flex",
+        alignItems: "stretch",
         border: "1px solid var(--color-border-light)",
         unicodeBidi: "isolate",
+        height: "var(--control-height)",
       }}
     >
       {LANGS.map((code) => {
@@ -34,7 +36,8 @@ export default function LanguageToggle() {
               borderRadius: 0,
               cursor: "pointer",
               fontSize: 11,
-              padding: "2px 7px",
+              padding: "0 8px",
+              minHeight: "var(--control-height)",
               fontFamily: "var(--font-meta)",
               fontWeight: 500,
               letterSpacing: "0.5px",

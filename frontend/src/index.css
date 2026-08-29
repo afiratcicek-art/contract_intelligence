@@ -63,6 +63,10 @@
   /* Status column. Must hold the widest translated chip — EN "UNDER REVIEW"
      uppercased is the worst case — or the chip clips against the row edge. */
   --gutter-status: 104px;
+  /* Hol column — Dashboard + Overview share one nave width (Tailwind 5xl). */
+  --measure-hol: 64rem;
+  /* Chrome / filter / language control height */
+  --control-height: 28px;
 
   /* Accent */
   --color-accent:        #6B5D3F;
@@ -80,16 +84,17 @@
   --color-alert-red:    #A93226;
   --color-alert-red-bg: #F5E6E4;
 
-  /* Status — Success */
-  --color-success:    #1F6B4E;
-  --color-success-bg: #E8F5EE;
+  /* Status — Success — same green hue, lower chroma (sea depth, not mint) */
+  --color-success:    #2A5348;
+  --color-success-bg: #E4EBE6;
 
   /* Status — Warning */
   --color-warning:    #92400E;
   --color-warning-bg: #FEF9E7;
 
-  --color-ai:    #6E3F87;
-  --color-ai-bg: #F2E9F5;
+  /* Intelligence — dusk plum in the umber family, not poster purple */
+  --color-ai:    #5E4452;
+  --color-ai-bg: #F2EAEB;
 
   /* Priority */
   --color-priority-critical: #A93226;
@@ -146,7 +151,7 @@ html.dark {
   /* Text */
   --color-text-primary:   #E8E6E0;
   --color-text-secondary: #C4B49C;
-  --color-text-tertiary:  #8A8490;
+  --color-text-tertiary:  #9A9084;
 
   /* Accent */
   --color-accent:        #A0714A;
@@ -160,31 +165,31 @@ html.dark {
   --color-border-light:  #3A3D45;
   --color-border-medium: #4A4D55;
 
-  /* Status — Alert */
-  --color-alert-red:    #E07060;
+  /* Status — Alert — AA text on --color-bg-primary (≥4.5:1). #C45A4E was 3.73. */
+  --color-alert-red:    #D86F62;
   --color-alert-red-bg: #3D1A1A;
 
   /* Status — Success */
-  --color-success:    #4DB88A;
-  --color-success-bg: #1A3D2E;
+  --color-success:    #6A9B82;
+  --color-success-bg: #1A2E26;
 
   /* Status — Warning */
   --color-warning:    #D4956A;
   --color-warning-bg: #3D2E0A;
 
-  --color-ai:    #C79FDB;
-  --color-ai-bg: #3A2440;
+  --color-ai:    #C4A8B0;
+  --color-ai-bg: #3A2A32;
 
   /* Priority */
-  --color-priority-critical: #E05555;
-  --color-priority-high:     #F08070;
+  --color-priority-critical: #C44A4A;
+  --color-priority-high:     #D07060;
   --color-priority-normal:   #A0714A;
 
   /* Chart series */
   --color-chart-correspondence: var(--color-accent-light);
   --color-chart-rfi:            var(--color-copper);
   --color-chart-change:         var(--color-text-secondary);
-  --color-chart-deliverable:    var(--color-text-secondary);
+  --color-chart-deliverable:    var(--color-text-tertiary);
 
   /* Overlay / elevation */
   --color-overlay:        rgba(0, 0, 0, 0.55);
@@ -253,11 +258,14 @@ html.dark {
   }
   .gold-line-stage   { height: 96px; } /* Login Brand Stage */
   .gold-line-nav     { height: 32px; } /* App chrome / dashboard */
-  .gold-line-compact { height: 20px; } /* Workspace / detail breadcrumbs */
+  .gold-line-compact { height: 24px; } /* Workspace / detail breadcrumbs */
 
-  /* File-divider nav (workspace sidebar tabs) — 3px accent, not 4px */
+  /* File-divider nav — 3px accent, not 4px. Logical start so RTL follows. */
+  .nav-item {
+    border-inline-start: 3px solid transparent;
+  }
   .nav-item-active {
-    border-left: 3px solid var(--color-accent);
+    border-inline-start: 3px solid var(--color-accent);
     background-color: var(--color-bg-secondary);
   }
   .metric-card-accent {
@@ -288,10 +296,13 @@ html.dark {
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 8px 16px;
-    padding: 10px 24px;
+    padding: 12px 24px;
     flex-shrink: 0;
     background-color: var(--color-bg-primary);
     border-bottom: 0.5px solid var(--color-border-medium);
+  }
+  .app-chrome-nav-hol {
+    padding: 16px 32px;
   }
   @media (max-width: 900px) {
     .meta-grid-3 {
@@ -347,7 +358,21 @@ html.dark {
     cursor: not-allowed;
   }
 
-  /* Intelligence-layer CTA — radius 6 is the locked contrast to admin sharp (0) */
+  /* Chrome / login / new-record fields — focus via class, not JS */
+  .field-input {
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border-medium);
+    color: var(--color-text-primary);
+    font-family: var(--font-ui);
+    border-radius: 0;
+  }
+  .field-input:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+    border-color: var(--color-accent);
+  }
+
+  /* Intelligence-layer CTA — radius 8 is the locked contrast to admin sharp (0) */
   .ai-action-btn {
     display: inline-flex;
     align-items: center;
@@ -358,7 +383,7 @@ html.dark {
     background: var(--color-ai-bg);
     color: var(--color-ai);
     border: 1px solid var(--color-ai);
-    border-radius: 6px;
+    border-radius: 8px;
     font-weight: 500;
     font-family: var(--font-ui);
     cursor: pointer;
@@ -384,7 +409,7 @@ html.dark {
     background: var(--color-ai-bg);
     color: var(--color-ai);
     border: 1px solid var(--color-ai);
-    border-radius: 6px;
+    border-radius: 8px;
     width: 22px;
     height: 22px;
     display: flex;
@@ -650,11 +675,7 @@ html.dark {
   [dir="rtl"] {
     text-align: right;
   }
-  /* Sidebar file-divider tick moves to the reading edge. */
-  [dir="rtl"] .nav-item-active {
-    border-left: none;
-    border-right: 3px solid var(--color-accent);
-  }
+  /* Sidebar tick uses border-inline-start; no physical left/right override. */
   /* Latin identifiers (doc numbers, refs, ISO dates) must not be reordered by
      the bidi algorithm when they sit inside Arabic sentences. */
   [dir="rtl"] .ltr-inline {

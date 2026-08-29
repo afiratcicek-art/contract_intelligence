@@ -481,8 +481,7 @@ export default function FocusedRelationGraph({
       position: "absolute" as const, bottom: 12, left: 12,
       background: bgPrimary, border: `1px solid ${border}`,
       borderLeft: `3px solid ${ai}`, padding: "10px 14px", maxWidth: 300,
-      borderRadius: 6, pointerEvents: "none" as const,
-      boxShadow: "0 6px 20px var(--color-shadow)",
+      borderRadius: 8, pointerEvents: "none" as const,
     }}>
       <p style={{ fontSize: 11, fontFamily: "var(--font-meta)", color: ai, margin: 0, fontWeight: 500 }}>
         {hoveredNode.ref}
@@ -564,7 +563,7 @@ export default function FocusedRelationGraph({
       ref={wrapRef}
       style={{
         position: "relative" as const,
-        borderRadius: 6, overflow: "hidden",
+        borderRadius: 8, overflow: "hidden",
         height: heightVal,
         background: `radial-gradient(ellipse at 42% 50%, ${aiBg} 0%, transparent 62%), linear-gradient(155deg, var(--color-bg-secondary), var(--color-bg-primary))`,
         border: `1px solid ${border}`,
@@ -651,7 +650,7 @@ export default function FocusedRelationGraph({
             onClick={(e) => e.stopPropagation()}
             style={{
               background: bgPrimary, border: `1px solid ${border}`,
-              borderRadius: 6, width: "94vw", maxWidth: 1300, height: "90vh",
+              borderRadius: 8, width: "94vw", maxWidth: 1300, height: "90vh",
               display: "flex", flexDirection: "column" as const, padding: 20,
             }}
           >

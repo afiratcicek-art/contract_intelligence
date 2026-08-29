@@ -1083,7 +1083,6 @@ function InteractivePaper({
         minHeight: 0,
         height: "auto",
         padding: "5% 7% 4%",
-        boxShadow: "0 1px 0 var(--color-border-medium), 0 12px 32px var(--color-shadow)",
         border: "1px solid var(--color-border-medium)",
         overflow: "hidden",
         fontFamily: "var(--font-ui)",

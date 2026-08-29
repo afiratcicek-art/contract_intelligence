@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../services/api";
 import { useLanguage } from "../context/LanguageContext";
+import AppChrome, { ChromeCrumb, ChromeSep } from "../components/AppChrome";
 
 export default function DocumentView() {
   const { projectId, docId } = useParams<{ projectId: string; docId: string }>();
-  const { lang } = useLanguage();
+  const navigate = useNavigate();
+  const { t } = useLanguage();
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [error, setError] = useState<"403" | "404" | "other" | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,51 +40,67 @@ export default function DocumentView() {
     };
   }, [projectId, docId]);
 
-  if (loading) {
-    return (
-      <p style={{ fontSize: 13, fontFamily: "var(--font-ui)", padding: 24 }}>
-        {lang === "tr" ? "Yükleniyor..." : "Loading..."}
-      </p>
-    );
-  }
+  const trail = (
+    <>
+      <ChromeCrumb onClick={() => navigate("/dashboard")}>{t("nav.projects")}</ChromeCrumb>
+      <ChromeSep />
+      <ChromeCrumb onClick={() => projectId && navigate(`/projects/${projectId}`)}>
+        {t("nav.overview")}
+      </ChromeCrumb>
+      <ChromeSep />
+      <ChromeCrumb
+        onClick={() => projectId && navigate(`/projects/${projectId}/workspace?module=documents`)}
+      >
+        {t("module.documents")}
+      </ChromeCrumb>
+    </>
+  );
 
-  if (error === "403") {
-    return (
-      <p style={{ fontSize: 13, fontFamily: "var(--font-ui)", padding: 24 }}>
-        {lang === "tr"
-          ? "Bu belgeye erişim yetkiniz yok"
-          : "You do not have access to this document"}
-      </p>
-    );
-  }
-
-  if (error === "404") {
-    return (
-      <p style={{ fontSize: 13, fontFamily: "var(--font-ui)", padding: 24 }}>
-        {lang === "tr" ? "Belge bulunamadı" : "Document not found"}
-      </p>
-    );
-  }
-
-  if (error || !signedUrl) {
-    return (
-      <p style={{ fontSize: 13, fontFamily: "var(--font-ui)", padding: 24 }}>
-        {lang === "tr" ? "Belge açılamadı" : "Could not open document"}
-      </p>
-    );
-  }
+  const message =
+    loading
+      ? t("state.loading")
+      : error === "403"
+        ? t("document.forbidden")
+        : error === "404"
+          ? t("document.missing")
+          : error || !signedUrl
+            ? t("document.openfailed")
+            : null;
 
   return (
-    <iframe
-      src={signedUrl}
-      title="document"
+    <div
       style={{
-        position: "fixed",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        border: "none",
+        minHeight: "100vh",
+        backgroundColor: "var(--color-bg-primary)",
+        display: "flex",
+        flexDirection: "column",
       }}
-    />
+    >
+      <AppChrome density="compact" signOut trail={trail} />
+      {message ? (
+        <p
+          style={{
+            fontSize: 13,
+            fontFamily: "var(--font-ui)",
+            padding: 24,
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          {message}
+        </p>
+      ) : (
+        <iframe
+          src={signedUrl!}
+          title="document"
+          style={{
+            flex: 1,
+            width: "100%",
+            minHeight: 0,
+            border: "none",
+            backgroundColor: "var(--color-bg-primary)",
+          }}
+        />
+      )}
+    </div>
   );
 }

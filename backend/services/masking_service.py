@@ -290,3 +290,33 @@ class MaskingProvider:
         except Exception as exc:  # noqa: BLE001
             logger.warning("masking: project_parties read failed: %s", exc)
             return None
+
+
+# --- Semantik NER katmanı (S2a; ADR-0004 INV-MASK-1/2/3) ---
+_NER_MODEL_NAME = "urchade/gliner_multi-v2.1"  # vendor-pin (INV-MASK-2)
+_IDENTITY_LABELS = ["person", "organization", "location"]
+_NER_THRESHOLD = 0.4  # recall-öncelik (INV-MASK-4); S3'te tune
+_ner_model = None  # process-lifetime singleton
+
+
+def _get_ner_model():
+    """Lazy + tek-sefer yükleme (ADR-0001/INV-MASK-2). gliner IMPORT FONKSİYON İÇİNDE
+    (top-level DEĞİL) → CI (gliner'sız) `import backend.main`'i kırmaz."""
+    global _ner_model
+    if _ner_model is None:
+        from gliner import GLiNER  # lazy — CI hermetik
+        _ner_model = GLiNER.from_pretrained(_NER_MODEL_NAME)
+    return _ner_model
+
+
+def detect_identity_spans(text: str) -> list[tuple[str, str]]:
+    """(entity_text, label) listesi. Boş/kısa metin → []. Model/inference hatası
+    PROPAGATE eder (çağıran fail-closed: build()→None, INV-MASK-3).
+
+    MaskSession'a HENÜZ bağlı değil (S2b bağlayacak).
+    """
+    if not _usable(text):
+        return []
+    model = _get_ner_model()
+    preds = model.predict_entities(text, _IDENTITY_LABELS, threshold=_NER_THRESHOLD)
+    return [(pred["text"], pred["label"]) for pred in preds]

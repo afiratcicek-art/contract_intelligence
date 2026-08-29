@@ -1,0 +1,3 @@
+# production-runtime; CI kurmaz (hermetik) — bkz ADR-0004
+# deploy imajı requirements.txt + bunu kurar; torch transitif gelir (TB-61 cpu-slim)
+gliner==0.2.28

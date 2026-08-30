@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,11 @@ _ROLE_TOKENS = {
 }
 _PROJECT_TOKEN = "⟦PROJECT⟧"
 _MIN_IDENTITY_LEN = 2
+LABEL_MAP = {
+    "organization": "ORG",
+    "person": "PERSON",
+    "location": "LOC",
+}
 
 
 def _normalize(name: str) -> str:
@@ -43,15 +49,25 @@ def _usable(name: Any) -> bool:
     return len(stripped) >= _MIN_IDENTITY_LEN
 
 
-@dataclass(frozen=True)
+@dataclass
 class MaskSession:
     """real identity string → ⟦TOKEN⟧ and reverse; identities sorted long→short."""
 
     _mask_pairs: tuple[tuple[str, str], ...]  # (identity, token), long→short
     _demask_pairs: tuple[tuple[str, str], ...]  # (token, identity), long→short
+    _detector: Callable[[str], list[tuple[str, str]]] | None = None
+    _leak_detector: Callable[[str], list[tuple[str, str]]] | None = None
+    _dynamic: dict[str, str] = field(default_factory=dict)
+    _dynamic_demask: dict[str, str] = field(default_factory=dict)
+    _party_counters: dict[str, int] = field(default_factory=dict)
 
     @classmethod
-    def from_identity_map(cls, identity_to_token: dict[str, str]) -> MaskSession:
+    def from_identity_map(
+        cls,
+        identity_to_token: dict[str, str],
+        detector: Callable[[str], list[tuple[str, str]]] | None = None,
+        leak_detector: Callable[[str], list[tuple[str, str]]] | None = None,
+    ) -> MaskSession:
         mask_pairs = tuple(
             sorted(
                 identity_to_token.items(),
@@ -66,20 +82,65 @@ class MaskSession:
                 reverse=True,
             )
         )
-        return cls(_mask_pairs=mask_pairs, _demask_pairs=demask_pairs)
+        return cls(
+            _mask_pairs=mask_pairs,
+            _demask_pairs=demask_pairs,
+            _detector=detector,
+            _leak_detector=leak_detector,
+        )
 
     def mask(self, text: str) -> str:
         """Replace known identities with tokens (case-insensitive, whole-word, long first)."""
-        if not text or not self._mask_pairs:
+        if not text:
+            return text
+        if self._detector is not None:
+            self._ingest_detected_spans(self._invoke_detector(self._detector, text))
+        pairs = self._combined_mask_pairs()
+        if not pairs:
             return text
         out = text
-        for identity, token in self._mask_pairs:
+        for identity, token in pairs:
             pattern = re.compile(
                 rf"\b{re.escape(identity)}\b",
                 re.IGNORECASE,
             )
             out = pattern.sub(token, out)
         return out
+
+    def _invoke_detector(
+        self,
+        detector: Callable[[str], list[tuple[str, str]]],
+        text: str,
+    ) -> list[tuple[str, str]]:
+        """Run detector. `gliner` paketi yoksa (CI hermetik) [] — diğer ImportError/hata propagate."""
+        try:
+            return detector(text)
+        except ImportError as exc:
+            if getattr(exc, "name", None) == "gliner":
+                logger.warning("masking: gliner unavailable; detector skipped")
+                return []
+            raise
+
+    def _ingest_detected_spans(self, spans: list[tuple[str, str]]) -> None:
+        registry_norms = {_normalize(ident) for ident, _tok in self._mask_pairs}
+        dynamic_norms = {_normalize(ident) for ident in self._dynamic}
+        for etext, label in spans:
+            if not _usable(etext) or label not in LABEL_MAP:
+                continue
+            norm = _normalize(etext)
+            if norm in registry_norms or norm in dynamic_norms:
+                continue
+            n = self._party_counters.get(label, 0) + 1
+            self._party_counters[label] = n
+            token = f"⟦{LABEL_MAP[label]}_{n}⟧"
+            self._dynamic[etext] = token
+            self._dynamic_demask[token] = etext
+            dynamic_norms.add(norm)
+
+    def _combined_mask_pairs(self) -> tuple[tuple[str, str], ...]:
+        merged = list(self._mask_pairs) + list(self._dynamic.items())
+        merged.sort(key=lambda kv: len(kv[0]), reverse=True)
+        return tuple(merged)
 
     def mask_context(self, ctx: dict) -> dict:
         """Recursively mask all str values in a dict (and list/tuple children)."""
@@ -98,22 +159,32 @@ class MaskSession:
 
     def demask(self, text: str) -> str:
         """⟦TOKEN⟧ → real identity (exact, case-sensitive)."""
-        if not text or not self._demask_pairs:
+        if not text:
             return text
+        pairs = list(self._demask_pairs) + list(self._dynamic_demask.items())
+        if not pairs:
+            return text
+        pairs.sort(key=lambda kv: len(kv[0]), reverse=True)
         out = text
-        for token, identity in self._demask_pairs:
+        for token, identity in pairs:
             out = out.replace(token, identity)
         return out
 
     def has_leak(self, text: str) -> bool:
         """True if any known raw identity still appears (whole-word, case-insensitive)."""
-        # NOTE (TB-41): detects ONLY registry identities. A typo/variant/unregistered name
-        # is invisible here — that recall gap is closed by the future local-NER front-end.
-        if not text or not self._mask_pairs:
+        # NOTE (TB-41): registry-scan is exact-match. Unregistered/typo names are
+        # caught by _leak_detector (NER) when bound — fail-closed, INV-MASK-4.
+        if not text:
             return False
-        for identity, _token in self._mask_pairs:
-            if re.search(rf"\b{re.escape(identity)}\b", text, re.IGNORECASE):
-                return True
+        if self._mask_pairs:
+            for identity, _token in self._mask_pairs:
+                if re.search(rf"\b{re.escape(identity)}\b", text, re.IGNORECASE):
+                    return True
+        if self._leak_detector is not None:
+            spans = self._invoke_detector(self._leak_detector, text)
+            for _etext, label in spans:
+                if label in LABEL_MAP:
+                    return True
         return False
 
 
@@ -206,7 +277,11 @@ class MaskingProvider:
         identity_to_token = {display: token for display, token in by_norm.values()}
         if not identity_to_token:
             return None
-        return MaskSession.from_identity_map(identity_to_token)
+        return MaskSession.from_identity_map(
+            identity_to_token,
+            detector=lambda t: detect_identity_spans(t),
+            leak_detector=lambda t: detect_identity_spans(t, threshold=0.25),
+        )
 
     def _register_role(
         self,
@@ -309,14 +384,15 @@ def _get_ner_model():
     return _ner_model
 
 
-def detect_identity_spans(text: str) -> list[tuple[str, str]]:
+def detect_identity_spans(
+    text: str, threshold: float | None = None
+) -> list[tuple[str, str]]:
     """(entity_text, label) listesi. Boş/kısa metin → []. Model/inference hatası
     PROPAGATE eder (çağıran fail-closed: build()→None, INV-MASK-3).
-
-    MaskSession'a HENÜZ bağlı değil (S2b bağlayacak).
     """
     if not _usable(text):
         return []
     model = _get_ner_model()
-    preds = model.predict_entities(text, _IDENTITY_LABELS, threshold=_NER_THRESHOLD)
+    thresh = _NER_THRESHOLD if threshold is None else threshold
+    preds = model.predict_entities(text, _IDENTITY_LABELS, threshold=thresh)
     return [(pred["text"], pred["label"]) for pred in preds]

@@ -171,3 +171,94 @@ def test_b4_bijection_second_employer_becomes_party_n():
     assert session is not None
     assert session.mask("Acme") == _EMPLOYER
     assert session.mask("Beta") == _PARTY_1
+
+
+# ----- Part C: dynamic-map (sahte detector; model gerekmez, CI koşar) -----
+
+
+def _fake_detector(spans):
+    return lambda text: spans
+
+
+_ORG_1 = "⟦ORG_1⟧"
+_ORG_2 = "⟦ORG_2⟧"
+
+
+def test_c1_ner_span_round_trip():
+    session = MaskSession.from_identity_map(
+        {},
+        detector=_fake_detector([("Falan İnşaat", "organization")]),
+    )
+    original = "Falan İnşaat notice"
+    masked = session.mask(original)
+    assert _ORG_1 in masked
+    assert "Falan İnşaat" not in masked
+    assert session.demask(masked) == original
+
+
+def test_c2_same_entity_twice_reuses_token():
+    session = MaskSession.from_identity_map(
+        {},
+        detector=_fake_detector([("Falan İnşaat", "organization")]),
+    )
+    masked = session.mask("Falan İnşaat wrote to Falan İnşaat")
+    assert masked.count(_ORG_1) == 2
+    assert _ORG_2 not in masked
+    assert "Falan İnşaat" not in masked
+
+
+def test_c3_two_orgs_increment_counter():
+    session = MaskSession.from_identity_map(
+        {},
+        detector=_fake_detector(
+            [
+                ("Falan İnşaat", "organization"),
+                ("Beta Mühendislik", "organization"),
+            ]
+        ),
+    )
+    masked = session.mask("Falan İnşaat and Beta Mühendislik")
+    assert _ORG_1 in masked
+    assert _ORG_2 in masked
+    assert "Falan İnşaat" not in masked
+    assert "Beta Mühendislik" not in masked
+
+
+def test_c4_registry_name_not_rewritten_as_org_n():
+    session = MaskSession.from_identity_map(
+        {"Acme Corp": _EMPLOYER},
+        detector=_fake_detector(
+            [
+                ("Acme Corp", "organization"),
+                ("Falan İnşaat", "organization"),
+            ]
+        ),
+    )
+    masked = session.mask("Acme Corp and Falan İnşaat")
+    assert _EMPLOYER in masked
+    assert _ORG_1 in masked
+    assert "Acme Corp" not in masked
+    assert "Falan İnşaat" not in masked
+    assert masked.count("⟦ORG_") == 1
+
+
+def test_c5_has_leak_uses_leak_detector():
+    leaking = MaskSession.from_identity_map(
+        {},
+        leak_detector=_fake_detector([("X", "person")]),
+    )
+    assert leaking.has_leak("unrelated text") is True
+    clean = MaskSession.from_identity_map(
+        {},
+        leak_detector=_fake_detector([]),
+    )
+    assert clean.has_leak("unrelated text") is False
+
+
+def test_c6_unknown_label_is_skipped():
+    session = MaskSession.from_identity_map(
+        {},
+        detector=_fake_detector([("FooBar", "misc")]),
+    )
+    original = "FooBar notice"
+    assert session.mask(original) == original

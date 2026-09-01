@@ -451,3 +451,35 @@ pakette. Pilotu bloklamaz.
 **Sorun:** Yol-A `gliner` düz kurulumu torch'un CUDA-gömülü wheel'ini (~503M) çeker; sunucuda GPU yok → CUDA kütüphaneleri ölü ağırlık. Pilot laptop'ta zararsız (sıfır maliyet) ama deploy imajını ~500M şişirir.
 **Çözüm:** deploy imajında torch-cpu index-url pin (download.pytorch.org/whl/cpu) + multi-stage/slim base; dev≈prod maske ÇIKTISI değişmez (CPU numerik aynı, yalnız CUDA libs düşer).
 **Ne zaman:** P-B4 Docker/deploy turu (ClamAV paketi + Gotenberg topolojisi ile aynı pakette).
+
+---
+## TB-62 — serbest-format belge/referans-no sınıflandırma
+**Konum:** GLiNER `document number` + regex belge-no (ADR-0005 Katman 3)
+**Durum:** open
+**Sorun:** regex kırılgan (typo/format sonsuz) + GLiNER %7.6 toxic-confusion (docref→price).
+**Çözüm:** pilot=fail-closed+over-mask+has_leak-net; fine-tune Faz-3.
+**Ne zaman:** sonraki oturum taze-test.
+
+---
+## TB-63 — Slice-Y embedding maske-tutarlılığı (ADR-0001 kesişimi)
+**Konum:** `backend/services/pdf_pipeline_service.py` (ham `clean_text`)
+**Durum:** open
+**Sorun:** pdf_pipeline_service.py ham clean_text maskesiz embed edilecek.
+**Çözüm:** precompute-maske embedding'i de sarmalı.
+**Ne zaman:** local-embedding build turu. (Bugün kanal ölü.)
+
+---
+## TB-64 — has_leak over-block precision
+**Konum:** `backend/services/masking_service.py` `has_leak` (eşik 0.25)
+**Durum:** open
+**Sorun:** leak-scan @0.25 agresif; temiz-maskeli metni entity sanıp bloklarsa her istek reddedilir.
+**Çözüm:** taze-test temiz-maskeli metin has_leak=False ölçer; eşik/allowlist tune.
+**Ne zaman:** taze-test §5 (bir numaralı ölçüm).
+
+---
+## TB-65 — egress-anı NER-latency
+**Konum:** egress `mask_context` + `has_leak`; `test_lat_profile`; migration 056
+**Durum:** open
+**Sorun:** precompute öncesi mask_context+has_leak çok-pass (~0.55ms/char × N string).
+**Çözüm:** migration 056 precompute; ONNX/async.
+**Ne zaman:** taze-test + eksik-katman build.

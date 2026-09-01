@@ -14,3 +14,4 @@ Not: ADR-013/014 = EK-20 formal register'ından (2026-07-28) önce açılan, far
 | 0002 | Migration Runner — doğrudan-PG mekanizması + secret/rol izolasyonu | Accepted | 2026-08-10 |
 | 0003 | Sistem-prompt at-rest şifrelemesi — iddia hizalandı, gerçek şifreleme deploy-turuna ertelendi | Accepted | 2026-08-19 |
 | 0004 | Semantik maskeleme motoru — lokal GLiNER NER, deterministik token-omurgası korunur | Accepted | 2026-08-29 |
+| 0005 | Tam maske mimarisi — 4 katman + tutar-proxy ölçekleme | Accepted | 2026-08-30 |

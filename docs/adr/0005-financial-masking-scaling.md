@@ -40,6 +40,7 @@ S2a (GLiNER altyapı) + S2b (chokepoint wiring) + S3 (recall kanıtı) BU OTURUM
 - INV-MASK-8: belge/referans-no ölçeklenmez (maske-token, birebir-demask); ASLA k ile çarpılmaz.
 - INV-MASK-9 (şema-tutarlılık): etiket-şeması (sınıflar + negatif-label) fine-tune veri-üreticisiyle aynı => Faz-3 sürtünmesiz.
 - INV-MASK-10 (katman sırası): registry+acronym (deterministik) => regex (yapısal) => GLiNER (kalan) => allowlist-filtre => has_leak. Deterministik/yapısal katmanlar NER'den ÖNCE.
+- INV-MASK-11 (registry precedence): Katman-1 registry, Katman-2b allowlist'ten BAĞIMSIZ ve ondan önce uygulanır (ayrı kanal: registry `_mask_pairs` üzerinden `\b`-substitüsyon; allowlist yalnız NER→dynamic yolunu keser). Bir kamu-kurumu adı allowlist'te OLSA BİLE, o kurum bu projenin TARAFI olarak registry'ye kayıtlıysa registry rol-token'ı (`⟦EMPLOYER⟧` vb.) kazanır. Allowlist'in anlamı "kayıtsız dış-kurum/regülatör maskelenmesin" (bağlam korunur), "bu isim asla token olmasın" DEĞİL. Örnek: JEDCO (taraf→registry→`⟦EMPLOYER⟧`) vs GACA (dış-regülatör→allowlist→ham). Bespoke: aynı kurum bir sözleşmede taraf, başkasında regülatör olabilir; registry-üyeliği ayrımı yapar, statik liste değil.
 - ARTIK-RİSK (adlandırılır, papering yok): kayıtsız-taraf + NER-imperfect => fail-closed/over-mask + acronym ile sınırlı ama sıfır DEĞİL. Serbest-format belge-no toxic %7.6 = zero-shot sınırı, SIZINTI DEĞİL (gizli kalır, demask-bozulması).
 
 ## İzleme-tetikleri
@@ -52,3 +53,4 @@ S2a (GLiNER altyapı) + S2b (chokepoint wiring) + S3 (recall kanıtı) BU OTURUM
 - TB-63: Slice-Y embedding maske-tutarlılığı (ADR-0001 kesişimi).
 - TB-64: has_leak over-block precision — @0.25 agresif eşik temiz-maskeli metni bloklarsa ürün ölü doğar; taze-test temiz-maskeli metin has_leak=False döndüğünü ölçer.
 - TB-65: egress-anı NER-latency — precompute öncesi mask_context+has_leak istek başına çok-pass; test_lat_profile ölçmeye başladı; migration 056 precompute kapatır.
+- TB-66: GLiNER possessive/birleşik-ad span-sınırı — "X's Company" tek org-span verilmiyor (ayırt-edici kısım ör. "Jeddah Airport" LOC maskelenir, "'s Company" ham kalır). Sızıntı DEĞİL (ham taraf-adı çıktıda yok, ayırt-edici kısım maskeli); estetik/legibility. Fix seçenekleri: span-birleştirme veya possessive-desen kuralı; karmaşıklık/güvenlik-kazanç sıfır → şimdilik ertelendi.

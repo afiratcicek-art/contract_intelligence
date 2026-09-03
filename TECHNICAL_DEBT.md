@@ -483,3 +483,11 @@ pakette. Pilotu bloklamaz.
 **Sorun:** precompute öncesi mask_context+has_leak çok-pass (~0.55ms/char × N string).
 **Çözüm:** migration 056 precompute; ONNX/async.
 **Ne zaman:** taze-test + eksik-katman build.
+
+---
+## TB-66 — GLiNER possessive/birleşik-ad span-sınırı
+**Konum:** `backend/services/masking_service.py` NER katmanı (GLiNER span)
+**Durum:** open (ertelendi)
+**Sorun:** "X's Company" tek span verilmiyor; ayırt-edici kısım maskeli ama "'s Company" ham. Sızıntı yok, estetik.
+**Çözüm:** span-birleştirme veya possessive-kural; güvenlik-kazanç sıfır.
+**Ne zaman:** legibility-tuning turu (düşük öncelik).

@@ -52,14 +52,67 @@ _DONT_MASK = frozenset({
     "final payment certificate", "taking-over certificate", "performance certificate",
     "defects notification period", "dnp", "statement", "contract data",
     "appendix to tender", "letter of acceptance", "letter of tender",
-    # kamu/jenerik
-    "sama", "cchi", "nda",
+    "nda",
     # Arapça roller/belgeler — ال'li + ال'siz iki form (Fix-C: ال strip edilmiyor)
     "المهندس", "مهندس", "المقاول", "مقاول", "صاحب العمل",
     "المقاول من الباطن", "مقاول من الباطن", "مجلس فض النزاعات",
     "ممثل المهندس", "ممثل صاحب العمل", "الطرف", "طرف", "الأطراف", "أطراف",
     "الشركة", "شركة", "العميل", "عميل",
     "شهادة الدفع", "شهادة الاستلام", "شهادة الأداء", "فترة الإخطار بالعيوب",
+    # proje-jenerikleri (FIDIC Site/Works/Plant/Project — taraf adı değil)
+    "site", "the works", "works", "the project", "project", "plant",
+    "permanent works", "temporary works",
+    "الموقع", "موقع", "الأعمال", "أعمال", "المشروع", "مشروع",
+    "الأشغال", "أشغال",
+    # kamu kurumları — sözleşmede regülatör/statü (EN tam-ad + akronim, AR temiz-form).
+    # İşveren olabilecek işletmeciler (SEC, NWC, Royal Commission, havalimanı) YOK.
+    "sama", "saudi central bank", "saudi arabian monetary authority",
+    "البنك المركزي السعودي", "مؤسسة النقد العربي السعودي", "مؤسسة النقد",
+    "cchi", "council of cooperative health insurance", "مجلس الضمان الصحي",
+    "zatca", "zakat, tax and customs authority",
+    "zakat tax and customs authority",
+    "هيئة الزكاة والضريبة والجمارك", "هيئة الزكاة",
+    "الزكاة والضريبة والجمارك",
+    "gosi", "general organization for social insurance",
+    "المؤسسة العامة للتأمينات الاجتماعية", "التأمينات الاجتماعية",
+    "ministry of labor", "ministry of labour", "وزارة العمل",
+    "hrsd", "mhrsd",
+    "ministry of human resources and social development",
+    "وزارة الموارد البشرية والتنمية الاجتماعية", "وزارة الموارد البشرية",
+    "momra", "momrah",
+    "ministry of municipal and rural affairs",
+    "وزارة الشؤون البلدية والقروية والإسكان", "وزارة الشؤون البلدية",
+    "saso", "saudi standards, metrology and quality organization",
+    "الهيئة السعودية للمواصفات والمقاييس والجودة", "الهيئة السعودية للمواصفات",
+    "civil defence", "civil defense",
+    "الدفاع المدني", "المديرية العامة للدفاع المدني",
+    "saudi building code", "sbc", "كود البناء السعودي",
+    "ministry of commerce", "وزارة التجارة",
+    "ministry of interior", "وزارة الداخلية",
+    "ministry of energy", "وزارة الطاقة",
+    "ministry of transport", "وزارة النقل",
+    "capital market authority", "cma", "هيئة السوق المالية",
+    "gaca", "general authority of civil aviation",
+    "الهيئة العامة للطيران المدني",
+    "riyadh development authority", "هيئة تطوير الرياض",
+    # standart-gövdeleri (çıplak, numarasız). Numaralı kod (ISO 9001:2015) ayrı yol.
+    "iso", "astm", "iec", "aci", "din", "asme", "aws", "ieee", "api",
+    "aashto", "fidic", "nec", "bs", "bs en",
+})
+
+# Numaralı standart-kod: "ISO 9001:2015", "ASTM C150", "NEC4", "BS EN 1992-1-1".
+# Gövde adı + (opsiyonel harf) + rakam — "engineer" eşleşmez (rakam yok).
+_STANDARD_CODE_RE = re.compile(
+    r"^(?:iso|astm|iec|aci|din|asme|aws|ieee|api|saso|aashto|fidic|nec|"
+    r"bs(?:\s+en)?|en)[\s\-/]*[a-z]{0,3}\d"
+)
+_STANDARD_BODIES = frozenset({
+    "iso", "astm", "iec", "aci", "din", "asme", "aws", "ieee", "api",
+    "saso", "aashto", "fidic", "nec", "bs", "en",
+})
+_STANDARD_TAILS = frozenset({
+    "standards", "standard", "methods", "method", "code", "codes",
+    "specification", "specifications",
 })
 
 
@@ -73,6 +126,26 @@ def _normalize_allow(s: str) -> str:
             t = t[len(prefix):].strip()
             break
     return t
+
+
+def _is_standard_span(etext: str) -> bool:
+    """Numaralı standart-kod veya 'ISO standards' / 'ASTM methods' kuyruğu."""
+    n = _normalize_allow(etext)
+    if _STANDARD_CODE_RE.match(n):
+        return True
+    parts = n.split()
+    if len(parts) >= 2 and parts[0] in _STANDARD_BODIES:
+        return all(p in _STANDARD_TAILS for p in parts[1:])
+    if n.startswith("bs en"):
+        rest = n[5:].strip().split()
+        if rest and all(p in _STANDARD_TAILS or any(c.isdigit() for c in p) for p in rest):
+            return True
+    return False
+
+
+def _skip_detected_span(etext: str) -> bool:
+    """NER span'i maskeleme/has_leak'ten atla: allowlist tam-eşleşme veya standart-kod."""
+    return _normalize_allow(etext) in _DONT_MASK or _is_standard_span(etext)
 
 
 def _normalize(name: str) -> str:
@@ -166,7 +239,7 @@ class MaskSession:
         for etext, label in spans:
             if not _usable(etext) or label not in LABEL_MAP:
                 continue
-            if _normalize_allow(etext) in _DONT_MASK:
+            if _skip_detected_span(etext):
                 continue
             norm = _normalize(etext)
             if norm in registry_norms or norm in dynamic_norms:
@@ -226,7 +299,7 @@ class MaskSession:
         if self._leak_detector is not None:
             spans = self._invoke_detector(self._leak_detector, residual)
             for etext, label in spans:
-                if label in LABEL_MAP and _normalize_allow(etext) not in _DONT_MASK:
+                if label in LABEL_MAP and not _skip_detected_span(etext):
                     return True
         return False
 

@@ -34,6 +34,45 @@ LABEL_MAP = {
     "person": "PERSON",
     "location": "LOC",
 }
+_TOKEN_RE = re.compile(r"⟦[A-Z_]+(?:_\d+)?⟧")
+
+# Jenerik FIDIC rol/kurum/enstrüman terimleri + kamu — TARAF ADI DEĞİL.
+# Tam-eşleşme (normalize) ile atlanır; "engineer" atlanır, "Engineer Khalid" atlanmaz.
+# NOT (TB-64): bespoke sözleşmelerde Company/Client/Employer/Authority jenerik-rol
+# olabilir; bu liste gerçek-dünya ölçümüyle revize edilecek (over-mask vs sızıntı dengesi).
+_DONT_MASK = frozenset({
+    # roller
+    "engineer", "employer", "contractor", "subcontractor", "sub-contractor",
+    "nominated subcontractor", "employer's representative", "engineer's representative",
+    "consultant", "client", "company", "authority", "party", "parties",
+    "dab", "daab", "dispute board", "dispute adjudication board",
+    "dispute avoidance and adjudication board",
+    # enstrüman/sertifika (belge-türü, ad değil)
+    "ipc", "interim payment certificate", "payment certificate",
+    "final payment certificate", "taking-over certificate", "performance certificate",
+    "defects notification period", "dnp", "statement", "contract data",
+    "appendix to tender", "letter of acceptance", "letter of tender",
+    # kamu/jenerik
+    "sama", "cchi", "nda",
+    # Arapça roller/belgeler — ال'li + ال'siz iki form (Fix-C: ال strip edilmiyor)
+    "المهندس", "مهندس", "المقاول", "مقاول", "صاحب العمل",
+    "المقاول من الباطن", "مقاول من الباطن", "مجلس فض النزاعات",
+    "ممثل المهندس", "ممثل صاحب العمل", "الطرف", "طرف", "الأطراف", "أطراف",
+    "الشركة", "شركة", "العميل", "عميل",
+    "شهادة الدفع", "شهادة الاستلام", "شهادة الأداء", "فترة الإخطار بالعيوب",
+})
+
+
+def _normalize_allow(s: str) -> str:
+    """Allowlist eşleşmesi için normalize: casefold + trim + baştaki 'the '/'al-' at.
+    NOT: Arapça 'ال' (el-takısı) STRIP EDİLMEZ — özel-ad parçalama riski (العتيبي/الراشد);
+    Arapça terimler allowlist'e ال'li + ال'siz iki formda yazılır (Fix-C)."""
+    t = s.strip().casefold()
+    for prefix in ("the ", "al-"):
+        if t.startswith(prefix):
+            t = t[len(prefix):].strip()
+            break
+    return t
 
 
 def _normalize(name: str) -> str:
@@ -127,6 +166,8 @@ class MaskSession:
         for etext, label in spans:
             if not _usable(etext) or label not in LABEL_MAP:
                 continue
+            if _normalize_allow(etext) in _DONT_MASK:
+                continue
             norm = _normalize(etext)
             if norm in registry_norms or norm in dynamic_norms:
                 continue
@@ -171,19 +212,21 @@ class MaskSession:
         return out
 
     def has_leak(self, text: str) -> bool:
-        """True if any known raw identity still appears (whole-word, case-insensitive)."""
-        # NOTE (TB-41): registry-scan is exact-match. Unregistered/typo names are
-        # caught by _leak_detector (NER) when bound — fail-closed, INV-MASK-4.
+        """Maskeleme SONRASI ham kimlik kaldı mı. Token'lar (zaten-maskeli) leak DEĞİL.
+        Fail-closed: token çıkarıldıktan sonra ⟦/⟧ artığı (bozuk token) kalırsa → True."""
         if not text:
             return False
+        residual = _TOKEN_RE.sub(" ", text)
+        if "⟦" in residual or "⟧" in residual:
+            return True  # bozuk/yarım token → şüpheli, fail-closed
         if self._mask_pairs:
             for identity, _token in self._mask_pairs:
-                if re.search(rf"\b{re.escape(identity)}\b", text, re.IGNORECASE):
+                if re.search(rf"\b{re.escape(identity)}\b", residual, re.IGNORECASE):
                     return True
         if self._leak_detector is not None:
-            spans = self._invoke_detector(self._leak_detector, text)
-            for _etext, label in spans:
-                if label in LABEL_MAP:
+            spans = self._invoke_detector(self._leak_detector, residual)
+            for etext, label in spans:
+                if label in LABEL_MAP and _normalize_allow(etext) not in _DONT_MASK:
                     return True
         return False
 

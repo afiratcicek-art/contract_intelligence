@@ -47,6 +47,8 @@ S2a (GLiNER altyapı) + S2b (chokepoint wiring) + S3 (recall kanıtı) BU OTURUM
 - INV-MASK-11 (registry precedence): Katman-1 registry, Katman-2b allowlist'ten BAĞIMSIZ ve ondan önce uygulanır (ayrı kanal: registry `_mask_pairs` üzerinden `\b`-substitüsyon; allowlist yalnız NER→dynamic yolunu keser). Bir kamu-kurumu adı allowlist'te OLSA BİLE, o kurum bu projenin TARAFI olarak registry'ye kayıtlıysa registry rol-token'ı (`⟦EMPLOYER⟧` vb.) kazanır. Allowlist'in anlamı "kayıtsız dış-kurum/regülatör maskelenmesin" (bağlam korunur), "bu isim asla token olmasın" DEĞİL. Örnek: JEDCO (taraf→registry→`⟦EMPLOYER⟧`) vs GACA (dış-regülatör→allowlist→ham). Bespoke: aynı kurum bir sözleşmede taraf, başkasında regülatör olabilir; registry-üyeliği ayrımı yapar, statik liste değil.
 - INV-MASK-4 (has_leak = saf fail-closed doğrulayıcı): mask ile SİMETRİK eşik; payload'ı değiştirmez; recover yok. Blok = bozuk-token ∪ registry-ham ∪ allowlist-dışı NER-entity (mask-eşiğinde). Simetri → over-block yok. Reddedilen: (a) asimetrik has_leak (mask'ten agresif) → over-block [TB-64]; (b) recover-in-has_leak (yerel kopyayı maskele) → payload/verdict uyuşmazlığı, sessiz egress [bu oturum: اتف BLOCK→LEAK ölçüldü].
 - ARTIK-RİSK (adlandırılır, papering yok): kayıtsız-taraf + NER-imperfect => fail-closed/over-mask + acronym ile sınırlı ama sıfır DEĞİL. Serbest-format belge-no toxic %7.6 = zero-shot sınırı, SIZINTI DEĞİL (gizli kalır, demask-bozulması). Mask-eşiği-altı garbled fragment (ör. اتف) NER-görünmez → registry (birincil) + gerçek-bağlam NER (--local) + parse ile kapanır; has_leak'in işi değil.
+- ARTIK-RİSK (has_leak(b) registry-only — BULGU-3 KAPALI): has_leak(b) deterministik backstop yalnız registry-taraf; NER-taraf leak'i NER(c) ile kapanır (simetrik eşik → güvenli). Kabul, mimari. Dynamic-map ham'ı (b) taramaz; TB değil.
+- ARTIK-RİSK (L3 etiketsiz çıplak-sayı — BULGU-B KAPALI): ID/VAT currency-guard (eşleşme öncesi ~6 karakterde SAR|SR|USD|EUR|﷼|$) tutar-etiketli çıplak 10/15-haneyi ID/VAT sanmaz (amount-proxy katmanına kalır). Guard sonrası kalan etiketsiz çıplak-sayı over-mask = INV-MASK-4 fail-closed kabul. Bug değil, TB değil.
 
 ## İzleme-tetikleri
 - Fine-tune (Faz-3): fizibilite doğrulandı (gliner.train_model + {tokenized_text,ner} + ner_negatives + GPU bulut/segment-B). Hedef: serbest-format belge-no toxic %7.6->~%2, trap-FP->min. Veri = STAT-şablonu + gerçek-pilot (INV-DATA sonrası).
@@ -55,6 +57,8 @@ S2a (GLiNER altyapı) + S2b (chokepoint wiring) + S3 (recall kanıtı) BU OTURUM
 - TB-67: _trim_allowlisted_edges kenar-kelimeyi (Client/Company) kırpıp ham bırakabilir; ayırt-edici kısım maskeli, düşük risk, precision-tune bekliyor.
 - INV-MASK sub: mask/has_leak substitüsyonu \b DEĞİL (?<!\w)…(?!\w) lookaround — dotted legal form (W.L.L./LLC./Co.) \b'de sınır bulamıyordu (sızıntı). \b'ye geri döndürme. Neg: ZenithX↛Zenith.
 - INV-MASK sub whitespace-esnek (\s+): satır-sonu/çoklu-boşlukla bölünen bilinen taraf (S10) deterministik kapanır; NER(c)'ye bağımlı değil. Ortaya kelime girmez.
+- L3 IBAN: regex-only DEĞİL → ülke-kodu+tam-uzunluk+mod-97 checksum. Regex all-caps komşu-kelime (…ISSUED) yutup FP üretiyordu (fuzz 6k/48k). Checksum kesin; recall 0-FN, FP 0 (40k ölçüm).
+- Sıradaki (bu turda değil, kaybolmasın): BULGU-2 ß/casefold; BULGU-4 demask-guard.
 
 ## Doğurduğu TB'ler
 - TB-62: serbest-format belge/referans-no (LC/fatura/bond/promissory) sınıflandırma — regex kırılgan (Ali: typo/format sonsuz) + GLiNER %7.6 toxic. Pilot: fail-closed+over-mask+has_leak-net. Fine-tune Faz-3 hedefi. Sonraki oturumda taze-test edilecek.

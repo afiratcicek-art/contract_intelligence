@@ -128,6 +128,57 @@ def test_a6_empty_map_is_noop():
     assert session.has_leak(x) is False
 
 
+def test_l3_structural_regex():
+    """L3: email/IBAN/VAT/ID token; tutar/süre/%/madde-no ham. GLiNER yok."""
+    session = MaskSession.from_identity_map({})
+    email = "ops@orion-steel.example"
+    iban_sa = "SA03 8000 0000 6080 1016 7519"
+    iban_de = "DE89 3704 0044 0532 0130 00"
+    iban_gb = "GB82 WEST 1234 5698 7654 32"
+    iban_ae = "AE07 0331 2345 6789 0123 456"
+    vat = "310175397400003"
+    iqama = "1098765432"
+    po = "PO12 3456 7890"
+    drawing = "AB12 CDEF 3456"
+    invoice = "INVOICE PO81 8629 8402 ISSUED"
+    serial = "SN-9931-AB"
+    text = (
+        f"Contact {email}. IBAN {iban_sa}. DE {iban_de}. GB {iban_gb}. AE {iban_ae}. "
+        f"VAT {vat}. Iqama {iqama}. "
+        f"Ref {po}. Drawing {drawing}. {invoice}. Serial {serial}. "
+        "The sum is SAR 487,350,000 and SAR 1500000000 due in 28 days at 0.5%. Clause 12 applies."
+    )
+    masked = session.mask(text)
+    assert email not in masked
+    assert iban_sa not in masked
+    assert iban_de not in masked
+    assert iban_gb not in masked
+    assert iban_ae not in masked
+    assert vat not in masked
+    assert iqama not in masked
+    assert "⟦EMAIL_1⟧" in masked
+    assert "⟦IBAN_1⟧" in masked
+    assert "⟦IBAN_2⟧" in masked
+    assert "⟦IBAN_3⟧" in masked
+    assert "⟦IBAN_4⟧" in masked
+    assert "⟦VAT_1⟧" in masked
+    assert "⟦ID_1⟧" in masked
+    assert po in masked
+    assert drawing in masked
+    assert invoice in masked
+    assert serial in masked
+    assert "SAR 487,350,000" in masked
+    assert "SAR 1500000000" in masked
+    assert "28 days" in masked
+    assert "0.5%" in masked
+    assert "Clause 12" in masked
+    assert session.demask(masked) == text
+    assert session.has_leak("ham ops@x.example") is True
+    assert session.has_leak("IBAN SA03 8000 0000 6080 1016 7519") is True
+    assert session.has_leak("SAR 1500000000") is False
+    assert session.has_leak(masked) is False
+
+
 # ----- Part B: MaskingProvider.build() fail-closed ------------------------
 
 

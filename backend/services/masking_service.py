@@ -35,6 +35,75 @@ LABEL_MAP = {
     "location": "LOC",
 }
 _TOKEN_RE = re.compile(r"⟦[A-Z_]+(?:_\d+)?⟧")
+# L3 yapısal (INV-MASK-10): NER'den önce, registry oturumunda. Contract-no YOK (TB-62).
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+_IBAN_CAND = re.compile(r"\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b")
+_VAT_RE = re.compile(r"\b\d{15}\b")
+_ID_RE = re.compile(r"\b[12]\d{9}\b")
+# ID/VAT: tutar bağlamındaki çıplak sayıyı yakalama (amount-proxy'nin işi, TB-değil ayrım)
+_CURRENCY_NEAR = re.compile(r"(?:SAR|SR|USD|EUR|﷼|\$)\s*$")
+_STRUCTURAL_RES: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("EMAIL", _EMAIL_RE),
+    ("VAT", _VAT_RE),
+    ("ID", _ID_RE),
+)
+# IBAN registry: ülke kodu -> tam uzunluk (ISO 13616 tanımsal spec, kapalı küme).
+_IBAN_LEN = {
+    "AL": 28, "AD": 24, "AT": 20, "AZ": 28, "BH": 22, "BE": 16, "BA": 20, "BR": 29,
+    "BG": 22, "CR": 22, "HR": 21, "CY": 28, "CZ": 24, "DK": 18, "DO": 28, "EG": 29,
+    "SV": 28, "EE": 20, "FO": 18, "FI": 18, "FR": 27, "GE": 22, "DE": 22, "GI": 23,
+    "GR": 27, "GL": 18, "GT": 28, "HU": 28, "IS": 26, "IQ": 23, "IE": 22, "IL": 23,
+    "IT": 27, "JO": 30, "KZ": 20, "XK": 20, "KW": 30, "LV": 21, "LB": 28, "LI": 21,
+    "LT": 20, "LU": 20, "MT": 31, "MR": 27, "MU": 30, "MD": 24, "MC": 27, "ME": 22,
+    "NL": 18, "MK": 19, "NO": 15, "PK": 24, "PS": 29, "PL": 28, "PT": 25, "QA": 29,
+    "RO": 24, "SM": 27, "SA": 24, "RS": 22, "SK": 24, "SI": 19, "ES": 24, "SE": 24,
+    "CH": 21, "TN": 24, "TR": 26, "UA": 29, "AE": 23, "GB": 22, "VG": 24,
+}
+
+
+def _is_valid_iban(candidate: str) -> bool:
+    """ISO 13616: ülke-kodu tanınır + tam uzunluk + mod-97 checksum == 1.
+    Regex tek başına all-caps komşu-kelimeyi (…ISSUED) yutup FP üretiyordu; checksum kesin ayırır."""
+    s = re.sub(r"\s", "", candidate).upper()
+    L = _IBAN_LEN.get(s[:2])
+    if L is None or len(s) != L:
+        return False
+    r = s[4:] + s[:4]
+    d = "".join(str(ord(c) - 55) if c.isalpha() else c for c in r)
+    return int(d) % 97 == 1
+
+
+def _iban_from_candidate(cand: str) -> str | None:
+    """Geçerli IBAN, veya trailing-word gobble sonrası geçerli IBAN."""
+    if _is_valid_iban(cand):
+        return cand
+    toks = cand.split()
+    while len(toks) >= 3:
+        toks = toks[:-1]
+        joined = " ".join(toks)
+        if _is_valid_iban(joined):
+            return joined
+    return None
+
+
+def _find_structural(text: str) -> bool:
+    """L3 ham kalıntısı var mı (email/IBAN/VAT/ID) — has_leak fail-closed ağı.
+    mask() ile SİMETRİK: mask ne token'larsa has_leak onu ham görürse bloklar."""
+    if _EMAIL_RE.search(text):
+        return True
+    for m in _IBAN_CAND.finditer(text):
+        cand = m.group(0)
+        if _iban_from_candidate(cand):
+            return True
+    # VAT/ID: currency-guard'lı (amount-proxy'ye ait olanı leak sayma — mask ile aynı kural)
+    for cre in (_VAT_RE, _ID_RE):
+        for m in cre.finditer(text):
+            pre = text[max(0, m.start() - 6) : m.start()]
+            if not _CURRENCY_NEAR.search(pre):
+                return True
+    return False
+
+
 _INVISIBLE_RE = re.compile(r"[\u200b\u200c\u200d\u200f\ufeff]")
 _ARTICLES = frozenset({"the", "a", "an"})
 # Kenar-kırpma: FIDIC taraf-rolü (tek kelime). "authority" YOK — kamu-kurumu
@@ -263,6 +332,7 @@ class MaskSession:
         if not text:
             return text
         text = _strip_invisible(text)
+        self._ingest_regex_spans(text)
         if self._detector is not None:
             self._ingest_detected_spans(self._invoke_detector(self._detector, text))
         pairs = self._combined_mask_pairs()
@@ -311,6 +381,44 @@ class MaskSession:
             self._dynamic_demask[token] = etext
             dynamic_norms.add(norm)
 
+    def _ingest_regex_spans(self, text: str) -> None:
+        """Katman 3: email/IBAN/VAT/KSA-ID → _dynamic. Contract-no yok (TB-62)."""
+        registry_norms = {_normalize(ident) for ident, _tok in self._mask_pairs}
+        dynamic_norms = {_normalize(ident) for ident in self._dynamic}
+        for kind, cre in _STRUCTURAL_RES:
+            for match in cre.finditer(text):
+                etext = match.group(0)
+                if not _usable(etext):
+                    continue
+                if kind in ("VAT", "ID"):
+                    pre = text[max(0, match.start() - 6) : match.start()]
+                    if _CURRENCY_NEAR.search(pre):
+                        continue
+                norm = _normalize(etext)
+                if norm in registry_norms or norm in dynamic_norms:
+                    continue
+                n = self._party_counters.get(kind, 0) + 1
+                self._party_counters[kind] = n
+                token = f"⟦{kind}_{n}⟧"
+                self._dynamic[etext] = token
+                self._dynamic_demask[token] = etext
+                dynamic_norms.add(norm)
+        for m in _IBAN_CAND.finditer(text):
+            cand = _iban_from_candidate(m.group(0))
+            if cand is None:
+                continue
+            if not _usable(cand):
+                continue
+            norm = _normalize(cand)
+            if norm in registry_norms or norm in dynamic_norms:
+                continue
+            n = self._party_counters.get("IBAN", 0) + 1
+            self._party_counters["IBAN"] = n
+            token = f"⟦IBAN_{n}⟧"
+            self._dynamic[cand] = token
+            self._dynamic_demask[token] = cand
+            dynamic_norms.add(norm)
+
     def _combined_mask_pairs(self) -> tuple[tuple[str, str], ...]:
         merged = list(self._mask_pairs) + list(self._dynamic.items())
         merged.sort(key=lambda kv: len(kv[0]), reverse=True)
@@ -346,9 +454,10 @@ class MaskSession:
 
     def has_leak(self, text: str) -> bool:
         """Saf fail-closed doğrulayıcı (INV-MASK-4). Payload'ı DEĞİŞTİRMEZ.
-        True eğer: (a) bozuk-token, (b) registry-taraf ham kalıntısı, (c) leak_detector
-        (mask ile AYNI eşik) allowlist-dışı NER-entity bulursa. Simetri → mask'in
-        maskelediğini bulmaz (over-block yok); kaçırdığını bulursa fail-closed blok.
+        True eğer: (a) bozuk-token, (b) registry-taraf ham kalıntısı, (L3) structural
+        ham (email/IBAN/VAT/ID, mask ile simetrik), (c) leak_detector (mask ile AYNI
+        eşik) allowlist-dışı NER-entity bulursa. Simetri → mask'in maskelediğini
+        bulmaz (over-block yok); kaçırdığını bulursa fail-closed blok.
         recover DEĞİL: has_leak payload'a erişemez, yerel-recover sessiz sızıntı yapardı."""
         if not text:
             return False
@@ -360,6 +469,8 @@ class MaskSession:
             for identity, _token in self._mask_pairs:
                 if _ident_pattern(identity).search(residual):
                     return True
+        if _find_structural(residual):
+            return True
         if self._leak_detector is not None:
             for etext, label in self._invoke_detector(self._leak_detector, residual):
                 if label in LABEL_MAP and not _skip_detected_span(etext):

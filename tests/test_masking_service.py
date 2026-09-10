@@ -93,6 +93,27 @@ def test_a4_has_leak_true_only_for_registry_name():
     assert session.has_leak("letter from nobody") is False
 
 
+def test_a4b_whitespace_flexible_newline_and_overreach():
+    """BULGU-1/S10: PDF satır-kırığı registry'yi kaçırırdı. GLiNER yok."""
+    session = MaskSession.from_identity_map(
+        {
+            "Silverline Construction JV": "⟦CONTRACTOR⟧",
+            "Delta Piling": "⟦ORG_1⟧",
+        }
+    )
+    masked = session.mask(
+        "The Contractor Silverline\nConstruction JV shall proceed."
+    )
+    assert "⟦CONTRACTOR⟧" in masked
+    assert "Silverline" not in masked
+    assert session.has_leak("Silverline\nConstruction JV") is True
+    assert session.has_leak(masked) is False
+    over = session.mask("Delta big Piling submitted a claim.")
+    assert "Delta big Piling" in over
+    assert "⟦ORG_1⟧" not in over
+    assert session.has_leak("Delta big Piling submitted a claim.") is False
+
+
 def test_a5_mask_context_nested_str_values():
     session = MaskSession.from_identity_map({"Acme Corp": _EMPLOYER})
     ctx = {"a": "Acme Corp", "b": ["Acme Corp", {"c": "Acme Corp"}]}

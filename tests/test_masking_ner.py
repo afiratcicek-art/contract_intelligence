@@ -124,8 +124,14 @@ def test_r4_arabic_org_masked():
 
 
 def test_l1_has_leak_unmasked_unregistered():
+    """Kayıtsız dotted legal form (W.L.L.): NER ingest eder ama \\b son '.' +
+    boşlukta sınır bulamazdı → ham sızıntı. Lookaround (?<!\\w)…(?!\\w) tokenler.
+    Ham leftover (mask çağrılmadan) hâlâ has_leak True (INV-MASK-4 fail-closed)."""
     session = _acme_registry_session()
-    assert session.has_leak("Zenith Contracting LLC") is True
+    raw = "Zenith Contracting W.L.L."
+    masked = session.mask(f"{raw} submitted a claim")
+    _assert_masked(masked, raw)
+    assert session.has_leak(raw) is True
 
 
 # --- Bölüm 3: latency profili (çift-NER gerçek maliyet; assert yok) -------

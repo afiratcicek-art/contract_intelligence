@@ -35,6 +35,17 @@ LABEL_MAP = {
     "location": "LOC",
 }
 _TOKEN_RE = re.compile(r"⟦[A-Z_]+(?:_\d+)?⟧")
+_INVISIBLE_RE = re.compile(r"[\u200b\u200c\u200d\u200f\ufeff]")
+_ARTICLES = frozenset({"the", "a", "an"})
+# Kenar-kırpma: FIDIC taraf-rolü (tek kelime). "authority" YOK — kamu-kurumu
+# tam-adını (Riyadh Development Authority) parçalamasın.
+_EDGE_ROLES = frozenset({
+    "engineer", "employer", "contractor", "subcontractor", "sub contractor",
+    "consultant", "client", "company", "party", "parties",
+    "المهندس", "مهندس", "المقاول", "مقاول",
+    "الشركة", "شركة", "العميل", "عميل",
+    "الطرف", "طرف", "الأطراف", "أطراف",
+})
 
 # Jenerik FIDIC rol/kurum/enstrüman terimleri + kamu — TARAF ADI DEĞİL.
 # Tam-eşleşme (normalize) ile atlanır; "engineer" atlanır, "Engineer Khalid" atlanmaz.
@@ -43,6 +54,7 @@ _TOKEN_RE = re.compile(r"⟦[A-Z_]+(?:_\d+)?⟧")
 _DONT_MASK = frozenset({
     # roller
     "engineer", "employer", "contractor", "subcontractor", "sub-contractor",
+    "sub contractor",
     "nominated subcontractor", "employer's representative", "engineer's representative",
     "consultant", "client", "company", "authority", "party", "parties",
     "dab", "daab", "dispute board", "dispute adjudication board",
@@ -117,7 +129,8 @@ _STANDARD_TAILS = frozenset({
 
 
 def _normalize_allow(s: str) -> str:
-    """Allowlist eşleşmesi için normalize: casefold + trim + baştaki 'the '/'al-' at.
+    """Allowlist eşleşmesi için normalize: casefold + trim + baştaki 'the '/'al-' at
+    + tire→boşluk + sondaki iyelik ('s / ’s).
     NOT: Arapça 'ال' (el-takısı) STRIP EDİLMEZ — özel-ad parçalama riski (العتيبي/الراشد);
     Arapça terimler allowlist'e ال'li + ال'siz iki formda yazılır (Fix-C)."""
     t = s.strip().casefold()
@@ -125,7 +138,38 @@ def _normalize_allow(s: str) -> str:
         if t.startswith(prefix):
             t = t[len(prefix):].strip()
             break
+    t = " ".join(t.replace("-", " ").split())
+    if t.endswith("'s") or t.endswith("\u2019s"):
+        t = t[:-2].rstrip()
     return t
+
+
+def _strip_invisible(text: str) -> str:
+    """NBSP→space; zero-width/BOM sil. Anlam taşımaz; tersinirlik gerekmez."""
+    return _INVISIBLE_RE.sub("", text.replace("\u00a0", " "))
+
+
+def _trim_allowlisted_edges(etext: str) -> str:
+    """'The Contractor Silverline…' → 'Silverline…'. Ortadaki kelimeye dokunma.
+    Sonuç boşalırsa orijinali koru. Ltd gibi hukuki son ek kırpılmaz."""
+    parts = etext.split()
+    if not parts:
+        return etext
+    while parts:
+        n = _normalize_allow(parts[0])
+        if n in _ARTICLES or n in _EDGE_ROLES:
+            parts.pop(0)
+            continue
+        break
+    while parts:
+        n = _normalize_allow(parts[-1])
+        if n in _EDGE_ROLES:
+            parts.pop()
+            continue
+        break
+    if not parts:
+        return etext
+    return " ".join(parts)
 
 
 def _is_standard_span(etext: str) -> bool:
@@ -159,6 +203,19 @@ def _usable(name: Any) -> bool:
         return False
     stripped = name.strip()
     return len(stripped) >= _MIN_IDENTITY_LEN
+
+
+def _ident_pattern(identity: str) -> re.Pattern:
+    """Word-bounded + whitespace-flexible: çok-kelimeli kimlik satır-sonu/çoklu
+    boşlukla bölünse de eşleşir ('A B' -> 'A\\nB', 'A  B'). Tek-kelime kimlik
+    öncekiyle aynı. Ortaya başka kelime giremez (\\s+ yalnız boşluk-koşusu).
+    Neden: PDF parse taraf adını satıra böler → registry/has_leak whitespace-literal
+    olduğu için bilinen taraf sessiz sızardı (BULGU-1, S10 sınıfı)."""
+    toks = identity.split()
+    if not toks:
+        return re.compile(r"(?!x)x")
+    body = r"\s+".join(re.escape(t) for t in toks)
+    return re.compile(rf"(?<!\w){body}(?!\w)", re.IGNORECASE)
 
 
 @dataclass
@@ -205,6 +262,7 @@ class MaskSession:
         """Replace known identities with tokens (case-insensitive, whole-word, long first)."""
         if not text:
             return text
+        text = _strip_invisible(text)
         if self._detector is not None:
             self._ingest_detected_spans(self._invoke_detector(self._detector, text))
         pairs = self._combined_mask_pairs()
@@ -212,11 +270,10 @@ class MaskSession:
             return text
         out = text
         for identity, token in pairs:
-            pattern = re.compile(
-                rf"\b{re.escape(identity)}\b",
-                re.IGNORECASE,
-            )
-            out = pattern.sub(token, out)
+            # Kenar: identity '.' ile bitse re.escape kaçırır; \w '.' saymaz
+            # → W.L.L. + boşluk eşleşir. ZenithX (bitişik \w) eşleşmez.
+            # Registry/NER span'leri trimli (baş/son boşluk yok).
+            out = _ident_pattern(identity).sub(token, out)
         return out
 
     def _invoke_detector(
@@ -238,6 +295,9 @@ class MaskSession:
         dynamic_norms = {_normalize(ident) for ident in self._dynamic}
         for etext, label in spans:
             if not _usable(etext) or label not in LABEL_MAP:
+                continue
+            etext = _trim_allowlisted_edges(etext)
+            if not _usable(etext):
                 continue
             if _skip_detected_span(etext):
                 continue
@@ -285,20 +345,23 @@ class MaskSession:
         return out
 
     def has_leak(self, text: str) -> bool:
-        """Maskeleme SONRASI ham kimlik kaldı mı. Token'lar (zaten-maskeli) leak DEĞİL.
-        Fail-closed: token çıkarıldıktan sonra ⟦/⟧ artığı (bozuk token) kalırsa → True."""
+        """Saf fail-closed doğrulayıcı (INV-MASK-4). Payload'ı DEĞİŞTİRMEZ.
+        True eğer: (a) bozuk-token, (b) registry-taraf ham kalıntısı, (c) leak_detector
+        (mask ile AYNI eşik) allowlist-dışı NER-entity bulursa. Simetri → mask'in
+        maskelediğini bulmaz (over-block yok); kaçırdığını bulursa fail-closed blok.
+        recover DEĞİL: has_leak payload'a erişemez, yerel-recover sessiz sızıntı yapardı."""
         if not text:
             return False
+        text = _strip_invisible(text)
         residual = _TOKEN_RE.sub(" ", text)
         if "⟦" in residual or "⟧" in residual:
-            return True  # bozuk/yarım token → şüpheli, fail-closed
+            return True
         if self._mask_pairs:
             for identity, _token in self._mask_pairs:
-                if re.search(rf"\b{re.escape(identity)}\b", residual, re.IGNORECASE):
+                if _ident_pattern(identity).search(residual):
                     return True
         if self._leak_detector is not None:
-            spans = self._invoke_detector(self._leak_detector, residual)
-            for etext, label in spans:
+            for etext, label in self._invoke_detector(self._leak_detector, residual):
                 if label in LABEL_MAP and not _skip_detected_span(etext):
                     return True
         return False
@@ -396,7 +459,7 @@ class MaskingProvider:
         return MaskSession.from_identity_map(
             identity_to_token,
             detector=lambda t: detect_identity_spans(t),
-            leak_detector=lambda t: detect_identity_spans(t, threshold=0.25),
+            leak_detector=lambda t: detect_identity_spans(t, threshold=_LEAK_THRESHOLD),
         )
 
     def _register_role(
@@ -487,6 +550,7 @@ class MaskingProvider:
 _NER_MODEL_NAME = "urchade/gliner_multi-v2.1"  # vendor-pin (INV-MASK-2)
 _IDENTITY_LABELS = ["person", "organization", "location"]
 _NER_THRESHOLD = 0.4  # recall-öncelik (INV-MASK-4); S3'te tune
+_LEAK_THRESHOLD = _NER_THRESHOLD  # has_leak = mask ile SİMETRİK (INV-MASK-4). Asimetri (leak<mask) = TB-64 over-block; tek-kaynak → drift imkansız.
 _ner_model = None  # process-lifetime singleton
 
 

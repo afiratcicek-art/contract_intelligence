@@ -25,7 +25,11 @@ Katman 2b — Don't-mask allowlist (precision): kamu-kurumu/jenerik terim listes
 
 Katman 3 — Regex/yapısal katman (deterministik, format-tanımlı): YAPISAL tanımlayıcılar => email, telefon, IBAN, ulusal-ID/Iqama, VAT, CR. Bunlar checksum/sabit-format taşır => regex GÜÇLÜ, GLiNER zayıf (bu oturum: email->PERSON@ORG parçalanması). Belge/referans-no (LC/fatura/bond/promissory) = AÇIK ALT-SORUN (TB-62).
 
-Katman 4 — has_leak-upgrade (fail-closed): registry-string-scan + NER-entity-scan (finansal-etiket dahil: ["contract price","document number"] @0.25 agresif). Bu oturum ölçtü: finansal-etiketli leak-net kaçış-kurtarma %4.9->%63-93. Maskeli çıktıda artık-entity varsa => gate-block.
+Katman 4 — has_leak (INV-MASK-4): saf fail-closed doğrulayıcı; payload'ı DEĞİŞTİRMEZ; mask ile SİMETRİK eşik (@0.40). Blok = bozuk-token ∪ registry-ham ∪ allowlist-dışı NER-entity (mask-eşiğinde). Simetri → mask'in maskelediğini has_leak tekrar entity sanmaz (over-block yok); kaçırdığını bulursa True. recover yok.
+
+Reddedilen alternatifler:
+- (a) asimetrik has_leak (mask'ten agresif, örn. @0.25 / @0.15) → over-block [TB-64].
+- (b) recover-in-has_leak (yerel kopyayı maskele, payload'a yazma) → payload/verdict uyuşmazlığı, sessiz egress [bu oturum: اتف BLOCK→LEAK ölçüldü].
 
 TUTAR (Katman 2 içinde, özel işlem — 2026-08-20 B1 kilit): para => proje-scope gizli faktör k ile ÖLÇEKLE (lineer, precompute). Token = görünür-proxy AMT_n:proxy = (a) görünür ölçekli-sayı [Claude oran/aritmetik yapar], (b) "maskeli-vekil, gerçek değil" sarması [Ali istedi], (c) demask çıpası. %/gün/madde MASKELENMEZ (ölçek-değişmez + LD muhakemesi). Demask 3-durum: proxy-aynen->geri-map / Claude-yeni-sayı->böl-k / oran-%->dokunma. Kesinlik gerekince hesap YERELDE gerçek-değerle, Claude yorum için.
 
@@ -41,12 +45,16 @@ S2a (GLiNER altyapı) + S2b (chokepoint wiring) + S3 (recall kanıtı) BU OTURUM
 - INV-MASK-9 (şema-tutarlılık): etiket-şeması (sınıflar + negatif-label) fine-tune veri-üreticisiyle aynı => Faz-3 sürtünmesiz.
 - INV-MASK-10 (katman sırası): registry+acronym (deterministik) => regex (yapısal) => GLiNER (kalan) => allowlist-filtre => has_leak. Deterministik/yapısal katmanlar NER'den ÖNCE.
 - INV-MASK-11 (registry precedence): Katman-1 registry, Katman-2b allowlist'ten BAĞIMSIZ ve ondan önce uygulanır (ayrı kanal: registry `_mask_pairs` üzerinden `\b`-substitüsyon; allowlist yalnız NER→dynamic yolunu keser). Bir kamu-kurumu adı allowlist'te OLSA BİLE, o kurum bu projenin TARAFI olarak registry'ye kayıtlıysa registry rol-token'ı (`⟦EMPLOYER⟧` vb.) kazanır. Allowlist'in anlamı "kayıtsız dış-kurum/regülatör maskelenmesin" (bağlam korunur), "bu isim asla token olmasın" DEĞİL. Örnek: JEDCO (taraf→registry→`⟦EMPLOYER⟧`) vs GACA (dış-regülatör→allowlist→ham). Bespoke: aynı kurum bir sözleşmede taraf, başkasında regülatör olabilir; registry-üyeliği ayrımı yapar, statik liste değil.
-- ARTIK-RİSK (adlandırılır, papering yok): kayıtsız-taraf + NER-imperfect => fail-closed/over-mask + acronym ile sınırlı ama sıfır DEĞİL. Serbest-format belge-no toxic %7.6 = zero-shot sınırı, SIZINTI DEĞİL (gizli kalır, demask-bozulması).
+- INV-MASK-4 (has_leak = saf fail-closed doğrulayıcı): mask ile SİMETRİK eşik; payload'ı değiştirmez; recover yok. Blok = bozuk-token ∪ registry-ham ∪ allowlist-dışı NER-entity (mask-eşiğinde). Simetri → over-block yok. Reddedilen: (a) asimetrik has_leak (mask'ten agresif) → over-block [TB-64]; (b) recover-in-has_leak (yerel kopyayı maskele) → payload/verdict uyuşmazlığı, sessiz egress [bu oturum: اتف BLOCK→LEAK ölçüldü].
+- ARTIK-RİSK (adlandırılır, papering yok): kayıtsız-taraf + NER-imperfect => fail-closed/over-mask + acronym ile sınırlı ama sıfır DEĞİL. Serbest-format belge-no toxic %7.6 = zero-shot sınırı, SIZINTI DEĞİL (gizli kalır, demask-bozulması). Mask-eşiği-altı garbled fragment (ör. اتف) NER-görünmez → registry (birincil) + gerçek-bağlam NER (--local) + parse ile kapanır; has_leak'in işi değil.
 
 ## İzleme-tetikleri
 - Fine-tune (Faz-3): fizibilite doğrulandı (gliner.train_model + {tokenized_text,ner} + ner_negatives + GPU bulut/segment-B). Hedef: serbest-format belge-no toxic %7.6->~%2, trap-FP->min. Veri = STAT-şablonu + gerçek-pilot (INV-DATA sonrası).
 - Slice-Y (lokal embedding): pdf_pipeline_service.py:181 ham clean_text maskesiz embed edecek => precompute-maske embedding'i de sarmalı (TB-63). Bugün kanal ölü.
 - Recall AR eşik-altı => NAMAA arabic-fine-tune model.
+- TB-67: _trim_allowlisted_edges kenar-kelimeyi (Client/Company) kırpıp ham bırakabilir; ayırt-edici kısım maskeli, düşük risk, precision-tune bekliyor.
+- INV-MASK sub: mask/has_leak substitüsyonu \b DEĞİL (?<!\w)…(?!\w) lookaround — dotted legal form (W.L.L./LLC./Co.) \b'de sınır bulamıyordu (sızıntı). \b'ye geri döndürme. Neg: ZenithX↛Zenith.
+- INV-MASK sub whitespace-esnek (\s+): satır-sonu/çoklu-boşlukla bölünen bilinen taraf (S10) deterministik kapanır; NER(c)'ye bağımlı değil. Ortaya kelime girmez.
 
 ## Doğurduğu TB'ler
 - TB-62: serbest-format belge/referans-no (LC/fatura/bond/promissory) sınıflandırma — regex kırılgan (Ali: typo/format sonsuz) + GLiNER %7.6 toxic. Pilot: fail-closed+over-mask+has_leak-net. Fine-tune Faz-3 hedefi. Sonraki oturumda taze-test edilecek.

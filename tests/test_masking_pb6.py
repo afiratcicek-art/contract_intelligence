@@ -189,3 +189,75 @@ def test_pb6_eid_d_non784_15digit_is_vat():
     assert "⟦VAT_1⟧" in masked
     assert "⟦EID_" not in masked
     assert session.has_leak(_VAT_NO_784) is True
+
+
+# --- P-B6 L1b acronym auto-alias (acronym-bare) -----------------------------
+
+_ALIAS_FULL = "Falcon Ridge Contracting W.L.L."
+_ALIAS_TOKEN = "⟦CONTRACTOR⟧"
+_ALIAS_ACR = "FRC"
+
+
+def test_pb6_alias_a_same_token_and_next_pass():
+    """(a) Registry Full Name (FRC) + later bare FRC → same token.
+    Alias is mask-time (_dynamic); a later mask() on the same session
+    also masks bare FRC. has_leak is not an ACR backstop (untouched)."""
+    session = MaskSession.from_identity_map({_ALIAS_FULL: _ALIAS_TOKEN})
+    text = (
+        f"{_ALIAS_FULL} ({_ALIAS_ACR}) (hereinafter the Contractor) "
+        f"shall perform the Works. Thereafter {_ALIAS_ACR} shall submit."
+    )
+    masked = session.mask(text)
+    assert _ALIAS_FULL not in masked
+    assert _ALIAS_ACR not in masked
+    assert masked.count(_ALIAS_TOKEN) >= 2
+    assert session._dynamic.get(_ALIAS_ACR) == _ALIAS_TOKEN
+    later = session.mask(f"{_ALIAS_ACR} shall proceed.")
+    assert _ALIAS_ACR not in later
+    assert _ALIAS_TOKEN in later
+
+
+def test_pb6_alias_b_unmasked_full_name_no_alias():
+    """(b) Full Name not masked (empty registry, dummy detector) → no FRC alias."""
+    session = MaskSession.from_identity_map({}, detector=lambda t: [])
+    text = (
+        f"{_ALIAS_FULL} ({_ALIAS_ACR}) shall perform. "
+        f"Thereafter {_ALIAS_ACR} shall submit."
+    )
+    masked = session.mask(text)
+    assert _ALIAS_FULL in masked
+    assert _ALIAS_ACR in masked
+    assert "⟦" not in masked
+
+
+def test_pb6_alias_c_allowlist_not_aliased():
+    """(c) allowlist ACR inside (NDA)/(IFC) is not aliased; bare NDA/IFC kept."""
+    session = MaskSession.from_identity_map({_ALIAS_FULL: _ALIAS_TOKEN})
+    nda = f"{_ALIAS_FULL} (NDA) was executed. Thereafter NDA remains binding."
+    masked_nda = session.mask(nda)
+    assert "NDA" in masked_nda
+    assert masked_nda.count(_ALIAS_TOKEN) == 1
+
+    # IFC: not in product _DONT_MASK. Alias only if predecessor is already
+    # masked — generic "drawings (IFC)" must not swallow the doc-type ACR.
+    ifc_session = MaskSession.from_identity_map({_ALIAS_FULL: _ALIAS_TOKEN})
+    ifc = "The drawings (IFC) are issued for construction. Thereafter IFC remains."
+    masked_ifc = ifc_session.mask(ifc)
+    assert "IFC" in masked_ifc
+    assert _ALIAS_TOKEN not in masked_ifc
+
+
+def test_pb6_alias_d_demask_opens_to_full_name():
+    """(d) ACR alias demasks to canonical Full Name (no extra demask entry)."""
+    session = MaskSession.from_identity_map({_ALIAS_FULL: _ALIAS_TOKEN})
+    text = (
+        f"{_ALIAS_FULL} ({_ALIAS_ACR}) shall perform. "
+        f"Thereafter {_ALIAS_ACR} shall submit."
+    )
+    masked = session.mask(text)
+    opened = session.demask(masked)
+    assert _ALIAS_TOKEN not in opened
+    assert "⟦" not in opened
+    assert _ALIAS_FULL in opened
+    assert _ALIAS_ACR not in opened
+    assert opened.count(_ALIAS_FULL) >= 2

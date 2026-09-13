@@ -291,6 +291,13 @@ def _ident_pattern(identity: str) -> re.Pattern:
     return re.compile(rf"(?<!\w){body}(?!\w)", re.IGNORECASE)
 
 
+# L1b: "Full Name (ACR)" — ACR is 2–6 uppercase letters, optional dots (F.R.C.).
+_ACR_DEF_RE = re.compile(
+    r"(?P<full>\w[\w.&'’\-/]*(?:\s+\w[\w.&'’\-/]*)*)"
+    r"\s*\(\s*(?P<acr>[A-Z]{2,6}|[A-Z](?:\.[A-Z]){1,5}\.?)\s*\)"
+)
+
+
 @dataclass
 class MaskSession:
     """real identity string → ⟦TOKEN⟧ and reverse; identities sorted long→short."""
@@ -339,6 +346,7 @@ class MaskSession:
         self._ingest_regex_spans(text)
         if self._detector is not None:
             self._ingest_detected_spans(self._invoke_detector(self._detector, text))
+        self._ingest_acronym_aliases(text)
         pairs = self._combined_mask_pairs()
         if not pairs:
             return text
@@ -384,6 +392,40 @@ class MaskSession:
             self._dynamic[etext] = token
             self._dynamic_demask[token] = etext
             dynamic_norms.add(norm)
+
+    def _ingest_acronym_aliases(self, text: str) -> None:
+        """Bind 'Full Name (ACR)' → already-masked Full Name token. No new demask
+        entry: token still opens to the canonical full name (bijection preserved).
+        Alias only if Full Name is already in registry or _dynamic; allowlisted
+        ACR (NDA/SAMA/…) is skipped. Request-scoped via _dynamic."""
+        masked = list(self._mask_pairs) + list(self._dynamic.items())
+        if not masked:
+            return
+        masked.sort(key=lambda kv: len(kv[0]), reverse=True)
+        occupied = {_normalize(ident) for ident, _tok in masked}
+        for m in _ACR_DEF_RE.finditer(text):
+            full = m.group("full").strip()
+            acr = m.group("acr")
+            compact = re.sub(r"[^A-Z]", "", acr)
+            if not (2 <= len(compact) <= 6):
+                continue
+            if _skip_detected_span(acr) or _skip_detected_span(compact):
+                continue
+            token = None
+            for ident, tok in masked:
+                hit = _ident_pattern(ident).search(full)
+                if hit is not None and hit.end() == len(full):
+                    token = tok
+                    break
+            if token is None:
+                continue
+            for surface in dict.fromkeys((acr, compact)):
+                if _normalize(surface) in occupied:
+                    continue
+                if _skip_detected_span(surface):
+                    continue
+                self._dynamic[surface] = token
+                occupied.add(_normalize(surface))
 
     def _ingest_regex_spans(self, text: str) -> None:
         """Katman 3: email/IBAN/VAT/KSA-ID → _dynamic. Contract-no yok (TB-62)."""

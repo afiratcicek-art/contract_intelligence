@@ -675,15 +675,116 @@ def _get_ner_model():
     return _ner_model
 
 
+_NER_WS_TOKEN = re.compile(r"\w+(?:[-_]\w+)*|\S")
+_NER_WINDOW_MARGIN = 64  # WINDOW = config.max_len - margin
+_NER_WINDOW_OVERLAP = 40  # tokens
+
+
+def _ner_max_len(model: Any) -> int:
+    """Read GLiNER truncation limit from model config (do not hardcode 384)."""
+    return int(getattr(getattr(model, "config", None), "max_len", 384))
+
+
+def _ner_token_char_spans(model: Any, text: str) -> list[tuple[int, int]]:
+    """Character (start, end) per GLiNER word token. Whitespace fallback if
+    the splitter/tokenizer is unreachable (conservative: punctuation is a token).
+    """
+    dp = getattr(model, "data_processor", None)
+    splitter = getattr(dp, "words_splitter", None) if dp is not None else None
+    if splitter is not None:
+        try:
+            spans = []
+            for item in splitter(text):
+                if not (isinstance(item, (tuple, list)) and len(item) >= 3):
+                    spans = []
+                    break
+                spans.append((int(item[1]), int(item[2])))
+            if spans:
+                return spans
+        except (TypeError, ValueError, AttributeError):
+            pass
+    tok = None
+    if dp is not None:
+        tok = getattr(dp, "transformer_tokenizer", None)
+    if tok is None:
+        tok = getattr(model, "tokenizer", None)
+    if tok is not None:
+        try:
+            enc = tok(text, add_special_tokens=False, return_offsets_mapping=True)
+            mapping = enc["offset_mapping"]
+            spans = [(int(s), int(e)) for s, e in mapping if e > s]
+            if spans:
+                return spans
+        except (TypeError, ValueError, AttributeError, KeyError):
+            pass
+    return [(m.start(), m.end()) for m in _NER_WS_TOKEN.finditer(text)]
+
+
+def _ner_windows(
+    text: str,
+    spans: list[tuple[int, int]],
+    window: int,
+    overlap: int,
+) -> list[str]:
+    """Slice `text` into token-bounded windows. One item == whole text (no split)."""
+    if window < 1:
+        window = 1
+    if overlap < 0:
+        overlap = 0
+    if overlap >= window:
+        overlap = window - 1 if window > 1 else 0
+    n = len(spans)
+    if n == 0 or n <= window:
+        return [text]
+    out: list[str] = []
+    start_i = 0
+    while start_i < n:
+        end_i = min(n, start_i + window)
+        char_start = 0 if start_i == 0 else spans[start_i][0]
+        char_end = len(text) if end_i >= n else spans[end_i - 1][1]
+        if char_end < char_start:
+            char_end = char_start
+        out.append(text[char_start:char_end])
+        if end_i >= n:
+            break
+        nxt = end_i - overlap
+        start_i = start_i + 1 if nxt <= start_i else nxt
+    return out
+
+
+def _union_preds_by_entity_text(batched: list) -> list[tuple[str, str]]:
+    """Union-by-entity_text; first label wins. No offset merge."""
+    seen: set[str] = set()
+    out: list[tuple[str, str]] = []
+    for preds in batched:
+        for pred in preds:
+            etext = pred["text"]
+            if not etext or etext in seen:
+                continue
+            seen.add(etext)
+            out.append((etext, pred["label"]))
+    return out
+
+
 def detect_identity_spans(
     text: str, threshold: float | None = None
 ) -> list[tuple[str, str]]:
     """(entity_text, label) listesi. Boş/kısa metin → []. Model/inference hatası
     PROPAGATE eder (çağıran fail-closed: build()→None, INV-MASK-3).
+    Long text is windowed at GLiNER token limits; short text is unchanged.
     """
     if not _usable(text):
         return []
     model = _get_ner_model()
     thresh = _NER_THRESHOLD if threshold is None else threshold
-    preds = model.predict_entities(text, _IDENTITY_LABELS, threshold=thresh)
-    return [(pred["text"], pred["label"]) for pred in preds]
+    max_len = _ner_max_len(model)
+    window = max_len - _NER_WINDOW_MARGIN
+    spans = _ner_token_char_spans(model, text)
+    windows = _ner_windows(text, spans, window, _NER_WINDOW_OVERLAP)
+    if len(windows) <= 1:
+        preds = model.predict_entities(text, _IDENTITY_LABELS, threshold=thresh)
+        return [(pred["text"], pred["label"]) for pred in preds]
+    batched = model.batch_predict_entities(
+        windows, _IDENTITY_LABELS, threshold=thresh
+    )
+    return _union_preds_by_entity_text(batched)

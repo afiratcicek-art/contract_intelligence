@@ -40,10 +40,12 @@ _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _IBAN_CAND = re.compile(r"\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b")
 _VAT_RE = re.compile(r"\b\d{15}\b")
 _ID_RE = re.compile(r"\b[12]\d{9}\b")
+_EID_RE = re.compile(r"\b784[-\s]?\d{4}[-\s]?\d{7}[-\s]?\d\b")
 # ID/VAT: tutar bağlamındaki çıplak sayıyı yakalama (amount-proxy'nin işi, TB-değil ayrım)
 _CURRENCY_NEAR = re.compile(r"(?:SAR|SR|USD|EUR|﷼|\$)\s*$")
 _STRUCTURAL_RES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("EMAIL", _EMAIL_RE),
+    ("EID", _EID_RE),  # before VAT: compact 784… 15-digit must not become ⟦VAT⟧
     ("VAT", _VAT_RE),
     ("ID", _ID_RE),
 )
@@ -95,6 +97,8 @@ def _find_structural(text: str) -> bool:
         cand = m.group(0)
         if _iban_from_candidate(cand):
             return True
+    if _EID_RE.search(text):
+        return True
     # VAT/ID: currency-guard'lı (amount-proxy'ye ait olanı leak sayma — mask ile aynı kural)
     for cre in (_VAT_RE, _ID_RE):
         for m in cre.finditer(text):

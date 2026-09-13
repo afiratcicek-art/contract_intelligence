@@ -6,7 +6,7 @@ import re
 import pytest
 
 from backend.services import masking_service as ms
-from backend.services.masking_service import detect_identity_spans
+from backend.services.masking_service import MaskSession, detect_identity_spans
 
 _SPLIT_RE = re.compile(r"\w+(?:[-_]\w+)*|\S")
 _BURIED = "Northwind Placeholder Ltd."
@@ -136,3 +136,56 @@ def test_pb6_empty_still_empty(monkeypatch):
     assert detect_identity_spans("a") == []
     assert fake.predict_calls == []
     assert fake.batch_calls == []
+
+
+# --- P-B6 Emirates ID L3 (uae-emirates-id; no GLiNER) ----------------------
+
+_EID_HYPHEN = "784-2019-1234567-1"
+_EID_SPACE = "784 2019 1234567 1"
+_EID_COMPACT = "784201912345671"
+_KSA_NATIONAL = "1098765432"
+_KSA_IQAMA = "2098765432"
+_VAT_NO_784 = "310175397400003"
+
+
+def test_pb6_eid_a_mask_variants():
+    """(a) Hyphen / space / compact Emirates ID → ⟦EID_n⟧."""
+    session = MaskSession.from_identity_map({})
+    for raw in (_EID_HYPHEN, _EID_SPACE, _EID_COMPACT):
+        masked = session.mask(f"Emirates ID {raw} on file.")
+        assert raw not in masked, raw
+        assert "⟦EID_" in masked, masked
+        assert "⟦VAT_" not in masked, masked
+
+
+def test_pb6_eid_b_has_leak_raw():
+    """(b) has_leak flags raw Emirates ID (fail-closed, mask-symmetric)."""
+    session = MaskSession.from_identity_map({})
+    for raw in (_EID_HYPHEN, _EID_SPACE, _EID_COMPACT):
+        assert session.has_leak(raw) is True, raw
+        masked = session.mask(raw)
+        assert session.has_leak(masked) is False, masked
+
+
+def test_pb6_eid_c_ksa_and_vat_unchanged():
+    """(c) KSA 10-digit 1/2-prefix and non-784 VAT are not swallowed by EID."""
+    session = MaskSession.from_identity_map({})
+    text = f"ID {_KSA_NATIONAL} Iqama {_KSA_IQAMA} VAT {_VAT_NO_784}"
+    masked = session.mask(text)
+    assert _KSA_NATIONAL not in masked
+    assert _KSA_IQAMA not in masked
+    assert _VAT_NO_784 not in masked
+    assert "⟦ID_1⟧" in masked
+    assert "⟦ID_2⟧" in masked
+    assert "⟦VAT_1⟧" in masked
+    assert "⟦EID_" not in masked
+
+
+def test_pb6_eid_d_non784_15digit_is_vat():
+    """(d) Random 15-digit without 784 prefix is VAT, not EID."""
+    session = MaskSession.from_identity_map({})
+    masked = session.mask(f"VAT {_VAT_NO_784}")
+    assert _VAT_NO_784 not in masked
+    assert "⟦VAT_1⟧" in masked
+    assert "⟦EID_" not in masked
+    assert session.has_leak(_VAT_NO_784) is True
